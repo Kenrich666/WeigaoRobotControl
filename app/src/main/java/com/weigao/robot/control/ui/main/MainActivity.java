@@ -40,6 +40,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.btn_item_delivery).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, DeliveryActivity.class);
+                intent.putExtra("delivery_type", "物品配送");
+                startActivity(intent);
+            }
+        });
+
+        findViewById(R.id.btn_loop_delivery).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, CircularDeliveryActivity.class);
+                intent.putExtra("delivery_type", "循环配送");
+                startActivity(intent);
+            }
+        });
+
         requestPermission();
     }
 

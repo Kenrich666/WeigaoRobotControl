@@ -30,6 +30,8 @@
             </intent-filter>
         </activity>
         <activity android:name=".ui.main.SettingsActivity" />
+        <activity android:name=".ui.main.DeliveryActivity" />
+        <activity android:name=".ui.main.CircularDeliveryActivity" />
     </application>
 
 </manifest>
