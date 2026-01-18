@@ -1,15 +1,145 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# ==================================
+# 1. Antigravity IDE 专属配置 (核心)
+# ==================================
+# Antigravity 项目配置目录 (包含个人偏好和窗口布局)
+.antigravity/
+
+# 智能体上下文缓存 (Agent Context Cache)
+# 这是一个巨大的缓存文件夹，用于存储 AI 对整个项目的理解索引，绝对不能提交
+.ag_cache/
+.ag_context/
+
+# 智能体执行日志与历史
+# 包含你与 AI 的所有对话记录和 Agent 的思考过程
+agent_logs/
+.history/
+*.ag_chat
+*.ag_log
+
+# 临时工作区文件
+*.agworkspace
+.ag_state
+
+# 本地生成的 Prompt 模板 (如果是私有的)
+.prompts/private/
+
+# ==================================
+# 2. Android 标准构建产物
+# ==================================
+# Gradle 构建缓存
+.gradle/
+# 编译输出目录 (APK, class, dex 等)
+build/
+app/build/
+# 外部原生构建 (C/C++)
+.cxx/
+.externalNativeBuild/
+
+# ==================================
+# 3. 敏感配置文件 (安全)
+# ==================================
+# SDK 路径与本地环境配置
 local.properties
+# 密钥库文件 (严禁提交)
+*.jks
+*.keystore
+*.pem
+
+# ==================================
+# 4. 其他 IDE 配置 (兼容性)
+# ==================================
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code (Antigravity 基于 VS Code 架构，可能会生成此目录)
+.vscode/
+.trae/
+
+# ==================================
+# 5. 系统生成文件
+# ==================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==================================
+# 6. 威高项目特殊规则
+# ==================================
+# 再次强调：必须保留 libs 目录下的 SDK，否则队友无法编译
+!libs/*.aar
+!libs/*.jar# ==================================
+# 1. Antigravity IDE 专属配置 (核心)
+# ==================================
+# Antigravity 项目配置目录 (包含个人偏好和窗口布局)
+.antigravity/
+
+# 智能体上下文缓存 (Agent Context Cache)
+# 这是一个巨大的缓存文件夹，用于存储 AI 对整个项目的理解索引，绝对不能提交
+.ag_cache/
+.ag_context/
+
+# 智能体执行日志与历史
+# 包含你与 AI 的所有对话记录和 Agent 的思考过程
+agent_logs/
+.history/
+*.ag_chat
+*.ag_log
+
+# 临时工作区文件
+*.agworkspace
+.ag_state
+
+# 本地生成的 Prompt 模板 (如果是私有的)
+.prompts/private/
+
+# ==================================
+# 2. Android 标准构建产物
+# ==================================
+# Gradle 构建缓存
+.gradle/
+# 编译输出目录 (APK, class, dex 等)
+build/
+app/build/
+# 外部原生构建 (C/C++)
+.cxx/
+.externalNativeBuild/
+
+# ==================================
+# 3. 敏感配置文件 (安全)
+# ==================================
+# SDK 路径与本地环境配置
+local.properties
+# 密钥库文件 (严禁提交)
+*.jks
+*.keystore
+*.pem
+
+# ==================================
+# 4. 其他 IDE 配置 (兼容性)
+# ==================================
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code (Antigravity 基于 VS Code 架构，可能会生成此目录)
+.vscode/
+.trae/
+
+# ==================================
+# 5. 系统生成文件
+# ==================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==================================
+# 6. 威高项目特殊规则
+# ==================================
+# 再次强调：必须保留 libs 目录下的 SDK，否则队友无法编译
+!libs/*.aar
+!libs/*.jar

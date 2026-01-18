@@ -4,19 +4,13 @@ plugins {
 
 android {
     namespace 'com.weigao.robot.control'
-
-    // 保持您原本的 SDK 版本设置
-    compileSdk {
-        // 注意：如果是新项目，建议使用稳定的 34 (Android 14) 或 35
-        // 如果 36 是您的特定预览版环境，请保留；否则建议改为 compileSdk 34
-        // version = release(36)
-    }
-    compileSdk 34 // 推荐使用标准写法，若您确定环境支持 36 请改回
+    
+    compileSdk 34 
 
     defaultConfig {
         applicationId "com.weigao.robot.control"
-        minSdk 21 // 必须 >= 21
-        targetSdk 34 // 推荐与 compileSdk 保持一致
+        minSdk 21 
+        targetSdk 34 
         versionCode 1
         versionName "1.0"
 
@@ -30,31 +24,33 @@ android {
         }
     }
 
-    // 【关键配置】Peanut SDK 集成必须项
-    // 用于解决 SDK 内部依赖文件重复导致的编译冲突
-    packagingOptions {
-        pickFirst 'about.html'
-        pickFirst 'edl-v10.html'
-        pickFirst 'epl-v10.html'
-        pickFirst 'notice.html'
-        pickFirst 'META-INF/legal/LICENSE'
-        pickFirst 'META-INF/legal/NOTICE.md'
-        pickFirst 'META-INF/legal/3rd-party/cc0-legalcode.html'
-        pickFirst 'META-INF/legal/3rd-party/BSD-3-Clause-LICENSE.txt'
-        pickFirst 'META-INF/legal/3rd-party/APACHE-LICENSE-2.0.txt'
-        pickFirst 'META-INF/legal/3rd-party/MIT-license.html'
-        pickFirst 'META-INF/legal/3rd-party/CDDL+GPL-1.1.txt'
+    packaging {
+        resources {
+            pickFirst 'about.html'
+            pickFirst 'edl-v10.html'
+            pickFirst 'epl-v10.html'
+            pickFirst 'notice.html'
+            pickFirst 'META-INF/legal/LICENSE'
+            pickFirst 'META-INF/legal/NOTICE.md'
+            pickFirst 'META-INF/legal/3rd-party/cc0-legalcode.html'
+            pickFirst 'META-INF/legal/3rd-party/BSD-3-Clause-LICENSE.txt'
+            pickFirst 'META-INF/legal/3rd-party/APACHE-LICENSE-2.0.txt'
+            pickFirst 'META-INF/legal/3rd-party/MIT-license.html'
+            pickFirst 'META-INF/legal/3rd-party/CDDL+GPL-1.1.txt'
+            // 如果遇到 "More than one file was found with OS independent path 'META-INF/DEPENDENCIES'" 错误，请取消下面这行的注释
+            // pickFirst 'META-INF/DEPENDENCIES'
+        }
     }
 
     compileOptions {
-        // SampleApp 使用的是 Java 1.8，建议保持一致以确保兼容性
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
 dependencies {
-    // --- 1. 原有的 AndroidX 基础库 (保持不变) ---
+    // --- 1. AndroidX 基础库 (使用 Version Catalog) ---
+    // 注意：如果报错 "Could not get unknown property 'libs'"，说明你没有配置 gradle/libs.versions.toml
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity
@@ -65,14 +61,13 @@ dependencies {
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
 
-    // --- 2. Peanut SDK 核心集成 (新增) ---
-
-    // (A) 加载 libs 目录下的 peanut-sdk-release.aar
+    // --- 2. Peanut SDK 集成 ---
+    
+    // (A) 加载 libs 目录下的 aar
+    // 确保你的 aar 文件放在 WeigaoRobotControl\app\libs\ 目录下
     implementation fileTree(dir: 'libs', include: ['*.aar'])
 
-    // (B) SDK 必须的第三方依赖库
-    // 即使您的项目使用了 version catalog，为了方便起见，这里直接使用字符串引入
-    // 确保与 SampleApp 版本一致，避免兼容性问题
+    // (B) SDK 依赖库
     implementation 'com.alibaba:fastjson:1.2.68'
     implementation 'com.google.code.gson:gson:2.8.6'
     implementation 'org.slf4j:slf4j-api:1.7.25'
