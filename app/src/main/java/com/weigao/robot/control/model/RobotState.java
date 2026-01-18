@@ -1,6 +1,16 @@
 package com.weigao.robot.control.model;
 
-public class RobotState {
+import java.io.Serializable;
+
+/**
+ * 机器人状态模型
+ * <p>
+ * 表示机器人的运行时状态信息。
+ * </p>
+ */
+public class RobotState implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private int status;
     private String message;
     private LocationInfo local;
@@ -9,7 +19,13 @@ public class RobotState {
     private int batteryLevel;
     private boolean isScramPressed;
 
-    public static class LocationInfo {
+    /**
+     * 位置信息内部类
+     */
+    public static class LocationInfo implements java.io.Serializable {
+
+        private static final long serialVersionUID = 1L;
+
         private int id;
         private double x;
         private double y;

@@ -1,6 +1,17 @@
 package com.weigao.robot.control.model;
 
-public class MotorInfo {
+import java.io.Serializable;
+
+/**
+ * 电机信息模型
+ * <p>
+ * 包含电机状态、位置、速度等信息。
+ * </p>
+ */
+public class MotorInfo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private int code;
     private String desc;
     private int position;

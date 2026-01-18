@@ -1,6 +1,16 @@
 package com.weigao.robot.control.model;
 
-public class AudioConfig {
+import java.io.Serializable;
+
+/**
+ * 音频配置模型
+ * <p>
+ * 满足需求书第10章"声音设置"要求。
+ * </p>
+ */
+public class AudioConfig implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private int voiceVolume;
     private int deliveryVolume;
     private String deliveryMusicPath;

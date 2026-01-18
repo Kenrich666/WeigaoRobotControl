@@ -1,19 +1,37 @@
 package com.weigao.robot.control.model;
 
-public class PointInfo {
+import java.io.Serializable;
+
+/**
+ * 点位信息模型
+ * <p>
+ * 表示地图上的一个目标点信息。
+ * </p>
+ */
+public class PointInfo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private String id;
     private String name;
     private int floor;
     private double x;
     private double y;
-    private String type;
+    private PointType type;
     private long lastUsedTime;
 
+    /**
+     * 点位类型枚举
+     */
     public enum PointType {
+        /** 目的地 */
         DESTINATION,
+        /** 循环点位 */
         LOOP,
+        /** 返回点 */
         RETURN,
+        /** 待机点 */
         STANDBY,
+        /** 回收点 */
         RECOVERY
     }
 
@@ -57,11 +75,11 @@ public class PointInfo {
         this.y = y;
     }
 
-    public String getType() {
+    public PointType getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(PointType type) {
         this.type = type;
     }
 

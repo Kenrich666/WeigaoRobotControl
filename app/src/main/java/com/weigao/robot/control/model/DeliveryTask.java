@@ -1,8 +1,17 @@
 package com.weigao.robot.control.model;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class DeliveryTask {
+/**
+ * 配送任务模型
+ * <p>
+ * 表示一个配送任务的完整信息，包括任务类型、目标点列表、配置和状态。
+ * </p>
+ */
+public class DeliveryTask implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private String taskId;
     private DeliveryType type;
     private List<PointInfo> points;

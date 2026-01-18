@@ -1,6 +1,17 @@
 package com.weigao.robot.control.model;
 
-public class DeviceInfo {
+import java.io.Serializable;
+
+/**
+ * 设备信息模型
+ * <p>
+ * 包含机器人硬件设备信息，如版本、SN号等。
+ * </p>
+ */
+public class DeviceInfo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private int id;
     private String name;
     private int pid;
