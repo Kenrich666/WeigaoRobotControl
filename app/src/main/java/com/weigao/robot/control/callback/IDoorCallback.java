@@ -19,6 +19,9 @@ public interface IDoorCallback {
     /** 舱门状态：执行中（正在开启或关闭） */
     int DOOR_STATE_EXECUTING = 1;
 
+    /** 舱门状态：未知 */
+    int DOOR_STATE_UNKNOWN = -100;
+
     /**
      * 舱门状态变化
      *

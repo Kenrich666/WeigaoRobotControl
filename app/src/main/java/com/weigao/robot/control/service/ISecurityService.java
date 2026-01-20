@@ -86,4 +86,9 @@ public interface ISecurityService {
      * @param callback 结果回调
      */
     void unlock(String password, IResultCallback<Void> callback);
+
+    /**
+     * 释放资源
+     */
+    void release();
 }

@@ -109,4 +109,9 @@ public interface IAudioService {
      * @param callback 结果回调
      */
     void updateAudioConfig(AudioConfig config, IResultCallback<Void> callback);
+
+    /**
+     * 释放资源
+     */
+    void release();
 }

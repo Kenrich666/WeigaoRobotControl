@@ -90,4 +90,9 @@ public interface ITimingService {
      * @param callback 结果回调
      */
     void setAutoStopOnDoorOpen(boolean enabled, IResultCallback<Void> callback);
+
+    /**
+     * 释放资源
+     */
+    void release();
 }

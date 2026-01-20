@@ -63,8 +63,7 @@ dependencies {
 
     // --- 2. Peanut SDK 集成 ---
     
-    // (A) 加载 libs 目录下的 aar
-    // 确保你的 aar 文件放在 WeigaoRobotControl\app\libs\ 目录下
+    // (A) 加载 libs 目录下的 aar，peanut-sdk-release.aar 放在 WeigaoRobotControl\app\libs\ 目录下
     implementation fileTree(dir: 'libs', include: ['*.aar'])
 
     // (B) SDK 依赖库
