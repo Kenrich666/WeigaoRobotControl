@@ -31,7 +31,7 @@ public class WeigaoApplication extends Application {
     // ==================== 配置参数（可根据实际情况修改） ====================
 
     /** 舱门数量 */
-    private static final int DOOR_COUNT = 4;
+    private static final int DOOR_COUNT = 2;
 
     /** 离线鉴权 AppId（需从销售申请） */
     private static final String APP_ID = "d8b123262fa3463e835fc15392e07b60";
