@@ -193,4 +193,9 @@ public interface IRobotStateService {
      * @param callback 状态回调
      */
     void unregisterCallback(IStateCallback callback);
+
+    /**
+     * 释放资源
+     */
+    void release();
 }

@@ -119,4 +119,9 @@ public interface IDoorService {
      * @param callback 舱门回调
      */
     void unregisterCallback(IDoorCallback callback);
+
+    /**
+     * 释放资源
+     */
+    void release();
 }

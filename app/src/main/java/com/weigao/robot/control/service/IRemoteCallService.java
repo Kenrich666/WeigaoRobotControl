@@ -140,6 +140,11 @@ public interface IRemoteCallService {
     void unregisterCallback(IRemoteCallCallback callback);
 
     /**
+     * 释放资源
+     */
+    void release();
+
+    /**
      * 远程呼叫回调接口
      */
     interface IRemoteCallCallback {
