@@ -90,9 +90,25 @@ public class SecurityServiceImpl implements ISecurityService {
 
         if (savedPassword.equals(password)) {
             isLocked = false;
-            // TODO: 打开指定舱门
-            // ServiceManager.getInstance().getDoorService().openDoor(doorId, false, null);
-            notifySuccess(callback);
+            // 调用 DoorService 打开指定舱门
+            try {
+                com.weigao.robot.control.service.ServiceManager.getInstance()
+                        .getDoorService()
+                        .openDoor(doorId, false, new IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                notifySuccess(callback);
+                            }
+
+                            @Override
+                            public void onError(com.weigao.robot.control.callback.ApiError error) {
+                                notifyError(callback, error.getCode(), error.getMessage());
+                            }
+                        });
+            } catch (Exception e) {
+                Log.e(TAG, "打开舱门异常", e);
+                notifyError(callback, -1, e.getMessage());
+            }
         } else {
             notifyError(callback, -1, "密码不正确");
         }

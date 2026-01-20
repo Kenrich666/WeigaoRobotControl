@@ -3,6 +3,10 @@ package com.weigao.robot.control.service.impl;
 import android.content.Context;
 import android.util.Log;
 
+import com.keenon.peanut.api.PeanutSDK;
+import com.keenon.peanut.api.component.AudioComponent;
+import com.keenon.peanut.api.callback.OnAudioListener;
+
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.AudioConfig;
 import com.weigao.robot.control.service.IAudioService;
@@ -22,16 +26,53 @@ public class AudioServiceImpl implements IAudioService {
     /** 当前音频配置 */
     private AudioConfig audioConfig;
 
-    // TODO: 待集成 Peanut SDK 后添加
-    // private AudioComponent audioComponent;
+    /** Peanut SDK 音频组件 */
+    private AudioComponent audioComponent;
+
+    /** 音频组件是否已初始化 */
+    private boolean audioInitialized = false;
 
     public AudioServiceImpl(Context context) {
         this.context = context.getApplicationContext();
         this.audioConfig = new AudioConfig();
         Log.d(TAG, "AudioServiceImpl 已创建");
+        initAudioComponent();
+    }
 
-        // TODO: 初始化 AudioComponent
-        // audioComponent = PeanutSDK.getInstance().audio();
+    /**
+     * 初始化音频组件
+     */
+    private void initAudioComponent() {
+        try {
+            audioComponent = PeanutSDK.getInstance().audio();
+            if (audioComponent != null) {
+                audioComponent.initAudio(new OnAudioListener() {
+                    @Override
+                    public void onSuccess() {
+                        Log.d(TAG, "AudioComponent 初始化成功");
+                        audioInitialized = true;
+                    }
+
+                    @Override
+                    public void onError(int errorCode) {
+                        Log.e(TAG, "AudioComponent 初始化失败: " + errorCode);
+                        audioInitialized = false;
+                    }
+
+                    @Override
+                    public void onAudioData(byte[] bytes, int len) {
+                        // 音频数据回调
+                    }
+
+                    @Override
+                    public void onHeartbeat(int state) {
+                        // 心跳回调
+                    }
+                });
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "AudioComponent 初始化异常", e);
+        }
     }
 
     // ==================== 音乐设置 ====================
@@ -135,7 +176,15 @@ public class AudioServiceImpl implements IAudioService {
      */
     public void release() {
         Log.d(TAG, "释放 AudioService 资源");
-        // TODO: 释放 AudioComponent 资源
+        if (audioComponent != null && audioInitialized) {
+            try {
+                audioComponent.audioStop();
+                Log.d(TAG, "AudioComponent 已停止");
+            } catch (Exception e) {
+                Log.e(TAG, "释放 AudioComponent 异常", e);
+            }
+        }
+        audioInitialized = false;
     }
 
     // ==================== 辅助方法 ====================

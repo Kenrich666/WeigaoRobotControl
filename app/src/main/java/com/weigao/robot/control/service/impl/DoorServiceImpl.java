@@ -283,21 +283,23 @@ public class DoorServiceImpl implements IDoorService {
         }
     }
 
-    // ==================== 地面投影灯控制 ====================
+    // ==================== 其他配置 ====================
 
     @Override
     public void setFootSwitchEnabled(boolean enabled, IResultCallback<Void> callback) {
         Log.d(TAG, "setFootSwitchEnabled: " + enabled);
+        // SDK 文档中未提供光灯开关舱门的 API
+        // 本地管理状态，应用层根据此状态处理业务逻辑
         this.footSwitchEnabled = enabled;
-        // TODO: 调用 SDK 对应的方法（如果存在）
         notifySuccess(callback);
     }
 
     @Override
     public void setAutoLeaveEnabled(boolean enabled, IResultCallback<Void> callback) {
         Log.d(TAG, "setAutoLeaveEnabled: " + enabled);
+        // SDK 文档中未提供自动离开的 API
+        // 本地管理状态，应用层根据此状态处理业务逻辑
         this.autoLeaveEnabled = enabled;
-        // TODO: 调用 SDK 对应的方法（如果存在）
         notifySuccess(callback);
     }
 
