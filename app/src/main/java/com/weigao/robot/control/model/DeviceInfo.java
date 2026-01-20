@@ -20,6 +20,12 @@ public class DeviceInfo implements Serializable {
     private VersionInfo version;
     private EnvInfo env;
 
+    // SDK 相关字段
+    private String robotIp;
+    private String armInfo;
+    private String stm32Info;
+    private String properties;
+
     public static class VersionInfo {
         private SoftwareInfo sw;
         private HardwareInfo hw;
@@ -167,5 +173,39 @@ public class DeviceInfo implements Serializable {
 
     public void setEnv(EnvInfo env) {
         this.env = env;
+    }
+
+    // ==================== SDK 相关字段 ====================
+
+    public String getRobotIp() {
+        return robotIp;
+    }
+
+    public void setRobotIp(String robotIp) {
+        this.robotIp = robotIp;
+    }
+
+    public String getArmInfo() {
+        return armInfo;
+    }
+
+    public void setArmInfo(String armInfo) {
+        this.armInfo = armInfo;
+    }
+
+    public String getStm32Info() {
+        return stm32Info;
+    }
+
+    public void setStm32Info(String stm32Info) {
+        this.stm32Info = stm32Info;
+    }
+
+    public String getProperties() {
+        return properties;
+    }
+
+    public void setProperties(String properties) {
+        this.properties = properties;
     }
 }
