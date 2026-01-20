@@ -13,6 +13,9 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.service.IRobotStateService;
 
+import com.keenon.peanut.api.PeanutSDK;
+import com.keenon.peanut.api.callback.IRobotCallBack;
+
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -223,8 +226,25 @@ public class RobotStateServiceImpl implements IRobotStateService {
     @Override
     public void setMotorEnabled(boolean enabled, IResultCallback<Void> callback) {
         Log.d(TAG, "setMotorEnabled: " + enabled);
-        // TODO: 调用 PeanutSDK.motor().enable() 如果有的话
-        notifySuccess(callback);
+        try {
+            // 调用 PeanutSDK 电机控制接口
+            PeanutSDK.getInstance().motor().enable(new IRobotCallBack() {
+                @Override
+                public void success(String result) {
+                    Log.d(TAG, "setMotorEnabled 成功: " + result);
+                    notifySuccess(callback);
+                }
+
+                @Override
+                public void error(com.keenon.peanut.api.entity.ApiError error) {
+                    Log.e(TAG, "setMotorEnabled 失败: " + error.getMsg());
+                    notifyError(callback, error.getCode(), error.getMsg());
+                }
+            }, enabled ? 1 : 0);
+        } catch (Exception e) {
+            Log.e(TAG, "setMotorEnabled 异常", e);
+            notifyError(callback, -1, e.getMessage());
+        }
     }
 
     @Override
@@ -244,8 +264,25 @@ public class RobotStateServiceImpl implements IRobotStateService {
     @Override
     public void reboot(IResultCallback<Void> callback) {
         Log.d(TAG, "reboot");
-        // TODO: 实现重启功能
-        notifySuccess(callback);
+        try {
+            // 调用 PeanutSDK 设备重启接口
+            PeanutSDK.getInstance().device().reboot(new IRobotCallBack() {
+                @Override
+                public void success(String result) {
+                    Log.d(TAG, "reboot 成功: " + result);
+                    notifySuccess(callback);
+                }
+
+                @Override
+                public void error(com.keenon.peanut.api.entity.ApiError error) {
+                    Log.e(TAG, "reboot 失败: " + error.getMsg());
+                    notifyError(callback, error.getCode(), error.getMsg());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "reboot 异常", e);
+            notifyError(callback, -1, e.getMessage());
+        }
     }
 
     @Override
