@@ -3,18 +3,16 @@ package com.weigao.robot.control.service.impl;
 import android.content.Context;
 import android.util.Log;
 
-import com.keenon.peanut.api.PeanutRuntime;
-import com.keenon.peanut.api.callback.Runtime;
-import com.keenon.peanut.api.entity.RuntimeInfo;
+import com.keenon.sdk.component.runtime.PeanutRuntime;
+import com.keenon.sdk.component.runtime.RuntimeInfo;
+import com.keenon.sdk.external.IDataCallback;
+import com.keenon.sdk.external.PeanutSDK;
 
+import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.callback.IStateCallback;
-import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.service.IRobotStateService;
-
-import com.keenon.peanut.api.PeanutSDK;
-import com.keenon.peanut.api.callback.IRobotCallBack;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -23,6 +21,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * 机器人状态服务实现类
  * <p>
  * 封装 Peanut SDK 的 {@code PeanutRuntime} 组件，提供机器人状态监控功能。
+ * 1. 作为 SDK 数据的唯一入口。
+ * 2. 内部维护 currentState 缓存。
+ * 3. 负责向 UI 分发状态变化。
  * </p>
  */
 public class RobotStateServiceImpl implements IRobotStateService {
@@ -31,16 +32,24 @@ public class RobotStateServiceImpl implements IRobotStateService {
 
     private final Context context;
 
-    /** 回调列表（线程安全） */
+    /**
+     * 回调列表（线程安全）
+     */
     private final List<IStateCallback> callbacks = new CopyOnWriteArrayList<>();
 
-    /** Peanut SDK 运行时组件 */
+    /**
+     * Peanut SDK 运行时组件
+     */
     private PeanutRuntime peanutRuntime;
 
-    /** 当前机器人状态 */
-    private RobotState currentState;
+    /**
+     * 当前机器人状态缓存
+     */
+    private final RobotState currentState;
 
-    /** 当前工作模式 */
+    /**
+     * 当前工作模式
+     */
     private int workMode = WORK_MODE_STANDBY;
 
     public RobotStateServiceImpl(Context context) {
@@ -55,11 +64,20 @@ public class RobotStateServiceImpl implements IRobotStateService {
      */
     private void initPeanutRuntime() {
         try {
-            peanutRuntime = new PeanutRuntime.Builder()
-                    .setListener(mRuntimeListener)
-                    .build();
-            peanutRuntime.execute();
-            Log.d(TAG, "PeanutRuntime 初始化成功");
+            // 获取单例实例
+            peanutRuntime = PeanutRuntime.getInstance();
+
+            if (peanutRuntime != null) {
+                // 注册监听器 (支持多个监听者)
+                peanutRuntime.registerListener(mRuntimeListener);
+                // 启动运行时 (如果尚未启动)
+                peanutRuntime.start();
+                Log.d(TAG, "PeanutRuntime 初始化及监听注册成功");
+                // 初始化时立即同步一次状态
+                updateStateFromSdk();
+            } else {
+                Log.e(TAG, "PeanutRuntime 获取失败 (null)");
+            }
         } catch (Exception e) {
             Log.e(TAG, "PeanutRuntime 初始化异常", e);
         }
@@ -68,53 +86,94 @@ public class RobotStateServiceImpl implements IRobotStateService {
     /**
      * SDK 运行时回调
      */
-    private final Runtime.Listener mRuntimeListener = new Runtime.Listener() {
+    private final PeanutRuntime.Listener mRuntimeListener = new PeanutRuntime.Listener() {
         @Override
         public void onEvent(int event, Object obj) {
-            Log.d(TAG, "onEvent: event=" + event);
-            // 更新状态
-            updateStateFromEvent(event, obj);
+            // Log.d(TAG, "onEvent: event=" + event); // 日志量可能较大，建议按需开启
+            // 收到事件时，主动去拉取最新状态更新缓存
+            updateStateFromSdk();
         }
 
         @Override
         public void onHealth(Object content) {
             Log.d(TAG, "onHealth: " + content);
+            // 可以在此解析健康状态并更新 currentState
         }
 
         @Override
         public void onHeartbeat(Object content) {
-            // 心跳回调，可用于检测连接状态
+            // 心跳回调，RuntimeInfo 通常在心跳中自动更新
         }
     };
 
     /**
-     * 从事件更新状态
+     * 从 RuntimeInfo 更新状态
      */
-    private void updateStateFromEvent(int event, Object obj) {
+    private void updateStateFromSdk() {
         if (peanutRuntime != null) {
             RuntimeInfo info = peanutRuntime.getRuntimeInfo();
             if (info != null) {
-                // 更新电量
-                int power = info.getPower();
-                if (power != currentState.getBatteryLevel()) {
-                    currentState.setBatteryLevel(power);
-                    notifyBatteryLevelChanged(power);
+                boolean stateChanged = false;
+                synchronized (currentState) {
+                    // 1. 更新电量
+                    int power = info.getPower();
+                    if (power != currentState.getBatteryLevel()) {
+                        currentState.setBatteryLevel(power);
+                        notifyBatteryLevelChanged(power);
+                        stateChanged = true;
+                    }
+
+                    // 2. 更新工作模式
+                    int newWorkMode = info.getWorkMode();
+                    if (workMode != newWorkMode) {
+                        workMode = newWorkMode;
+                        currentState.setWorkMode(workMode);
+                        stateChanged = true;
+                    }
+
+                    // 3. 更新急停按钮状态
+                    boolean scram = info.isEmergencyOpen();
+                    if (scram != currentState.isScramButtonPressed()) {
+                        currentState.setScramButtonPressed(scram);
+                        stateChanged = true;
+                    }
+                    // 4. 更新电机状态
+                    int motorStatus = info.getMotorStatus();
+                    if (motorStatus != currentState.getMotorStatus()) {
+                        currentState.setMotorStatus(motorStatus);
+                        stateChanged = true;
+                    }
+
+                    // 5. 更新其他属性（如位置等）
+                    // currentState.setLocation(...);
                 }
-
-                // 更新工作模式
-                workMode = info.getWorkMode();
-                currentState.setWorkMode(workMode);
-
-                // 更新急停按钮状态
-                currentState.setScramButtonPressed(info.isEmergencyOpen());
-
-                // 更新电机状态
-                currentState.setMotorStatus(info.getMotorStatus());
-
-                // 通知状态变化
-                notifyStateChanged(currentState);
+                // 仅当状态发生实质变化时通知，避免频繁回调
+                if (stateChanged) {
+                    notifyStateChanged(currentState);
+                }
             }
         }
+    }
+    // ==================== 回调注册 (合并了 StateManager 的功能) ====================
+
+    @Override
+    public void registerCallback(IStateCallback callback) {
+        if (callback != null && !callbacks.contains(callback)) {
+            callbacks.add(callback);
+            Log.d(TAG, "监听器已注册");
+
+            // [关键功能] 注册时立即回调当前状态，避免 UI 空白
+            // 类似于 StateManager 的行为
+            synchronized (currentState) {
+                callback.onStateChanged(currentState);
+                callback.onBatteryLevelChanged(currentState.getBatteryLevel());
+            }
+        }
+    }
+
+    @Override
+    public void unregisterCallback(IStateCallback callback) {
+        callbacks.remove(callback);
     }
 
     // ==================== 状态查询 ====================
@@ -122,7 +181,8 @@ public class RobotStateServiceImpl implements IRobotStateService {
     @Override
     public void getRobotState(IResultCallback<RobotState> callback) {
         if (callback != null) {
-            updateCurrentState();
+            // 触发一次更新以确保最新
+            updateStateFromSdk();
             callback.onSuccess(currentState);
         }
     }
@@ -158,7 +218,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
     public void isScramButtonPressed(IResultCallback<Boolean> callback) {
         if (callback != null) {
             try {
-                boolean pressed = false;
+                boolean pressed = currentState.isScramButtonPressed();
                 if (peanutRuntime != null) {
                     RuntimeInfo info = peanutRuntime.getRuntimeInfo();
                     if (info != null) {
@@ -177,7 +237,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
     public void getMotorStatus(IResultCallback<Integer> callback) {
         if (callback != null) {
             try {
-                int status = 0;
+                int status = currentState.getMotorStatus();
                 if (peanutRuntime != null) {
                     RuntimeInfo info = peanutRuntime.getRuntimeInfo();
                     if (info != null) {
@@ -228,7 +288,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
         Log.d(TAG, "setMotorEnabled: " + enabled);
         try {
             // 调用 PeanutSDK 电机控制接口
-            PeanutSDK.getInstance().motor().enable(new IRobotCallBack() {
+            PeanutSDK.getInstance().motor().enable(new IDataCallback() {
                 @Override
                 public void success(String result) {
                     Log.d(TAG, "setMotorEnabled 成功: " + result);
@@ -236,7 +296,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
                 }
 
                 @Override
-                public void error(com.keenon.peanut.api.entity.ApiError error) {
+                public void error(com.keenon.sdk.hedera.model.ApiError error) {
                     Log.e(TAG, "setMotorEnabled 失败: " + error.getMsg());
                     notifyError(callback, error.getCode(), error.getMsg());
                 }
@@ -265,20 +325,27 @@ public class RobotStateServiceImpl implements IRobotStateService {
     public void reboot(IResultCallback<Void> callback) {
         Log.d(TAG, "reboot");
         try {
-            // 调用 PeanutSDK 设备重启接口
-            PeanutSDK.getInstance().device().reboot(new IRobotCallBack() {
-                @Override
-                public void success(String result) {
-                    Log.d(TAG, "reboot 成功: " + result);
-                    notifySuccess(callback);
-                }
+            // 优先使用 PeanutRuntime 封装的带同步逻辑的重启，比较安全
+            // 或者使用 DeviceComponent 的 reboot
+            if (peanutRuntime != null) {
+                peanutRuntime.syncParams2Robot(true);
+                notifySuccess(callback);
+            } else {
+                // 调用 PeanutSDK 设备重启接口
+                PeanutSDK.getInstance().device().reboot(new IDataCallback() {
+                    @Override
+                    public void success(String result) {
+                        Log.d(TAG, "reboot 成功: " + result);
+                        notifySuccess(callback);
+                    }
 
-                @Override
-                public void error(com.keenon.peanut.api.entity.ApiError error) {
-                    Log.e(TAG, "reboot 失败: " + error.getMsg());
-                    notifyError(callback, error.getCode(), error.getMsg());
-                }
-            });
+                    @Override
+                    public void error(com.keenon.sdk.hedera.model.ApiError error) {
+                        Log.e(TAG, "reboot 失败: " + error.getMsg());
+                        notifyError(callback, error.getCode(), error.getMsg());
+                    }
+                });
+            }
         } catch (Exception e) {
             Log.e(TAG, "reboot 异常", e);
             notifyError(callback, -1, e.getMessage());
@@ -415,32 +482,17 @@ public class RobotStateServiceImpl implements IRobotStateService {
         }
     }
 
-    // ==================== 回调注册 ====================
-
-    @Override
-    public void registerCallback(IStateCallback callback) {
-        if (callback != null && !callbacks.contains(callback)) {
-            callbacks.add(callback);
-            Log.d(TAG, "回调已注册，当前数量：" + callbacks.size());
-        }
-    }
-
-    @Override
-    public void unregisterCallback(IStateCallback callback) {
-        if (callbacks.remove(callback)) {
-            Log.d(TAG, "回调已注销，当前数量：" + callbacks.size());
-        }
-    }
-
     @Override
     public void release() {
         Log.d(TAG, "释放 RobotStateService 资源");
         callbacks.clear();
         if (peanutRuntime != null) {
             try {
-                peanutRuntime.destory();
+                // [修正 4] 切勿调用 destroy()，仅注销监听
+                peanutRuntime.removeListener(mRuntimeListener);
+                Log.d(TAG, "PeanutRuntime 监听已移除");
             } catch (Exception e) {
-                Log.e(TAG, "释放 peanutRuntime 异常", e);
+                Log.e(TAG, "移除监听异常", e);
             }
             peanutRuntime = null;
         }
@@ -469,19 +521,6 @@ public class RobotStateServiceImpl implements IRobotStateService {
     }
 
     // ==================== 辅助方法 ====================
-
-    private void updateCurrentState() {
-        if (peanutRuntime != null) {
-            RuntimeInfo info = peanutRuntime.getRuntimeInfo();
-            if (info != null) {
-                currentState.setBatteryLevel(info.getPower());
-                currentState.setWorkMode(info.getWorkMode());
-                currentState.setScramButtonPressed(info.isEmergencyOpen());
-                currentState.setMotorStatus(info.getMotorStatus());
-            }
-        }
-    }
-
     private void notifySuccess(IResultCallback<Void> callback) {
         if (callback != null) {
             callback.onSuccess(null);

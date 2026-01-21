@@ -23,13 +23,19 @@ public class ServiceManager {
 
     private static final String TAG = "ServiceManager";
 
-    /** 单例实例 */
+    /**
+     * 单例实例
+     */
     private static volatile ServiceManager instance;
 
-    /** 应用上下文 */
+    /**
+     * 应用上下文
+     */
     private Context context;
 
-    /** 是否已初始化 */
+    /**
+     * 是否已初始化
+     */
     private boolean initialized = false;
 
     // ==================== 服务实例 ====================
@@ -251,7 +257,7 @@ public class ServiceManager {
         if (remoteCallService == null) {
             synchronized (remoteCallLock) {
                 if (remoteCallService == null) {
-                    remoteCallService = new RemoteCallServiceImpl(context);
+                    remoteCallService = new RemoteCallServiceImpl(context, getNavigationService());
                     Log.d(TAG, "RemoteCallService 已创建");
                 }
             }
@@ -263,51 +269,23 @@ public class ServiceManager {
 
     /**
      * 释放所有服务资源
+     * <p>
+     * 优化：按照依赖关系的反序释放，先释放上层业务，再释放底层硬件服务。
+     * </p>
      */
     public void release() {
         Log.i(TAG, "开始释放所有服务资源...");
 
-        // 释放导航服务
-        if (navigationService != null) {
+        // 1. 先释放依赖其他服务的上层业务
+        if (remoteCallService != null) {
             try {
-                navigationService.release();
+                remoteCallService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 NavigationService 失败", e);
+                Log.e(TAG, "释放 RemoteCallService 失败", e);
             }
-            navigationService = null;
+            remoteCallService = null;
         }
 
-        // 释放舱门服务
-        if (doorService != null) {
-            try {
-                doorService.release();
-            } catch (Exception e) {
-                Log.e(TAG, "释放 DoorService 失败", e);
-            }
-            doorService = null;
-        }
-
-        // 释放充电服务
-        if (chargerService != null) {
-            try {
-                chargerService.release();
-            } catch (Exception e) {
-                Log.e(TAG, "释放 ChargerService 失败", e);
-            }
-            chargerService = null;
-        }
-
-        // 释放安全锁定服务
-        if (securityService != null) {
-            try {
-                securityService.release();
-            } catch (Exception e) {
-                Log.e(TAG, "释放 SecurityService 失败", e);
-            }
-            securityService = null;
-        }
-
-        // 释放计时服务
         if (timingService != null) {
             try {
                 timingService.release();
@@ -317,17 +295,16 @@ public class ServiceManager {
             timingService = null;
         }
 
-        // 释放音频服务
-        if (audioService != null) {
+        if (securityService != null) {
             try {
-                audioService.release();
+                securityService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 AudioService 失败", e);
+                Log.e(TAG, "释放 SecurityService 失败", e);
             }
-            audioService = null;
+            securityService = null;
         }
 
-        // 释放机器人状态服务
+        // 2. 释放状态监听和独立服务
         if (robotStateService != null) {
             try {
                 robotStateService.release();
@@ -337,14 +314,41 @@ public class ServiceManager {
             robotStateService = null;
         }
 
-        // 释放远程呼叫服务
-        if (remoteCallService != null) {
+        if (chargerService != null) {
             try {
-                remoteCallService.release();
+                chargerService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 RemoteCallService 失败", e);
+                Log.e(TAG, "释放 ChargerService 失败", e);
             }
-            remoteCallService = null;
+            chargerService = null;
+        }
+
+        if (audioService != null) {
+            try {
+                audioService.release();
+            } catch (Exception e) {
+                Log.e(TAG, "释放 AudioService 失败", e);
+            }
+            audioService = null;
+        }
+
+        // 3. 最后释放基础硬件服务 (被依赖的服务)
+        if (doorService != null) {
+            try {
+                doorService.release();
+            } catch (Exception e) {
+                Log.e(TAG, "释放 DoorService 失败", e);
+            }
+            doorService = null;
+        }
+
+        if (navigationService != null) {
+            try {
+                navigationService.release();
+            } catch (Exception e) {
+                Log.e(TAG, "释放 NavigationService 失败", e);
+            }
+            navigationService = null;
         }
 
         initialized = false;

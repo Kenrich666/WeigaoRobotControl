@@ -3,18 +3,20 @@ package com.weigao.robot.control.core.device;
 import android.content.Context;
 import android.util.Log;
 
-import com.keenon.peanut.api.PeanutRuntime;
-import com.keenon.peanut.api.entity.RuntimeInfo;
+// SDK 组件导入
+import com.keenon.sdk.component.MotorComponent;
+import com.keenon.sdk.component.runtime.PeanutRuntime;
+import com.keenon.sdk.component.runtime.RuntimeInfo;
+import com.keenon.sdk.external.IDataCallback;
+import com.keenon.sdk.external.PeanutSDK;
 
-import com.weigao.robot.control.callback.ApiError;
+// 项目内部接口导入
+import com.weigao.robot.control.callback.ApiError; // 项目自己的 Error 类
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.MotorInfo;
 
 /**
  * 电机控制器实现类
- * <p>
- * 封装 Peanut SDK 的电机控制功能，提供电机状态查询和控制接口。
- * </p>
  */
 public class MotorControllerImpl implements IMotorController {
 
@@ -22,160 +24,181 @@ public class MotorControllerImpl implements IMotorController {
 
     private final Context context;
 
-    /** Peanut SDK 运行时组件 */
+    /**
+     * 状态管理单例 (用于获取缓存的状态)
+     */
     private PeanutRuntime peanutRuntime;
 
-    /** 当前电机状态 */
-    private MotorInfo currentMotorInfo;
+    /**
+     * 电机控制组件 (用于发送指令)
+     */
+    private MotorComponent motorComponent;
 
-    /** 电机是否启用 */
-    private boolean motorEnabled = false;
-
-    /** 当前速度 */
-    private int currentSpeed = 0;
+    /**
+     * 本地缓存的电机状态模型
+     */
+    private final MotorInfo currentMotorInfo;
 
     public MotorControllerImpl(Context context) {
         this.context = context.getApplicationContext();
         this.currentMotorInfo = new MotorInfo();
         Log.d(TAG, "MotorControllerImpl 已创建");
-        initPeanutRuntime();
+        initSdkComponents();
     }
 
     /**
-     * 初始化 PeanutRuntime
+     * 初始化 SDK 组件
      */
-    private void initPeanutRuntime() {
+    private void initSdkComponents() {
         try {
-            peanutRuntime = new PeanutRuntime.Builder().build();
-            Log.d(TAG, "PeanutRuntime 初始化成功");
+            // 1. 获取 PeanutRuntime 单例 (用于读状态)
+            peanutRuntime = PeanutRuntime.getInstance();
+            if (peanutRuntime != null) {
+                // 确保 Runtime 监听已启动 (App启动时通常已调过，这里防守性调用)
+                peanutRuntime.start();
+            }
+
+            // 2. 获取 MotorComponent 组件 (用于写指令)
+            Object motorObj = PeanutSDK.getInstance().motor();
+            if (motorObj instanceof MotorComponent) {
+                this.motorComponent = (MotorComponent) motorObj;
+                Log.d(TAG, "SDK MotorComponent 初始化成功");
+            } else {
+                Log.e(TAG, "获取 MotorComponent 失败或类型不匹配");
+            }
+
         } catch (Exception e) {
-            Log.e(TAG, "PeanutRuntime 初始化异常", e);
+            Log.e(TAG, "SDK组件初始化异常", e);
         }
     }
 
     @Override
     public void getStatus(IResultCallback<MotorInfo> callback) {
-        Log.d(TAG, "getStatus");
+        // 优先从 PeanutRuntime 缓存读取
+        if (peanutRuntime == null) {
+            if (callback != null) callback.onError(new ApiError(-1, "SDK未初始化"));
+            return;
+        }
+
         try {
-            updateMotorInfo();
-            if (callback != null) {
-                callback.onSuccess(currentMotorInfo);
+            RuntimeInfo info = peanutRuntime.getRuntimeInfo();
+            if (info != null) {
+                // 将 SDK 的 RuntimeInfo 转换为业务层的 MotorInfo
+                currentMotorInfo.setCode(info.getMotorStatus());
+
+                // 假设 status > 0 代表启用，具体根据业务定义
+                currentMotorInfo.setEnabled(info.getMotorStatus() > 0);
+
+                // RuntimeInfo 不含实时速度，沿用最后一次设置值
+                // 如果需要实时速度，需调用 motorComponent.getSpeed() (异步)
+
+                if (callback != null) {
+                    callback.onSuccess(currentMotorInfo);
+                }
+            } else {
+                if (callback != null) callback.onError(new ApiError(-2, "SDK数据未就绪"));
             }
         } catch (Exception e) {
             Log.e(TAG, "getStatus 异常", e);
-            if (callback != null) {
-                callback.onError(new ApiError(-1, e.getMessage()));
-            }
+            if (callback != null) callback.onError(new ApiError(-1, e.getMessage()));
         }
     }
 
     @Override
     public void getHealth(IResultCallback<MotorInfo> callback) {
-        Log.d(TAG, "getHealth");
-        try {
-            updateMotorInfo();
-            // 健康状态和普通状态类似，可扩展更多健康检查
-            if (callback != null) {
-                callback.onSuccess(currentMotorInfo);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "getHealth 异常", e);
-            if (callback != null) {
-                callback.onError(new ApiError(-1, e.getMessage()));
-            }
-        }
+        // 复用 getStatus，因为 RuntimeInfo 已包含基础健康状态
+        getStatus(callback);
     }
 
     @Override
     public void enableMotor(boolean enabled, IResultCallback<Void> callback) {
         Log.d(TAG, "enableMotor: " + enabled);
-        try {
-            this.motorEnabled = enabled;
-            currentMotorInfo.setEnabled(enabled);
-
-            // TODO: 调用 SDK 电机使能接口（如果存在）
-            // 目前 SDK 文档中未明确电机使能的独立接口
-
-            if (callback != null) {
-                callback.onSuccess(null);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "enableMotor 异常", e);
-            if (callback != null) {
-                callback.onError(new ApiError(-1, e.getMessage()));
-            }
+        if (motorComponent == null) {
+            if (callback != null) callback.onError(new ApiError(-1, "MotorComponent未初始化"));
+            return;
         }
+
+        // 1 = Enable, 0 = Disable
+        int param = enabled ? 1 : 0;
+
+        motorComponent.enable(new IDataCallback() {
+            @Override
+            public void success(String response) {
+                Log.d(TAG, "enableMotor success: " + response);
+                currentMotorInfo.setEnabled(enabled);
+                if (callback != null) callback.onSuccess(null);
+            }
+
+            @Override
+            // 使用全限定名避免与 com.weigao...ApiError 冲突
+            public void error(com.keenon.sdk.hedera.model.ApiError error) {
+                Log.e(TAG, "enableMotor error: " + error.toString());
+                if (callback != null) {
+                    // 将 SDK Error 转换为项目 Error
+                    callback.onError(new ApiError(error.getCode(), error.getMsg()));
+                }
+            }
+        }, param);
     }
 
     @Override
     public void setSpeed(int speed, IResultCallback<Void> callback) {
         Log.d(TAG, "setSpeed: " + speed);
-        try {
-            this.currentSpeed = speed;
-            currentMotorInfo.setSpeed(speed);
-
-            // 速度设置通常由 PeanutNavigation 组件处理
-            // 此处记录速度值供状态查询使用
-
-            if (callback != null) {
-                callback.onSuccess(null);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "setSpeed 异常", e);
-            if (callback != null) {
-                callback.onError(new ApiError(-1, e.getMessage()));
-            }
+        if (motorComponent == null) {
+            if (callback != null) callback.onError(new ApiError(-1, "MotorComponent未初始化"));
+            return;
         }
+
+        // 调用 MotorComponent.setMaxSpeed
+        motorComponent.setMaxSpeed(new IDataCallback() {
+            @Override
+            public void success(String response) {
+                Log.d(TAG, "setSpeed success: " + response);
+                currentMotorInfo.setSpeed(speed);
+                if (callback != null) callback.onSuccess(null);
+            }
+
+            @Override
+            public void error(com.keenon.sdk.hedera.model.ApiError error) {
+                Log.e(TAG, "setSpeed error: " + error.toString());
+                if (callback != null) {
+                    callback.onError(new ApiError(error.getCode(), error.getMsg()));
+                }
+            }
+        }, speed);
     }
 
     @Override
     public void stopMotor(IResultCallback<Void> callback) {
         Log.d(TAG, "stopMotor");
-        try {
-            this.currentSpeed = 0;
-            currentMotorInfo.setSpeed(0);
-
-            // 停止电机通常由导航组件的 stop() 方法处理
-
-            if (callback != null) {
-                callback.onSuccess(null);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "stopMotor 异常", e);
-            if (callback != null) {
-                callback.onError(new ApiError(-1, e.getMessage()));
-            }
+        if (motorComponent == null) {
+            if (callback != null) callback.onError(new ApiError(-1, "MotorComponent未初始化"));
+            return;
         }
+
+        // 使用 manual(0) 停止运动
+        motorComponent.manual(new IDataCallback() {
+            @Override
+            public void success(String response) {
+                Log.d(TAG, "stopMotor success: " + response);
+                currentMotorInfo.setSpeed(0);
+                if (callback != null) callback.onSuccess(null);
+            }
+
+            @Override
+            public void error(com.keenon.sdk.hedera.model.ApiError error) {
+                Log.e(TAG, "stopMotor error: " + error.toString());
+                if (callback != null) {
+                    callback.onError(new ApiError(error.getCode(), error.getMsg()));
+                }
+            }
+        }, 0);
     }
 
-    /**
-     * 更新电机信息
-     */
-    private void updateMotorInfo() {
-        if (peanutRuntime != null) {
-            RuntimeInfo info = peanutRuntime.getRuntimeInfo();
-            if (info != null) {
-                currentMotorInfo.setCode(info.getMotorStatus());
-                // 根据电机状态判断是否启用
-                motorEnabled = info.getMotorStatus() > 0;
-                currentMotorInfo.setEnabled(motorEnabled);
-            }
-        }
-        currentMotorInfo.setSpeed(currentSpeed);
-    }
-
-    /**
-     * 释放资源
-     */
     public void release() {
         Log.d(TAG, "释放 MotorController 资源");
-        if (peanutRuntime != null) {
-            try {
-                peanutRuntime.destory();
-            } catch (Exception e) {
-                Log.e(TAG, "释放 peanutRuntime 异常", e);
-            }
-            peanutRuntime = null;
-        }
+        // 仅释放引用，不销毁单例
+        peanutRuntime = null;
+        motorComponent = null;
     }
 }

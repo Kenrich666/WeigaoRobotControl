@@ -1,5 +1,8 @@
 package com.weigao.robot.control.core.state;
 
+import android.annotation.SuppressLint;
+import android.os.SystemClock; // [新增] 引入 SystemClock
+
 import com.weigao.robot.control.model.TaskTiming;
 
 /**
@@ -39,9 +42,11 @@ public class TimingController {
      * 开始计时
      */
     public void start() {
-        timing.setStartTime(System.currentTimeMillis());
+        // 使用 elapsedRealtime 防止系统时间修改导致计时错误
+        timing.setStartTime(SystemClock.elapsedRealtime());
         timing.setStatus(TaskTiming.TimingStatus.RUNNING);
         timing.setPausedDuration(0);
+        timing.setElapsedTime(0); // 重置已用时间
     }
 
     /**
@@ -49,7 +54,7 @@ public class TimingController {
      */
     public void pause() {
         if (timing.getStatus() == TaskTiming.TimingStatus.RUNNING) {
-            timing.setLastPauseTime(System.currentTimeMillis());
+            timing.setLastPauseTime(SystemClock.elapsedRealtime());
             timing.setStatus(TaskTiming.TimingStatus.PAUSED);
         }
     }
@@ -59,7 +64,9 @@ public class TimingController {
      */
     public void resume() {
         if (timing.getStatus() == TaskTiming.TimingStatus.PAUSED) {
-            long pausedTime = System.currentTimeMillis() - timing.getLastPauseTime();
+            long now = SystemClock.elapsedRealtime();
+            long pausedTime = now - timing.getLastPauseTime();
+            // 累加暂停时长
             timing.setPausedDuration(timing.getPausedDuration() + pausedTime);
             timing.setStatus(TaskTiming.TimingStatus.RUNNING);
         }
@@ -69,16 +76,23 @@ public class TimingController {
      * 停止计时
      */
     public void stop() {
-        long now = System.currentTimeMillis();
+        // 防止重复停止
+        if (timing.getStatus() == TaskTiming.TimingStatus.STOPPED) {
+            return;
+        }
+
+        long now = SystemClock.elapsedRealtime();
         timing.setEndTime(now);
 
+        // 如果是在暂停状态下停止，需要结算最后一段暂停时间
         if (timing.getStatus() == TaskTiming.TimingStatus.PAUSED) {
             long pausedTime = now - timing.getLastPauseTime();
             timing.setPausedDuration(timing.getPausedDuration() + pausedTime);
         }
 
+        // 计算最终总耗时 = (结束 - 开始) - 总暂停时长
         long elapsed = timing.getEndTime() - timing.getStartTime() - timing.getPausedDuration();
-        timing.setElapsedTime(elapsed);
+        timing.setElapsedTime(Math.max(0, elapsed)); // 防止负数
         timing.setStatus(TaskTiming.TimingStatus.STOPPED);
     }
 
@@ -97,11 +111,17 @@ public class TimingController {
             return timing.getElapsedTime();
         }
 
+        long now = SystemClock.elapsedRealtime();
         long currentPausedDuration = timing.getPausedDuration();
+
+        // 如果处于暂停中，当前已流逝的暂停时间也要算进去，以便从总时长中扣除
+        // 效果：(now - start) - (historyPaused + currentPausedSession) = 冻结的 active time
         if (status == TaskTiming.TimingStatus.PAUSED) {
-            currentPausedDuration += System.currentTimeMillis() - timing.getLastPauseTime();
+            currentPausedDuration += now - timing.getLastPauseTime();
         }
-        return System.currentTimeMillis() - timing.getStartTime() - currentPausedDuration;
+
+        long elapsed = now - timing.getStartTime() - currentPausedDuration;
+        return Math.max(0, elapsed);
     }
 
     /**
@@ -109,6 +129,7 @@ public class TimingController {
      *
      * @return 格式化的时间字符串（HH:mm:ss）
      */
+    @SuppressLint("DefaultLocale")
     public String getFormattedElapsedTime() {
         long millis = getCurrentElapsedTime();
         long seconds = millis / 1000;
