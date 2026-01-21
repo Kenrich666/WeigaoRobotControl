@@ -72,31 +72,37 @@
             android:textStyle="bold"
             android:textColor="#444444"/>
 
-        <Button
+        <android.widget.Button
             android:id="@+id/l1_button"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_marginBottom="8dp"
             android:background="@drawable/rounded_button"
-            android:text="L1 层" />
+            android:text="L1 层"
+            android:textAllCaps="false"
+            android:textColor="@android:color/black" />
 
-        <Button
+        <android.widget.Button
             android:id="@+id/l2_button"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_marginBottom="8dp"
             android:background="@drawable/rounded_button"
-            android:text="L2 层" />
+            android:text="L2 层"
+            android:textAllCaps="false"
+            android:textColor="@android:color/black" />
 
-        <Button
+        <android.widget.Button
             android:id="@+id/l3_button"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:background="@drawable/rounded_button"
-            android:text="L3 层" />
+            android:text="L3 层"
+            android:textAllCaps="false"
+            android:textColor="@android:color/black" />
     </LinearLayout>
 
     <TextView
@@ -130,6 +136,7 @@
         android:text="立即出发"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/robot_body" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
