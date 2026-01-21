@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F8F9FA">
+
+    <ImageView
+        android:id="@+id/iv_robot"
+        android:layout_width="263dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="16dp"
+        android:adjustViewBounds="true"
+        android:src="@drawable/qinglang"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHeight_percent="0.75"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="返航中"
+        android:textColor="#444444"
+        android:textSize="80sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.514"
+        app:layout_constraintStart_toEndOf="@id/iv_robot"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.281" />
+
+    <TextView
+        android:id="@+id/tv_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="60dp"
+        android:text="双击屏幕可以暂停"
+        android:textColor="#999999"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/tv_status"
+        app:layout_constraintStart_toStartOf="@id/tv_status" />
+
+    <LinearLayout
+        android:id="@+id/ll_controls"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="40dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/iv_robot">
+
+        <Button
+            android:id="@+id/btn_end"
+            android:layout_width="150dp"
+            android:layout_height="60dp"
+            android:layout_marginEnd="20dp"
+            android:background="@drawable/rounded_button"
+            android:text="结束"
+            android:textColor="#333333"
+            android:textSize="24sp" />
+
+        <Button
+            android:id="@+id/btn_continue"
+            android:layout_width="150dp"
+            android:layout_height="60dp"
+            android:background="@drawable/rounded_button"
+            android:text="继续"
+            android:textColor="#333333"
+            android:textSize="24sp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

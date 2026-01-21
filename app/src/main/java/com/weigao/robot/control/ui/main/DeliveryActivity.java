@@ -1,9 +1,11 @@
 package com.weigao.robot.control.ui.main;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,6 +27,24 @@ public class DeliveryActivity extends AppCompatActivity {
 
         Button backButton = findViewById(R.id.back_button);
         backButton.setOnClickListener(v -> finish());
+
+        // 我在这里添加了开门/关门逻辑
+        Button openDoorButton = findViewById(R.id.open_door_button);
+        openDoorButton.setOnClickListener(v -> {
+            if (openDoorButton.getText().equals("开门")) {
+                openDoorButton.setText("闭门");
+                Toast.makeText(this, "正在开门", Toast.LENGTH_SHORT).show();
+            } else {
+                openDoorButton.setText("开门");
+                Toast.makeText(this, "正在闭门", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        Button returnButton = findViewById(R.id.return_button);
+        returnButton.setOnClickListener(v -> {
+            Intent intent = new Intent(DeliveryActivity.this, ReturnActivity.class);
+            startActivity(intent);
+        });
 
         // 在 onCreate 中修改 RecyclerView 的配置
         RecyclerView pointsRecyclerView = findViewById(R.id.points_recyclerview);
