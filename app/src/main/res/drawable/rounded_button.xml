@@ -1,0 +1,5 @@
+<!--紫色圆角按钮-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#7122BC" />
+    <corners android:radius="30dp" />
+</shape>

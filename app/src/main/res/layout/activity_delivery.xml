@@ -4,50 +4,132 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.main.DeliveryActivity">
+    android:background="#F8F9FA">
 
-    <ImageButton
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.15" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_bottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.85" />
+
+    <Button
         android:id="@+id/back_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_media_previous"
+        android:layout_marginStart="24dp"
+        android:text="返回"
+        app:layout_constraintBottom_toTopOf="@+id/guideline_top"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/title_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="34sp"
-        app:layout_constraintBottom_toTopOf="@+id/start_delivery_button"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.2"
-        tools:text="Delivery Type" />
 
     <Button
-        android:id="@+id/start_delivery_button"
+        android:id="@+id/open_door_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="开始配送"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginEnd="16dp"
+        android:text="开门"
+        app:layout_constraintBottom_toTopOf="@+id/guideline_top"
+        app:layout_constraintEnd_toStartOf="@+id/return_button"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/status_text"
+    <Button
+        android:id="@+id/return_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:textSize="20sp"
+        android:layout_marginEnd="24dp"
+        android:text="返航"
+        app:layout_constraintBottom_toTopOf="@+id/guideline_top"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/robot_body"
+        android:layout_width="150dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="24dp"
+        android:background="@drawable/bg_robot_frame"
+        android:elevation="4dp"
+        android:orientation="vertical"
+        android:padding="12dp"
+        app:layout_constraintBottom_toTopOf="@+id/guideline_bottom"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/start_delivery_button"
-        tools:text="Status: Idle" />
+        app:layout_constraintTop_toBottomOf="@+id/guideline_top">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:gravity="center"
+            android:text="送药机器人"
+            android:textStyle="bold"
+            android:textColor="#444444"/>
+
+        <Button
+            android:id="@+id/l1_button"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/rounded_button"
+            android:text="L1 层" />
+
+        <Button
+            android:id="@+id/l2_button"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/rounded_button"
+            android:text="L2 层" />
+
+        <Button
+            android:id="@+id/l3_button"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/rounded_button"
+            android:text="L3 层" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/all_points_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="— 所有点位 —"
+        android:textSize="18sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/robot_body"
+        app:layout_constraintTop_toTopOf="@+id/guideline_top" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/points_recyclerview"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_margin="16dp"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/depart_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/robot_body"
+        app:layout_constraintTop_toBottomOf="@+id/all_points_title"
+        tools:listitem="@drawable/blue_rounded_button" />
+
+    <Button
+        android:id="@+id/depart_button"
+        android:layout_width="141dp"
+        android:layout_height="53dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="8dp"
+        android:text="立即出发"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

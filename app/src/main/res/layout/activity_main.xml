@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:background="#F5F5F5"
     tools:context=".ui.main.MainActivity">
-
+<!--主界面-->
     <ImageView
         android:id="@+id/iv_logo"
         android:layout_width="wrap_content"
@@ -18,7 +18,7 @@
         android:src="@drawable/weigaologo"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHeight_percent="0.15"
-        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
