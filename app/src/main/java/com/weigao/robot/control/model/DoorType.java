@@ -9,19 +9,19 @@ package com.weigao.robot.control.model;
 public enum DoorType {
 
     /** 四舱 */
-    FOUR(0, 101),
+    FOUR(0, 101, 4),
 
     /** 双舱 */
-    DOUBLE(1, 102),
+    DOUBLE(1, 102, 2),
 
     /** T字型舱 */
-    THREE(2, 103),
+    THREE(2, 103, 3),
 
     /** 倒T型舱 */
-    THREE_REVERSE(3, 104),
+    THREE_REVERSE(3, 104, 3),
 
     /** 自动识别 */
-    AUTO(-1, 105);
+    AUTO(-1, 105, -1);
 
     /** 舱门类型ID（SDK GatingType） */
     private final int typeId;
@@ -29,9 +29,13 @@ public enum DoorType {
     /** 设置类型常量（SDK SET_TYPE_XXX） */
     private final int setTypeCode;
 
-    DoorType(int typeId, int setTypeCode) {
+    /** 舱门数量 */
+    private final int doorCount;
+
+    DoorType(int typeId, int setTypeCode, int doorCount) {
         this.typeId = typeId;
         this.setTypeCode = setTypeCode;
+        this.doorCount = doorCount;
     }
 
     public int getTypeId() {
@@ -40,6 +44,10 @@ public enum DoorType {
 
     public int getSetTypeCode() {
         return setTypeCode;
+    }
+
+    public int getDoorCount() {
+        return doorCount;
     }
 
     /**

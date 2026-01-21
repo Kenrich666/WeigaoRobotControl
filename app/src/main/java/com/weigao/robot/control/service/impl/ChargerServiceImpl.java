@@ -3,8 +3,8 @@ package com.weigao.robot.control.service.impl;
 import android.content.Context;
 import android.util.Log;
 
-import com.keenon.peanut.api.PeanutCharger;
-import com.keenon.peanut.api.callback.Charger;
+import com.keenon.sdk.component.charger.PeanutCharger;
+import com.keenon.sdk.component.charger.common.Charger;
 // SDK 的 ChargerInfo 通过完整包名引用以避免冲突
 
 import com.weigao.robot.control.callback.IChargerCallback;
@@ -38,7 +38,7 @@ public class ChargerServiceImpl implements IChargerService {
     private int currentPileId = 0;
 
     /** 当前充电信息 */
-    private ChargerInfo chargerInfo;
+    private final ChargerInfo chargerInfo;
 
     /** 是否正在充电 */
     private boolean isCharging = false;
@@ -71,7 +71,7 @@ public class ChargerServiceImpl implements IChargerService {
      */
     private final Charger.Listener mChargerListener = new Charger.Listener() {
         @Override
-        public void onChargerInfoChanged(int event, com.keenon.peanut.api.entity.ChargerInfo sdkInfo) {
+        public void onChargerInfoChanged(int event, com.keenon.sdk.component.charger.common.ChargerInfo sdkInfo) {
             Log.d(TAG, "onChargerInfoChanged: event=" + event + ", power=" +
                     (sdkInfo != null ? sdkInfo.getPower() : "null"));
 
@@ -152,8 +152,10 @@ public class ChargerServiceImpl implements IChargerService {
                 }
                 peanutCharger.performAction(sdkAction);
 
-                // 更新充电状态
-                isCharging = (action != CHARGE_ACTION_STOP);
+                // 更新本地状态
+                if (action == CHARGE_ACTION_STOP) {
+                    isCharging = false;
+                }
             }
             notifySuccess(callback);
         } catch (Exception e) {

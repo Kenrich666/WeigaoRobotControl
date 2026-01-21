@@ -3,9 +3,9 @@ package com.weigao.robot.control.app;
 import android.app.Application;
 import android.util.Log;
 
-import com.keenon.peanut.api.PeanutSDK;
-import com.keenon.peanut.api.constants.PeanutConstants;
-import com.keenon.peanut.api.config.PeanutConfig;
+import com.keenon.sdk.external.PeanutSDK;
+import com.keenon.common.constant.PeanutConstants;
+import com.keenon.common.external.PeanutConfig;
 
 import com.weigao.robot.control.service.ServiceManager;
 
@@ -90,9 +90,8 @@ public class WeigaoApplication extends Application {
                     .setDoorLinkCOM(PeanutConstants.COM2)
                     // 设置舱门数量
                     .setDoorNum(DOOR_COUNT)
-                    // 设置连接超时
-                    .setConnectionTimeout(PeanutConstants.COAP_TIME_OUT)
                     // 开启日志
+                    .setConnectionTimeout(PeanutConstants.CONNECTION_TIMEOUT)
                     .enableLog(true)
                     // 设置日志级别
                     .setLogLevel(Log.DEBUG)
@@ -116,10 +115,10 @@ public class WeigaoApplication extends Application {
     /**
      * SDK 初始化回调
      */
-    private final PeanutSDK.InitListener mInitListener = new PeanutSDK.InitListener() {
+    private final PeanutSDK.ErrorListener mInitListener = new PeanutSDK.ErrorListener() {
         @Override
         public void onInit(int errorCode) {
-            if (errorCode == 0) {
+            if (errorCode == PeanutSDK.SDK_INIT_SUCCESS) {
                 sdkInitialized = true;
                 Log.i(TAG, "Peanut SDK 初始化成功");
 

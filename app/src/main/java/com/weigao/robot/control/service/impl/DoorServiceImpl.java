@@ -3,11 +3,12 @@ package com.weigao.robot.control.service.impl;
 import android.content.Context;
 import android.util.Log;
 
-import com.keenon.peanut.api.PeanutDoor;
-import com.keenon.peanut.api.callback.Door;
-import com.keenon.peanut.api.entity.GatingType;
-import com.keenon.peanut.api.entity.GatingState;
-import com.keenon.peanut.api.entity.Faults;
+import com.keenon.sdk.component.gating.manager.Door;
+import com.keenon.sdk.component.gating.manager.PeanutDoor;
+import com.keenon.sdk.component.gating.callback.DoorListener;
+import com.keenon.sdk.component.gating.data.GatingType;
+import com.keenon.sdk.component.gating.state.GatingState;
+import com.keenon.sdk.component.gating.data.Faults;
 
 import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
@@ -38,7 +39,7 @@ public class DoorServiceImpl implements IDoorService {
     private PeanutDoor peanutDoor;
 
     /** 舱门数量 */
-    private int doorCount = 4;
+    private int doorCount = 2;
 
     /** 脚踩灯光开关门是否启用 */
     private boolean footSwitchEnabled = false;
@@ -74,7 +75,7 @@ public class DoorServiceImpl implements IDoorService {
     /**
      * SDK 舱门回调
      */
-    private final Door.DoorListener mDoorListener = new Door.DoorListener() {
+    private final DoorListener mDoorListener = new DoorListener() {
         @Override
         public void onFault(Faults type, int doorId) {
             Log.e(TAG, "onFault: type=" + type + ", doorId=" + doorId);
@@ -373,7 +374,7 @@ public class DoorServiceImpl implements IDoorService {
         if (gatingType == null)
             return DoorType.FOUR;
         switch (gatingType) {
-            case Four:
+            case FOUR:
                 return DoorType.FOUR;
             case DOUBLE:
                 return DoorType.DOUBLE;

@@ -41,7 +41,7 @@ public interface INavigationCallback {
      *
      * @param distance 剩余距离，单位：米
      */
-    void onDistanceChanged(float distance);
+    void onDistanceChanged(double distance);
 
     /**
      * 导航过程中发生错误
@@ -49,4 +49,12 @@ public interface INavigationCallback {
      * @param errorCode 错误码，参见SDK错误码定义（203400-203411）
      */
     void onNavigationError(int errorCode);
+
+    /**
+     * 导航过程中发生错误（带错误消息）
+     *
+     * @param errorCode 错误码
+     * @param message   错误消息
+     */
+    void onError(int errorCode, String message);
 }

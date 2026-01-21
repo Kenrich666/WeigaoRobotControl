@@ -3,9 +3,9 @@ package com.weigao.robot.control.service.impl;
 import android.content.Context;
 import android.util.Log;
 
-import com.keenon.peanut.api.PeanutNavigation;
-import com.keenon.peanut.api.callback.Navigation;
-import com.keenon.peanut.api.entity.RouteNode;
+import com.keenon.sdk.component.navigation.PeanutNavigation;
+import com.keenon.sdk.component.navigation.common.Navigation;
+import com.keenon.sdk.component.navigation.route.RouteNode;
 
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
@@ -36,8 +36,8 @@ public class NavigationServiceImpl implements INavigationService {
     private PeanutNavigation peanutNavigation;
 
     /** 导航目标点列表 */
-    private List<NavigationNode> targetNodes = new ArrayList<>();
-
+    // [优化] 使用线程安全的 List
+    private List<NavigationNode> targetNodes = new CopyOnWriteArrayList<>();
     /** 当前目标点索引 */
     private int currentPosition = 0;
 
@@ -96,13 +96,19 @@ public class NavigationServiceImpl implements INavigationService {
 
         @Override
         public void onDistanceChanged(float distance) {
-            notifyDistanceChanged(distance);
+            notifyDistanceChanged((double) distance);
         }
 
         @Override
         public void onError(int code) {
             Log.e(TAG, "onError: " + code);
             notifyError(code, "导航错误");
+        }
+
+        @Override
+        public void onEvent(int event) {
+            Log.d(TAG, "onEvent: " + event);
+            // 处理导航事件
         }
     };
 
@@ -112,6 +118,12 @@ public class NavigationServiceImpl implements INavigationService {
     public void setTargets(List<Integer> targetIds, IResultCallback<Void> callback) {
         Log.d(TAG, "setTargets: " + targetIds);
         try {
+            // [修复] 1. 防止内存泄漏：如果已存在实例，先释放
+            if (peanutNavigation != null) {
+                peanutNavigation.stop();
+                peanutNavigation.release();
+                peanutNavigation = null;
+            }
             // 将 targetIds 转换为 NavigationNode 列表
             targetNodes.clear();
             Integer[] targets = null;
@@ -440,7 +452,8 @@ public class NavigationServiceImpl implements INavigationService {
         targetNodes.clear();
         if (peanutNavigation != null) {
             try {
-                peanutNavigation.release();
+                peanutNavigation.stop(); // 先停止
+                peanutNavigation.release(); // 再释放
             } catch (Exception e) {
                 Log.e(TAG, "释放 peanutNavigation 异常", e);
             }
@@ -494,6 +507,10 @@ public class NavigationServiceImpl implements INavigationService {
 
     /**
      * 将 SDK RouteNode 转换为 NavigationNode
+     * <p>
+     * 注意: RouteNode 的坐标信息存储在其内部 Location 对象中，
+     * 需要通过 getLocation() 获取后再获取 x, y, phi 坐标。
+     * </p>
      */
     private NavigationNode convertToNavigationNode(RouteNode routeNode) {
         if (routeNode == null) {
@@ -502,9 +519,35 @@ public class NavigationServiceImpl implements INavigationService {
         NavigationNode node = new NavigationNode();
         node.setId(routeNode.getId());
         node.setName(routeNode.getName());
-        node.setX(routeNode.getX());
-        node.setY(routeNode.getY());
-        node.setPhi(routeNode.getTheta());
+
+        // RouteNode 的坐标信息在 Location 对象中
+        // 根据 SDK 文档，Location 包含 x, y, phi 字段
+        try {
+            // 尝试通过反射或直接访问 Location
+            Object location = routeNode.getLocation();
+            if (location != null) {
+                // Location 有 getX(), getY(), getPhi() 方法
+                java.lang.reflect.Method getX = location.getClass().getMethod("getX");
+                java.lang.reflect.Method getY = location.getClass().getMethod("getY");
+                java.lang.reflect.Method getPhi = location.getClass().getMethod("getPhi");
+
+                Object xVal = getX.invoke(location);
+                Object yVal = getY.invoke(location);
+                Object phiVal = getPhi.invoke(location);
+
+                if (xVal instanceof Float) {
+                    node.setX((Float) xVal);
+                }
+                if (yVal instanceof Float) {
+                    node.setY((Float) yVal);
+                }
+                if (phiVal instanceof Float) {
+                    node.setPhi((Float) phiVal);
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "获取 RouteNode 位置信息失败", e);
+        }
         return node;
     }
 
