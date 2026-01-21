@@ -33,6 +33,7 @@
         <activity android:name=".ui.main.DeliveryActivity" />
         <activity android:name=".ui.main.ReturnActivity" />
         <activity android:name=".ui.main.CircularDeliveryActivity" />
+        <activity android:name=".ui.main.DeliveryNavigationActivity" />
     </application>
 
 </manifest>

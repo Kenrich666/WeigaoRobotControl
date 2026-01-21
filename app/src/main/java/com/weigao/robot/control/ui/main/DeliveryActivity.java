@@ -24,7 +24,7 @@ import java.util.Map;
 public class DeliveryActivity extends AppCompatActivity {
     private Button selectedLayerButton;
     // 存储配对关系
-    private final Map<Integer, String> pairings = new HashMap<>();
+    private final HashMap<Integer, String> pairings = new HashMap<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -45,6 +45,16 @@ public class DeliveryActivity extends AppCompatActivity {
 
         findViewById(R.id.return_button).setOnClickListener(v ->
                 startActivity(new Intent(this, ReturnActivity.class)));
+
+        findViewById(R.id.start_delivery_button).setOnClickListener(v -> {
+            if (pairings.isEmpty()) {
+                Toast.makeText(this, "请至少配对一个层", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Intent intent = new Intent(this, DeliveryNavigationActivity.class);
+            intent.putExtra("pairings", pairings);
+            startActivity(intent);
+        });
 
         // --- 2. 层选择与“删除”逻辑 ---
         Button l1Button = findViewById(R.id.l1_button);
