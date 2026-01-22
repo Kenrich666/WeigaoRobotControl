@@ -111,16 +111,19 @@ public class SecurityServiceImplTest {
     }
 
     /**
-     * 测试设置新密码
+     * 测试设置新密码（首次设置场景）
      */
     @Test
-    public void testSetPassword_Success() {
+    public void testSetPassword_Success_FirstTime() {
+        // 模拟首次设置密码（KEY_PASSWORD_SET = false）
+        when(mockPrefs.getBoolean(eq("security_password_set"), anyBoolean())).thenReturn(false);
         when(mockPrefs.getString(eq("security_password"), anyString())).thenReturn("123456");
 
-        securityService.setPassword("123456", "654321", mockVoidCallback);
+        securityService.setPassword("any_old", "654321", mockVoidCallback);
 
         // 验证是否执行了保存动作
         verify(mockEditor).putString("security_password", "654321");
+        verify(mockEditor).putBoolean("security_password_set", true);
         verify(mockEditor).apply();
         verify(mockVoidCallback).onSuccess(null);
     }
@@ -196,10 +199,15 @@ public class SecurityServiceImplTest {
 
     /**
      * 测试设置密码失败 - 旧密码错误。
+     * <p>
+     * 模拟已设置过密码的场景（KEY_PASSWORD_SET = true），输入错误的旧密码应失败。
+     * </p>
      */
     @Test
     public void testSetPassword_WrongOldPassword() {
-        when(mockPrefs.getString(eq("security_password"), anyString())).thenReturn("123456");
+        // 模拟已设置过密码
+        when(mockPrefs.getBoolean(eq("security_password_set"), anyBoolean())).thenReturn(true);
+        when(mockPrefs.getString(eq("security_password"), anyString())).thenReturn("correct_pwd");
 
         securityService.setPassword("wrong_old", "new_pwd", mockVoidCallback);
 

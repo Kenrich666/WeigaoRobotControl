@@ -11,9 +11,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
-import com.weigao.robot.control.callback.IRemoteCallCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.service.INavigationService;
+import com.weigao.robot.control.service.IRemoteCallService;
 
 import org.junit.After;
 import org.junit.Before;
@@ -223,7 +223,7 @@ public class RemoteCallServiceImplTest {
      */
     @Test
     public void testRegisterAndUnregisterCallback() {
-        IRemoteCallCallback mockCallback = mock(IRemoteCallCallback.class);
+        IRemoteCallService.IRemoteCallCallback mockCallback = mock(IRemoteCallService.IRemoteCallCallback.class);
 
         remoteCallService.registerCallback(mockCallback);
         remoteCallService.unregisterCallback(mockCallback);

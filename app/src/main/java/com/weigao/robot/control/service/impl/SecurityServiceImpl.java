@@ -22,8 +22,9 @@ public class SecurityServiceImpl implements ISecurityService {
     private static final String TAG = "SecurityServiceImpl";
     private static final String PREFS_NAME = "security_prefs";
     private static final String KEY_PASSWORD = "security_password";
+    private static final String KEY_PASSWORD_SET = "security_password_set"; // 标记是否已设置过密码
     private static final String KEY_ENABLED = "security_enabled";
-    private static final String KEY_LOCKED_STATE = "security_is_locked"; // 新增
+    private static final String KEY_LOCKED_STATE = "security_is_locked";
     private static final String DEFAULT_PASSWORD = "123456";
 
     private final Context context;
@@ -89,11 +90,15 @@ public class SecurityServiceImpl implements ISecurityService {
     @Override
     public void setPassword(String oldPassword, String newPassword, IResultCallback<Void> callback) {
         Log.d(TAG, "setPassword");
+        boolean isFirstTime = !prefs.getBoolean(KEY_PASSWORD_SET, false);
         String savedPassword = prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD);
 
-        // 首次设置密码时 oldPassword 可为空
-        if (savedPassword.equals(DEFAULT_PASSWORD) || savedPassword.equals(oldPassword)) {
-            prefs.edit().putString(KEY_PASSWORD, newPassword).apply();
+        // 首次设置密码时 oldPassword 可为空，后续必须验证旧密码
+        if (isFirstTime || savedPassword.equals(oldPassword)) {
+            prefs.edit()
+                    .putString(KEY_PASSWORD, newPassword)
+                    .putBoolean(KEY_PASSWORD_SET, true)
+                    .apply();
             notifySuccess(callback);
         } else {
             notifyError(callback, -1, "旧密码不正确");

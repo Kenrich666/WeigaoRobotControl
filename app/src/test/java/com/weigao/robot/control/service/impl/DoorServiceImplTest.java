@@ -26,6 +26,7 @@ import com.weigao.robot.control.model.DoorType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -202,12 +203,17 @@ public class DoorServiceImplTest {
     @Test
     public void testGetDoorState_Success() {
         int doorId = 1;
-        int expectedState = GatingState.CLOSED;
-        when(mockedPeanutDoorInstance.getDoorState(doorId)).thenReturn(expectedState);
+        // 1. 定义期望的枚举对象（Mock 的返回值）
+        GatingState mockReturnState = GatingState.CLOSED;
 
+        // 2. Mock SDK 方法：当调用 getDoorState 时，返回枚举对象
+        when(mockedPeanutDoorInstance.getDoorState(doorId)).thenReturn(mockReturnState);
+
+        // 3. 执行测试
         doorService.getDoorState(doorId, mockIntegerCallback);
 
-        verify(mockIntegerCallback).onSuccess(expectedState);
+        // 4. 验证回调：期望收到的是枚举对应的 ordinal (int) 值
+        verify(mockIntegerCallback).onSuccess(mockReturnState.ordinal());
     }
 
     /**
@@ -215,13 +221,35 @@ public class DoorServiceImplTest {
      */
     @Test
     public void testGetAllDoorStates_Success() {
-        int[] expectedStates = { GatingState.CLOSE, GatingState.OPEN, GatingState.CLOSE, GatingState.CLOSE };
-        when(mockedPeanutDoorInstance.getAllDoorState()).thenReturn(expectedStates);
+        // 1. 准备 Mock 数据
+        // 假设 doorCount 默认为 2 (Service 中定义的默认值)
+        // 修正枚举名称：使用 CLOSED 和 OPENED
+        GatingState state1 = GatingState.CLOSED;
+        GatingState state2 = GatingState.OPENED;
 
+        // 2. 针对循环中的每一次调用分别进行 Mock
+        when(mockedPeanutDoorInstance.getDoorState(1)).thenReturn(state1);
+        when(mockedPeanutDoorInstance.getDoorState(2)).thenReturn(state2);
+
+        // 3. 构造期望的 int 数组结果
+        int[] expectedStates = { state1.ordinal(), state2.ordinal() };
+
+        // 4. 执行测试
+        // 注意：这里我们需要 Mock 一个 int[] 类型的回调
         IResultCallback<int[]> mockIntArrayCallback = mock(IResultCallback.class);
         doorService.getAllDoorStates(mockIntArrayCallback);
 
-        verify(mockIntArrayCallback).onSuccess(expectedStates);
+        // 5. 验证结果
+        // 验证回调是否收到了正确的 int 数组
+        // 注意：数组比较通常需要使用 assertArrayEquals，但在 Mockito verify 中
+        // 如果直接比较对象引用可能会失败，更严谨的写法是使用 ArgumentCaptor，
+        // 但如果引用一致，直接 verify 也可以。这里使用 eq 或直接传值。
+        verify(mockIntArrayCallback).onSuccess(any(int[].class));
+
+        // 或者如果你想精确验证数组内容，可以使用 ArgumentCaptor:
+        ArgumentCaptor<int[]> captor = ArgumentCaptor.forClass(int[].class);
+        verify(mockIntArrayCallback).onSuccess(captor.capture());
+        assertArrayEquals(expectedStates, captor.getValue());
     }
 
     /**
@@ -294,5 +322,29 @@ public class DoorServiceImplTest {
         when(mockedPeanutDoorInstance.getDoorType()).thenReturn(1);
         doorService.getDoorType(mockDoorTypeCallback);
         verify(mockDoorTypeCallback).onSuccess(DoorType.DOUBLE);
+    }
+
+    /**
+     * 测试打开所有舱门。
+     */
+    @Test
+    public void testOpenAllDoors_Success() {
+        doorService.openAllDoors(false, mockVoidCallback);
+
+        // 验证 SDK 的 openDoor 方法被调用多次（默认 doorCount=2）
+        verify(mockedPeanutDoorInstance, times(2)).openDoor(anyInt(), eq(false));
+        verify(mockVoidCallback).onSuccess(null);
+    }
+
+    /**
+     * 测试独占模式打开所有舱门。
+     */
+    @Test
+    public void testOpenAllDoors_SingleMode() {
+        doorService.openAllDoors(true, mockVoidCallback);
+
+        // 验证使用 single=true 调用
+        verify(mockedPeanutDoorInstance, times(2)).openDoor(anyInt(), eq(true));
+        verify(mockVoidCallback).onSuccess(null);
     }
 }

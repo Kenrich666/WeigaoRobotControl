@@ -223,9 +223,13 @@ public class TimingServiceImplTest {
 
     /**
      * 测试重复启动同一任务。
+     * <p>
+     * 注意：实现类设计为重启计时策略（停止旧的、启动新的），
+     * 而不是拒绝重复启动。这是为了简化上层调用逻辑。
+     * </p>
      */
     @Test
-    public void testStartTiming_Duplicate() {
+    public void testStartTiming_Duplicate_RestartsTimer() {
         String taskId = "task_001";
         timingService.startTiming(taskId, null);
 
@@ -233,8 +237,8 @@ public class TimingServiceImplTest {
         IResultCallback<Void> callback = mock(IResultCallback.class);
         timingService.startTiming(taskId, callback);
 
-        // 验证错误回调（或覆盖原任务）
-        verify(callback).onError(any());
+        // 验证成功回调（重启计时成功）
+        verify(callback).onSuccess(null);
     }
 
     /**
