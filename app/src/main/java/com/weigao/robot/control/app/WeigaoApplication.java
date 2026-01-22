@@ -45,8 +45,8 @@ public class WeigaoApplication extends Application {
         instance = this;
         Log.i(TAG, "WeigaoApplication onCreate");
 
-        // 初始化 SDK
-        initializeSdk();
+        // 移除 onCreate 中的初始化，改为由 MainActivity 请求权限后调用
+        // initializeSdk();
     }
 
     @Override
@@ -69,8 +69,11 @@ public class WeigaoApplication extends Application {
 
     /**
      * 初始化 Peanut SDK
+     * <p>
+     * 注意：必须在获取 READ_EXTERNAL_STORAGE 权限后调用
+     * </p>
      */
-    private void initializeSdk() {
+    public void initializeSdk() {
         Log.i(TAG, "开始初始化 Peanut SDK...");
 
         try {
@@ -90,9 +93,9 @@ public class WeigaoApplication extends Application {
                     .setDoorLinkCOM(PeanutConstants.COM2)
                     // 设置舱门数量
                     .setDoorNum(DOOR_COUNT)
-                    // 开启日志
+                    // 开启日志 (警告：Android 10+ 必须关闭，否则因无法获取 IMEI 导致 SecurityException 崩溃)
                     .setConnectionTimeout(PeanutConstants.CONNECTION_TIMEOUT)
-                    .enableLog(true)
+                    .enableLog(false)
                     // 设置日志级别
                     .setLogLevel(Log.DEBUG)
                     // 设置离线鉴权 AppId

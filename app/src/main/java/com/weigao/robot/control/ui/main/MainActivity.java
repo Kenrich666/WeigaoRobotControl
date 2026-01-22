@@ -62,10 +62,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                ||
+                ContextCompat.checkSelfPermission(this,
+                        Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                    new String[] {
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.READ_PHONE_STATE
+                    },
                     REQUEST_CODE_PERMISSIONS);
         } else {
             initRobotSDK();
@@ -73,23 +83,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // 简单判断，实际应检查每个权限
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 initRobotSDK();
             } else {
                 Log.e(TAG, "Permission denied: READ_EXTERNAL_STORAGE");
-                // Handle permission denial (e.g., show a message to the user)
+                // 可以添加弹窗提示用户手动开启权限
             }
         }
     }
 
     private void initRobotSDK() {
-        // 初始化 SDK
-        PeanutSDK.getInstance().init(getApplication(), errorCode -> {
-            // errorCode = 0 表示成功
-            Log.i(TAG, "SDK Init Result: " + errorCode);
-        });
+        // 使用 WeigaoApplication 进行统一初始化（包含配置参数）
+        com.weigao.robot.control.app.WeigaoApplication.getInstance().initializeSdk();
     }
 }
