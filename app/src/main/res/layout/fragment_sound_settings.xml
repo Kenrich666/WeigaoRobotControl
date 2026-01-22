@@ -21,147 +21,82 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp">
-
-            <Button
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="送餐/回盘音量"
-                android:layout_marginEnd="8dp"/>
-
-            <Button
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="生日歌/迎宾音量"
-                android:layout_marginStart="8dp"/>
-        </LinearLayout>
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
             android:paddingTop="8dp"
             android:paddingBottom="8dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
+                android:layout_marginEnd="0dp"
                 android:text="音乐"
                 android:textSize="16sp" />
 
             <SeekBar
-                android:layout_width="200dp"
+                android:id="@+id/seekbar_music_volume"
+                android:layout_width="532dp"
                 android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:max="100"
-                android:progress="0"/>
+                android:layout_weight="1"
+                android:max="10"
+                android:progress="0"
+                android:progressTint="#4A90E2"
+                android:thumbTint="#4A90E2" />
 
             <TextView
+                android:id="@+id/tv_music_volume_value"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
+                android:layout_marginStart="0dp"
+                android:layout_marginEnd="50dp"
+                android:gravity="end"
+                android:minWidth="40dp"
                 android:text="0"
                 android:textSize="16sp" />
-        </RelativeLayout>
+        </LinearLayout>
 
-        <RelativeLayout
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
             android:paddingTop="8dp"
             android:paddingBottom="8dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
+                android:layout_marginEnd="0dp"
                 android:text="语音"
                 android:textSize="16sp" />
 
             <SeekBar
-                android:layout_width="200dp"
+                android:id="@+id/seekbar_voice_volume"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:max="100"
-                android:progress="0"/>
+                android:layout_weight="1"
+                android:max="10"
+                android:progress="0"
+                android:progressTint="#4A90E2"
+                android:thumbTint="#4A90E2" />
 
             <TextView
+                android:id="@+id/tv_voice_volume_value"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
+                android:layout_marginStart="0dp"
+                android:layout_marginEnd="50dp"
+                android:gravity="end"
+                android:minWidth="40dp"
                 android:text="0"
                 android:textSize="16sp" />
-        </RelativeLayout>
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="语音提示包括出发语音、避障语音、运行中语音、取餐语音等提示,皆一致调节音量"
+            android:text="语音提示包括出发语音、避障语音、运行中语音、配送语音等提示,皆一致调节音量"
             android:textSize="14sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="桌号播报"
-            android:textColor="@android:color/black"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginTop="16dp"/>
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="桌号语音播报"
-            android:textSize="16sp"
-            android:layout_marginTop="8dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="语音音色"
-            android:textColor="@android:color/black"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginTop="16dp"/>
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:text="选择语音音色 (仅限中文)"
-                android:textSize="16sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:drawablePadding="8dp"
-                android:text="萌娃音 >"
-                android:textSize="16sp" />
-        </RelativeLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="送餐声音"
-            android:textColor="@android:color/black"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginTop="16dp"/>
 
     </LinearLayout>
 </ScrollView>
