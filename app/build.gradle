@@ -4,13 +4,12 @@ plugins {
 
 android {
     namespace 'com.weigao.robot.control'
-    
-    compileSdk 34 
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.weigao.robot.control"
-        minSdk 21 
-        targetSdk 34 
+        minSdk 21
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
@@ -49,25 +48,53 @@ android {
 }
 
 dependencies {
-    // --- 1. AndroidX 基础库 (使用 Version Catalog) ---
-    // 注意：如果报错 "Could not get unknown property 'libs'"，说明你没有配置 gradle/libs.versions.toml
+    // ============================================
+    // 1. AndroidX 基础库 (Version Catalog)
+    // ============================================
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity
     implementation libs.constraintlayout
 
-    // 测试库
-    testImplementation libs.junit
-    androidTestImplementation libs.ext.junit
-    androidTestImplementation libs.espresso.core
+    // ============================================
+    // 2. Peanut SDK 集成
+    // ============================================
 
-    // --- 2. Peanut SDK 集成 ---
-    
-    // (A) 加载 libs 目录下的 aar，peanut-sdk-release.aar 放在 WeigaoRobotControl\app\libs\ 目录下
+    // (A) 加载本地 AAR (路径: app/libs/peanut-sdk-release.aar)
     implementation fileTree(dir: 'libs', include: ['*.aar'])
 
-    // (B) SDK 依赖库
+    // (B) SDK 必须的三方库
+    // 注意：FastJson 和 Gson 功能重叠。如果 SDK 内部未强制指定，建议移除其中一个以减小体积。
+    // 目前保留两者以防止 SDK 内部崩溃。
     implementation 'com.alibaba:fastjson:1.2.68'
     implementation 'com.google.code.gson:gson:2.8.6'
+
+    // (C) 日志框架 (关键修复)
     implementation 'org.slf4j:slf4j-api:1.7.25'
+    // [新增] 必须添加 Android 实现绑定，否则 Logcat 看不到 SDK 日志
+    implementation 'org.slf4j:slf4j-android:1.7.25'
+
+    // (D) 友盟SDK (PeanutSDK 依赖)
+    implementation 'com.umeng.umsdk:common:9.4.0'// 必选
+    implementation 'com.umeng.umsdk:asms:1.2.3'// 必选
+    // ============================================
+    // 3. 测试依赖
+    // ============================================
+
+    // 单元测试
+    testImplementation libs.junit // 这里通常对应 junit:junit:4.13.2
+
+    // Mockito (单元测试模拟对象)
+    testImplementation 'org.mockito:mockito-core:4.8.0'
+    testImplementation 'org.mockito:mockito-inline:4.8.0'
+
+    // Robolectric (Android 环境模拟)
+    testImplementation 'org.robolectric:robolectric:4.9'
+
+    // Truth (Google 断言库)
+    testImplementation 'com.google.truth:truth:1.1.3'
+
+    // Android 仪器测试 (在真机/模拟器上运行)
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
 }
