@@ -1,11 +1,347 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="This is the scheduled tasks fragment." />
+    <!-- Main content -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="定时任务"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ScrollView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_title">
+
+            <LinearLayout
+                android:id="@+id/ll_tasks_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+        </ScrollView>
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_new_task"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:contentDescription="新建任务"
+            android:src="@android:drawable/ic_input_add"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Drawer for new task -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="@android:color/white">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/drawer_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="新建任务"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:paddingBottom="16dp" />
+
+                <!-- Task Name -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="任务名称"
+                    android:textSize="14sp"
+                    android:paddingTop="8dp" />
+
+                <EditText
+                    android:id="@+id/et_task_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="请输入任务名称"
+                    android:padding="12dp"
+                    android:background="@android:drawable/edit_text" />
+
+                <!-- Mode -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="模式"
+                    android:textSize="14sp"
+                    android:paddingTop="16dp" />
+
+                <Spinner
+                    android:id="@+id/spinner_mode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp" />
+
+                <!-- Start Time -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="开始时间"
+                    android:textSize="14sp"
+                    android:paddingTop="16dp" />
+
+                <Button
+                    android:id="@+id/btn_start_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="选择开始时间"
+                    android:textAllCaps="false" />
+
+                <!-- End Time -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="结束时间"
+                    android:textSize="14sp"
+                    android:paddingTop="16dp" />
+
+                <Button
+                    android:id="@+id/btn_end_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="选择结束时间"
+                    android:textAllCaps="false" />
+
+                <!-- Repeat Days -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="重复"
+                    android:textSize="14sp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <CheckBox
+                        android:id="@+id/cb_monday"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="一"
+                        android:gravity="center" />
+
+                    <CheckBox
+                        android:id="@+id/cb_tuesday"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="二"
+                        android:gravity="center" />
+
+                    <CheckBox
+                        android:id="@+id/cb_wednesday"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="三"
+                        android:gravity="center" />
+
+                    <CheckBox
+                        android:id="@+id/cb_thursday"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="四"
+                        android:gravity="center" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <CheckBox
+                        android:id="@+id/cb_friday"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="五"
+                        android:gravity="center" />
+
+                    <CheckBox
+                        android:id="@+id/cb_saturday"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="六"
+                        android:gravity="center" />
+
+                    <CheckBox
+                        android:id="@+id/cb_sunday"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="日"
+                        android:gravity="center" />
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                </LinearLayout>
+
+                <!-- Buttons -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingTop="24dp"
+                    android:gravity="end">
+
+                    <Button
+                        android:id="@+id/btn_cancel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="取消"
+                        android:textAllCaps="false"
+                        android:layout_marginEnd="8dp" />
+
+                    <Button
+                        android:id="@+id/btn_save"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="保存"
+                        android:textAllCaps="false" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </ScrollView>
+
+    </com.google.android.material.navigation.NavigationView>
+
+    <!-- Task item template (hidden, used for dynamic creation) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/task_item_template"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:visibility="gone"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tv_task_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="任务名称"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_task_mode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="模式: 自动"
+                android:textSize="14sp"
+                android:paddingTop="4dp" />
+
+            <TextView
+                android:id="@+id/tv_task_time"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="时间: 08:00 - 18:00"
+                android:textSize="14sp"
+                android:paddingTop="4dp" />
+
+            <TextView
+                android:id="@+id/tv_task_repeat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="重复: 周一, 周二, 周三"
+                android:textSize="14sp"
+                android:paddingTop="4dp" />
+
+            <!-- Action buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="12dp"
+                android:gravity="end">
+
+                <Button
+                    android:id="@+id/btn_edit_task"
+                    android:layout_width="wrap_content"
+                    android:layout_height="50dp"
+                    android:text="编辑"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:minWidth="0dp"
+                    android:layout_marginEnd="8dp"
+                    style="?android:attr/buttonBarButtonStyle" />
+
+                <Button
+                    android:id="@+id/btn_delete_task"
+                    android:layout_width="wrap_content"
+                    android:layout_height="50dp"
+                    android:text="删除"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    android:textColor="#F44336"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:minWidth="0dp"
+                    style="?android:attr/buttonBarButtonStyle" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+</androidx.drawerlayout.widget.DrawerLayout>
+

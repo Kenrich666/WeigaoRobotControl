@@ -1,229 +1,311 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FAFAFA"
-    android:padding="16dp">
+    tools:openDrawer="end">
 
-    <LinearLayout
+    <!-- Main Content -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="match_parent"
+        android:background="#FAFAFA"
+        android:fillViewport="true">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="显示"
-            android:textColor="@android:color/black"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="显示模式 ②"
-            android:textSize="16sp" />
-
-        <GridLayout
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:columnCount="6">
+            android:orientation="vertical"
+            android:padding="16dp">
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:gravity="center"
-                android:text="送餐" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:gravity="center"
-                android:text="送小吃" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:gravity="center"
-                android:text="直达" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:gravity="center"
-                android:text="生日歌" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:gravity="center"
-                android:text="迎宾领位" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:gravity="center"
-                android:text="循环回盘" />
-
-        </GridLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/divider" />
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp">
-
+            <!-- 灯带亮度 Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:text="主模式"
-                android:textSize="16sp" />
+                android:text="灯带亮度"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:layout_marginBottom="16dp"/>
 
+            <!-- Brightness Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="0dp"
+                    android:text="灯带亮度"
+                    android:textColor="#666666"
+                    android:textSize="14sp" />
+
+                <SeekBar
+                    android:id="@+id/seekbar_led_brightness"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:max="100"
+                    android:progress="55"
+                    android:progressTint="#4A90E2"
+                    android:thumbTint="#4A90E2" />
+
+                <TextView
+                    android:id="@+id/tv_brightness_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="15dp"
+                    android:gravity="end"
+                    android:minWidth="40dp"
+                    android:text="55%"
+                    android:textColor="#666666"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- 密码 Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:drawablePadding="8dp"
-                android:text="送餐"
-                android:textSize="16sp" />
-        </RelativeLayout>
+                android:text="密码"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:layout_marginBottom="16dp"/>
 
-        <View
+            <!-- Password Settings Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 修改密码 -->
+                    <RelativeLayout
+                        android:id="@+id/layout_change_password"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="16dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="修改密码"
+                            android:textColor="#333333"
+                            android:textSize="14sp"
+                            android:layout_centerVertical="true"
+                            android:layout_alignParentStart="true"/>
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:src="@android:drawable/ic_media_play"
+                            app:tint="#999999"/>
+
+                    </RelativeLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#D0D8DD"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"/>
+
+                    <!-- 支持密码的场景 -->
+<!--                    <RelativeLayout-->
+<!--                        android:id="@+id/layout_password_scenarios"-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:padding="16dp"-->
+<!--                        android:background="?attr/selectableItemBackground"-->
+<!--                        android:clickable="true"-->
+<!--                        android:focusable="true">-->
+
+<!--                        <TextView-->
+<!--                            android:layout_width="wrap_content"-->
+<!--                            android:layout_height="wrap_content"-->
+<!--                            android:text="支持密码的场景（待开发）"-->
+<!--                            android:textColor="#333333"-->
+<!--                            android:textSize="14sp"-->
+<!--                            android:layout_centerVertical="true"-->
+<!--                            android:layout_alignParentStart="true"/>-->
+
+<!--                        <ImageView-->
+<!--                            android:layout_width="20dp"-->
+<!--                            android:layout_height="20dp"-->
+<!--                            android:layout_alignParentEnd="true"-->
+<!--                            android:layout_centerVertical="true"-->
+<!--                            android:src="@android:drawable/ic_media_play"-->
+<!--                            app:tint="#999999"/>-->
+
+<!--                    </RelativeLayout>-->
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#D0D8DD"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"/>
+
+                    <!-- 更多设置 -->
+<!--                    <RelativeLayout-->
+<!--                        android:id="@+id/layout_more_settings"-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:padding="16dp"-->
+<!--                        android:background="?attr/selectableItemBackground"-->
+<!--                        android:clickable="true"-->
+<!--                        android:focusable="true">-->
+
+<!--                        <TextView-->
+<!--                            android:layout_width="wrap_content"-->
+<!--                            android:layout_height="wrap_content"-->
+<!--                            android:text="更多设置（待开发）"-->
+<!--                            android:textColor="#333333"-->
+<!--                            android:textSize="14sp"-->
+<!--                            android:layout_centerVertical="true"-->
+<!--                            android:layout_alignParentStart="true"/>-->
+
+<!--                        <ImageView-->
+<!--                            android:layout_width="20dp"-->
+<!--                            android:layout_height="20dp"-->
+<!--                            android:layout_alignParentEnd="true"-->
+<!--                            android:layout_centerVertical="true"-->
+<!--                            android:src="@android:drawable/ic_media_play"-->
+<!--                            app:tint="#999999"/>-->
+
+<!--                    </RelativeLayout>-->
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Right Drawer for Password Modification -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view_password"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="#FFFFFF"
+        android:fitsSystemWindows="true">
+
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@drawable/divider" />
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="24dp">
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp">
+            <!-- Header -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp">
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:text="修改密码"
+                    android:textColor="#333333"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <ImageButton
+                    android:id="@+id/btn_close_drawer"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_alignParentEnd="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    app:tint="#666666" />
+
+            </RelativeLayout>
+
+            <!-- Current Password -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:text="语言"
-                android:textSize="16sp" />
+                android:layout_marginTop="5dp"
+                android:text="当前密码"
+                android:textColor="#333333"
+                android:textSize="14sp" />
 
+            <EditText
+                android:id="@+id/et_current_password"
+                android:layout_width="match_parent"
+                android:layout_height="35dp"
+                android:layout_marginTop="0dp"
+                android:background="@android:drawable/editbox_background"
+                android:hint="请输入当前密码"
+                android:inputType="textPassword"
+                android:padding="12dp"
+                android:textSize="8sp" />
+
+            <!-- New Password -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:drawablePadding="8dp"
-                android:text="中文"
-                android:textSize="16sp" />
-        </RelativeLayout>
+                android:layout_marginTop="5dp"
+                android:text="新密码"
+                android:textColor="#333333"
+                android:textSize="14sp" />
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@drawable/divider" />
+            <EditText
+                android:id="@+id/et_new_password"
+                android:layout_width="match_parent"
+                android:layout_height="35dp"
+                android:layout_marginTop="0dp"
+                android:background="@android:drawable/editbox_background"
+                android:hint="请输入新密码"
+                android:inputType="textPassword"
+                android:padding="12dp"
+                android:textSize="8sp" />
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:text="桌号大小"
-                android:textSize="16sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:drawablePadding="8dp"
-                android:text="中"
-                android:textSize="16sp" />
-        </RelativeLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@drawable/divider" />
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:text="主题"
-                android:textColor="@android:color/holo_red_light"
+            <!-- Submit Button -->
+            <Button
+                android:id="@+id/btn_submit_password"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="15dp"
+                android:background="#4A90E2"
+                android:text="确认修改"
+                android:textColor="#FFFFFF"
                 android:textSize="16sp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:drawablePadding="8dp"
-                android:text="默认"
-                android:textSize="16sp" />
-        </RelativeLayout>
+        </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="表情"
-            android:textColor="@android:color/black"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginTop="16dp"/>
+    </com.google.android.material.navigation.NavigationView>
 
-        <androidx.appcompat.widget.SwitchCompat
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="任务中表情"
-            android:textSize="16sp"
-            android:checked="true"
-            android:layout_marginTop="8dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="机器人在运行中、定点迎宾时将显示卡通表情"
-            android:textSize="14sp" />
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="表情提前隐藏"
-            android:textSize="16sp"
-            android:layout_marginTop="8dp"/>
-
-    </LinearLayout>
-</ScrollView>
+</androidx.drawerlayout.widget.DrawerLayout>
