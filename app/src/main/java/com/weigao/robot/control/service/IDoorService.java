@@ -30,6 +30,14 @@ public interface IDoorService {
     void closeDoor(int doorId, IResultCallback<Void> callback);
 
     /**
+     * 打开所有舱门
+     *
+     * @param single   是否独占模式（此参数在打开所有门时通常为 false）
+     * @param callback 结果回调
+     */
+    void openAllDoors(boolean single, IResultCallback<Void> callback);
+
+    /**
      * 关闭所有舱门
      *
      * @param callback 结果回调

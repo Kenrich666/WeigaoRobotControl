@@ -146,6 +146,23 @@ public class DoorServiceImpl implements IDoorService {
     }
 
     @Override
+    public void openAllDoors(boolean single, IResultCallback<Void> callback) {
+        Log.d(TAG, "openAllDoors: single=" + single);
+        try {
+            if (peanutDoor != null) {
+                // 遍历打开所有舱门
+                for (int doorId = 1; doorId <= doorCount; doorId++) {
+                    peanutDoor.openDoor(doorId, single);
+                }
+            }
+            notifySuccess(callback);
+        } catch (Exception e) {
+            Log.e(TAG, "openAllDoors 异常", e);
+            notifyError(callback, -1, e.getMessage());
+        }
+    }
+
+    @Override
     public void closeAllDoors(IResultCallback<Void> callback) {
         Log.d(TAG, "closeAllDoors");
         try {
