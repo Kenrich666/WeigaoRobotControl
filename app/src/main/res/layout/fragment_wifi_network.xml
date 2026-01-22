@@ -1,14 +1,450 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center">
+    android:background="#F5F5F5">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="wifi网络"
-        android:textSize="24sp" />
+        android:orientation="vertical"
+        android:padding="16dp">
 
-</LinearLayout>
+        <!-- WiFi Header with Toggle -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#FFFFFF"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp"
+            android:elevation="2dp">
+
+            <TextView
+                android:id="@+id/tv_wifi_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="无线局域网"
+                android:textSize="18sp"
+                android:textColor="#333333"
+                android:layout_centerVertical="true" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_wifi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:checked="true" />
+        </RelativeLayout>
+
+        <!-- Current Connected WiFi Section -->
+        <LinearLayout
+            android:id="@+id/layout_current_wifi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp"
+            android:elevation="2dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+
+                <ImageView
+                    android:id="@+id/iv_current_wifi_icon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#007AFF" />
+
+                <TextView
+                    android:id="@+id/tv_current_wifi_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HUAWEI-R1CJY7"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_current_wifi_icon"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <TextView
+                    android:id="@+id/tv_connection_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="连接成功"
+                    android:textSize="14sp"
+                    android:textColor="#007AFF"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true" />
+            </RelativeLayout>
+        </LinearLayout>
+
+        <!-- Available WiFi Networks Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:elevation="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="附近可连接的Wi-Fi"
+                android:textSize="14sp"
+                android:textColor="#666666"
+                android:padding="16dp"
+                android:paddingBottom="8dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#E0E0E0" />
+
+            <!-- WiFi Network 1: HUAWEI-YP -->
+            <RelativeLayout
+                android:id="@+id/wifi_item_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_wifi_icon_1"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <TextView
+                    android:id="@+id/tv_wifi_name_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HUAWEI-YP"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_wifi_icon_1"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/iv_lock_icon_1"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginStart="36dp" />
+            </RelativeLayout>
+
+            <!-- WiFi Network 2: IGIP -->
+            <RelativeLayout
+                android:id="@+id/wifi_item_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_wifi_icon_2"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <TextView
+                    android:id="@+id/tv_wifi_name_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="IGIP"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_wifi_icon_2"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/iv_lock_icon_2"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginStart="36dp" />
+            </RelativeLayout>
+
+            <!-- WiFi Network 3: eduroam -->
+            <RelativeLayout
+                android:id="@+id/wifi_item_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_wifi_icon_3"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <TextView
+                    android:id="@+id/tv_wifi_name_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="eduroam"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_wifi_icon_3"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/iv_lock_icon_3"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginStart="36dp" />
+            </RelativeLayout>
+
+            <!-- WiFi Network 4: sdu_guest -->
+            <RelativeLayout
+                android:id="@+id/wifi_item_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_wifi_icon_4"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <TextView
+                    android:id="@+id/tv_wifi_name_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="sdu_guest"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_wifi_icon_4"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/iv_lock_icon_4"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginStart="36dp" />
+            </RelativeLayout>
+
+            <!-- WiFi Network 5: sdu_net -->
+            <RelativeLayout
+                android:id="@+id/wifi_item_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_wifi_icon_5"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <TextView
+                    android:id="@+id/tv_wifi_name_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="sdu_net"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_wifi_icon_5"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/iv_lock_icon_5"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginStart="36dp" />
+            </RelativeLayout>
+
+            <!-- WiFi Network 6: HP-Print-CC-LaserJet Pro MFP -->
+            <RelativeLayout
+                android:id="@+id/wifi_item_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_wifi_icon_6"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <TextView
+                    android:id="@+id/tv_wifi_name_6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HP-Print-CC-LaserJet Pro MFP"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_wifi_icon_6"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/iv_lock_icon_6"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginStart="36dp" />
+            </RelativeLayout>
+
+            <!-- WiFi Network 7: HUAWEI-G326dyj -->
+            <RelativeLayout
+                android:id="@+id/wifi_item_7"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/iv_wifi_icon_7"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+
+                <TextView
+                    android:id="@+id/tv_wifi_name_7"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HUAWEI-G326dyj"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_toEndOf="@id/iv_wifi_icon_7"
+                    android:layout_marginStart="12dp"
+                    android:layout_centerVertical="true" />
+
+                <ImageView
+                    android:id="@+id/iv_lock_icon_7"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#666666" />
+            </RelativeLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

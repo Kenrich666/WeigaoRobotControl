@@ -1,14 +1,192 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center">
+    android:background="#F5F5F5">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="充电器设置"
-        android:textSize="24sp" />
+        android:orientation="vertical"
+        android:padding="20dp">
 
-</LinearLayout>
+        <!-- Battery Status Card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:elevation="2dp"
+            android:radius="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:gravity="center">
+
+                <!-- Battery Icon with Progress -->
+                <RelativeLayout
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
+                    android:layout_marginBottom="20dp">
+
+                    <!-- Circular Progress Background -->
+                    <ProgressBar
+                        android:id="@+id/batteryProgressBackground"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:indeterminate="false"
+                        android:max="100"
+                        android:progress="100"
+                        android:progressDrawable="@android:drawable/progress_horizontal"
+                        android:progressTint="#E0E0E0"
+                        android:background="@android:drawable/dialog_holo_light_frame" />
+
+                    <!-- Circular Progress Indicator -->
+                    <ProgressBar
+                        android:id="@+id/batteryProgress"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:indeterminate="false"
+                        android:max="100"
+                        android:progress="79"
+                        android:progressDrawable="@android:drawable/progress_horizontal"
+                        android:progressTint="#4CAF50" />
+
+                    <!-- Battery Icon Center -->
+                    <LinearLayout
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:layout_centerInParent="true"
+                        android:background="@android:drawable/dialog_holo_light_frame"
+                        android:backgroundTint="#FFFFFF"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <!-- Battery Icon -->
+                        <ImageView
+                            android:id="@+id/batteryIcon"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:src="@android:drawable/ic_lock_power_off"
+                            android:contentDescription="电池图标"
+                            app:tint="#4CAF50" />
+
+                        <!-- Battery Percentage Text -->
+                        <TextView
+                            android:id="@+id/batteryPercentage"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="79%"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="#333333" />
+                    </LinearLayout>
+                </RelativeLayout>
+
+                <!-- Estimated Time Label -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="预计可用时间"
+                    android:textSize="14sp"
+                    android:textColor="#666666"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Estimated Time Value -->
+                <TextView
+                    android:id="@+id/estimatedTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="12小时38分钟"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:textColor="#333333"
+                    android:layout_marginBottom="24dp" />
+
+                <!-- Charge Now Button -->
+                <Button
+                    android:id="@+id/chargeNowButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="立即充电"
+                    android:textSize="16sp"
+                    android:textColor="#FFFFFF"
+                    android:background="@android:drawable/dialog_holo_light_frame"
+                    android:backgroundTint="#F0F0F0"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Help Text -->
+                <TextView
+                    android:id="@+id/helpText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="自动充电出故障，试试手动推至充电桩?"
+                    android:textSize="12sp"
+                    android:textColor="#2196F3"
+                    android:gravity="end"
+                    android:layout_gravity="end" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Power Saving Mode Card -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:elevation="2dp"
+            android:radius="12dp">
+
+            <RelativeLayout
+                android:id="@+id/powerSavingModeLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="20dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <!-- Power Saving Mode Label -->
+                <TextView
+                    android:id="@+id/powerSavingLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="省电模式"
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true" />
+
+                <!-- Current Mode Value -->
+                <TextView
+                    android:id="@+id/currentModeValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="深度省电"
+                    android:textSize="14sp"
+                    android:textColor="#999999"
+                    android:layout_toStartOf="@+id/arrowIcon"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="8dp" />
+
+                <!-- Arrow Icon -->
+                <ImageView
+                    android:id="@+id/arrowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_more"
+                    android:rotation="270"
+                    android:contentDescription="箭头图标"
+                    app:tint="#CCCCCC"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true" />
+            </RelativeLayout>
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+</ScrollView>
