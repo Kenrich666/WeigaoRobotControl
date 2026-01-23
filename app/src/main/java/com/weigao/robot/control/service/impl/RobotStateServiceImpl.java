@@ -65,7 +65,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
     private void initPeanutRuntime() {
         try {
             // 获取单例实例
-            peanutRuntime = PeanutRuntime.getInstance();
+            peanutRuntime = getPeanutRuntimeInstance();
 
             if (peanutRuntime != null) {
                 // 注册监听器 (支持多个监听者)
@@ -531,5 +531,15 @@ public class RobotStateServiceImpl implements IRobotStateService {
         if (callback != null) {
             callback.onError(new ApiError(code, message));
         }
+    }
+
+    /**
+     * 获取 PeanutRuntime 单例的工厂方法。
+     * <p>
+     * 设计为 protected 以便在测试子类中重写并注入 Mock 对象。
+     * </p>
+     */
+    protected PeanutRuntime getPeanutRuntimeInstance() {
+        return PeanutRuntime.getInstance();
     }
 }

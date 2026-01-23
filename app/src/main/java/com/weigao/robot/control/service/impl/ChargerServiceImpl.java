@@ -55,10 +55,10 @@ public class ChargerServiceImpl implements IChargerService {
      */
     private void initPeanutCharger() {
         try {
-            peanutCharger = new PeanutCharger.Builder()
+            PeanutCharger.Builder builder = new PeanutCharger.Builder()
                     .setPile(currentPileId)
-                    .setListener(mChargerListener)
-                    .build();
+                    .setListener(mChargerListener);
+            peanutCharger = createPeanutCharger(builder);
             peanutCharger.execute();
             Log.d(TAG, "PeanutCharger 初始化成功");
         } catch (Exception e) {
@@ -294,5 +294,15 @@ public class ChargerServiceImpl implements IChargerService {
         if (callback != null) {
             callback.onError(new ApiError(code, message));
         }
+    }
+
+    /**
+     * 创建 PeanutCharger 实例的工厂方法。
+     * <p>
+     * 设计为 protected 以便在测试子类中重写并注入 Mock 对象。
+     * </p>
+     */
+    protected PeanutCharger createPeanutCharger(PeanutCharger.Builder builder) {
+        return builder.build();
     }
 }
