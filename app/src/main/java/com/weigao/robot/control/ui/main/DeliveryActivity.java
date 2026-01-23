@@ -14,6 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.keenon.sdk.component.runtime.PeanutRuntime;
+import com.keenon.sdk.sensor.map.MapManager;
 import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IDoorCallback;
@@ -27,7 +29,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import android.util.Log;
+import android.os.Handler;
+
 public class DeliveryActivity extends AppCompatActivity {
+    private static final String TAG = "DeliveryActivity";
     private Button selectedLayerButton;
     // 存储配对关系
     private final HashMap<Integer, String> pairings = new HashMap<>();
@@ -53,25 +59,28 @@ public class DeliveryActivity extends AppCompatActivity {
         findViewById(R.id.back_button).setOnClickListener(v -> finish());
 
         openDoorButton = findViewById(R.id.open_door_button);
-        
+
         // 初始化时查询舱门状态并更新按钮文本
         updateDoorButtonState();
-        
+
         openDoorButton.setOnClickListener(v -> {
             // 禁用按钮防止重复点击
             openDoorButton.setEnabled(false);
-            
+            Log.i(TAG, "点击了开/关门按钮，开始查询状态...");
+
             // 动态查询当前舱门状态
             doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
                 @Override
                 public void onSuccess(Boolean allClosed) {
                     runOnUiThread(() -> {
                         if (allClosed) {
+                            Log.d(TAG, "当前所有舱门已关闭，准备执行开门操作");
                             // 当前门是关闭的，执行开门操作
                             doorService.openAllDoors(false, new IResultCallback<Void>() {
                                 @Override
                                 public void onSuccess(Void result) {
                                     runOnUiThread(() -> {
+                                        Log.i(TAG, "开门成功");
                                         updateDoorButtonState();
                                         Toast.makeText(DeliveryActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
                                     });
@@ -80,6 +89,7 @@ public class DeliveryActivity extends AppCompatActivity {
                                 @Override
                                 public void onError(ApiError error) {
                                     runOnUiThread(() -> {
+                                        Log.e(TAG, "开门失败: " + error.getMessage());
                                         openDoorButton.setEnabled(true);
                                         Toast.makeText(DeliveryActivity.this,
                                                 "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
@@ -87,11 +97,13 @@ public class DeliveryActivity extends AppCompatActivity {
                                 }
                             });
                         } else {
+                            Log.d(TAG, "当前有舱门开启，准备执行关门操作");
                             // 当前门是打开的，执行关门操作
                             doorService.closeAllDoors(new IResultCallback<Void>() {
                                 @Override
                                 public void onSuccess(Void result) {
                                     runOnUiThread(() -> {
+                                        Log.i(TAG, "关门成功");
                                         updateDoorButtonState();
                                         Toast.makeText(DeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
                                     });
@@ -100,6 +112,7 @@ public class DeliveryActivity extends AppCompatActivity {
                                 @Override
                                 public void onError(ApiError error) {
                                     runOnUiThread(() -> {
+                                        Log.e(TAG, "关门失败: " + error.getMessage());
                                         openDoorButton.setEnabled(true);
                                         Toast.makeText(DeliveryActivity.this,
                                                 "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
@@ -113,6 +126,7 @@ public class DeliveryActivity extends AppCompatActivity {
                 @Override
                 public void onError(ApiError error) {
                     runOnUiThread(() -> {
+                        Log.e(TAG, "查询舱门状态失败: " + error.getMessage());
                         openDoorButton.setEnabled(true);
                         Toast.makeText(DeliveryActivity.this,
                                 "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
@@ -274,15 +288,16 @@ public class DeliveryActivity extends AppCompatActivity {
     interface OnPointClickListener {
         void onPointClick(String pointText);
     }
-//
-//    /**
-//     * 更新开门按钮的状态和文本
-//     */
+
+    //
+    // /**
+    // * 更新开门按钮的状态和文本
+    // */
     private void updateDoorButtonState() {
         if (openDoorButton == null) {
             return;
         }
-        
+
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
@@ -292,14 +307,24 @@ public class DeliveryActivity extends AppCompatActivity {
                     } else {
                         openDoorButton.setText("闭门");
                     }
-                    openDoorButton.setEnabled(true);
+                    // 延迟 1.5 秒后才重新启用按钮，防止连续点击
+                    new Handler().postDelayed(() -> {
+                        if (openDoorButton != null) {
+                            openDoorButton.setEnabled(true);
+                        }
+                    }, 1500);
                 });
             }
 
             @Override
             public void onError(ApiError error) {
                 runOnUiThread(() -> {
-                    openDoorButton.setEnabled(true);
+                    // 错误时也延迟启用
+                    new Handler().postDelayed(() -> {
+                        if (openDoorButton != null) {
+                            openDoorButton.setEnabled(true);
+                        }
+                    }, 1500);
                 });
             }
         });
@@ -312,6 +337,7 @@ public class DeliveryActivity extends AppCompatActivity {
         @Override
         public void onDoorStateChanged(int doorId, int state) {
             // 当任何舱门状态变化时，更新按钮状态
+            Log.d(TAG, "onDoorStateChanged: doorId=" + doorId + ", state=" + state);
             runOnUiThread(() -> updateDoorButtonState());
         }
 
@@ -328,6 +354,7 @@ public class DeliveryActivity extends AppCompatActivity {
         @Override
         public void onDoorError(int doorId, int errorCode) {
             // 舱门错误，可以在这里显示错误提示
+            Log.e(TAG, "onDoorError: doorId=" + doorId + ", errorCode=" + errorCode);
             runOnUiThread(() -> {
                 Toast.makeText(DeliveryActivity.this,
                         "舱门错误 (ID: " + doorId + ", 错误码: " + errorCode + ")",
