@@ -14,6 +14,12 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // 强制使用 32 位架构，因为 libkeenon_serial.so 只提供了 armeabi-v7a 版本
+        // 这样可以在 64 位设备上以 32 位兼容模式运行
+        ndk {
+            abiFilters 'armeabi-v7a'
+        }
     }
 
     buildTypes {
