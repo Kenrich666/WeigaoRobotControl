@@ -15,6 +15,12 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.weigao.robot.control.R;
+import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.IDoorCallback;
+import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.model.DoorType;
+import com.weigao.robot.control.service.IDoorService;
+import com.weigao.robot.control.service.ServiceManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,25 +32,96 @@ public class DeliveryActivity extends AppCompatActivity {
     // 存储配对关系
     private final HashMap<Integer, String> pairings = new HashMap<>();
 
+    /** 舱门服务 */
+    private IDoorService doorService;
+
+    /** 开门按钮引用 */
+    private Button openDoorButton;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_delivery);
 
+        // 获取舱门服务
+        doorService = ServiceManager.getInstance().getDoorService();
+
+        // 注册舱门状态回调
+        doorService.registerCallback(doorCallback);
+
         // --- 1. 基础按钮 ---
         findViewById(R.id.back_button).setOnClickListener(v -> finish());
 
-        Button openDoorButton = findViewById(R.id.open_door_button);
+        openDoorButton = findViewById(R.id.open_door_button);
+        
+        // 初始化时查询舱门状态并更新按钮文本
+        updateDoorButtonState();
+        
         openDoorButton.setOnClickListener(v -> {
-            if (openDoorButton.getText().equals("开门")) {
-                openDoorButton.setText("闭门");
-            } else {
-                openDoorButton.setText("开门");
-            }
+            // 禁用按钮防止重复点击
+            openDoorButton.setEnabled(false);
+            
+            // 动态查询当前舱门状态
+            doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+                @Override
+                public void onSuccess(Boolean allClosed) {
+                    runOnUiThread(() -> {
+                        if (allClosed) {
+                            // 当前门是关闭的，执行开门操作
+                            doorService.openAllDoors(false, new IResultCallback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    runOnUiThread(() -> {
+                                        updateDoorButtonState();
+                                        Toast.makeText(DeliveryActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+
+                                @Override
+                                public void onError(ApiError error) {
+                                    runOnUiThread(() -> {
+                                        openDoorButton.setEnabled(true);
+                                        Toast.makeText(DeliveryActivity.this,
+                                                "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+                            });
+                        } else {
+                            // 当前门是打开的，执行关门操作
+                            doorService.closeAllDoors(new IResultCallback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    runOnUiThread(() -> {
+                                        updateDoorButtonState();
+                                        Toast.makeText(DeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+
+                                @Override
+                                public void onError(ApiError error) {
+                                    runOnUiThread(() -> {
+                                        openDoorButton.setEnabled(true);
+                                        Toast.makeText(DeliveryActivity.this,
+                                                "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    runOnUiThread(() -> {
+                        openDoorButton.setEnabled(true);
+                        Toast.makeText(DeliveryActivity.this,
+                                "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
         });
 
-        findViewById(R.id.return_button).setOnClickListener(v ->
-                startActivity(new Intent(this, ReturnActivity.class)));
+        findViewById(R.id.return_button).setOnClickListener(v -> startActivity(new Intent(this, ReturnActivity.class)));
 
         findViewById(R.id.start_delivery_button).setOnClickListener(v -> {
             if (pairings.isEmpty()) {
@@ -78,9 +155,12 @@ public class DeliveryActivity extends AppCompatActivity {
             if (pairings.containsKey(id)) {
                 // Un-pair it.
                 pairings.remove(id);
-                if (id == R.id.l1_button) clickedButton.setText("L1 层");
-                if (id == R.id.l2_button) clickedButton.setText("L2 层");
-                if (id == R.id.l3_button) clickedButton.setText("L3 层");
+                if (id == R.id.l1_button)
+                    clickedButton.setText("L1 层");
+                if (id == R.id.l2_button)
+                    clickedButton.setText("L2 层");
+                if (id == R.id.l3_button)
+                    clickedButton.setText("L3 层");
                 Toast.makeText(this, "已删除配对", Toast.LENGTH_SHORT).show();
                 refreshLayerStyle(clickedButton); // It will become gray now.
 
@@ -112,7 +192,8 @@ public class DeliveryActivity extends AppCompatActivity {
         pointsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
         List<String> points = new ArrayList<>();
-        for (int i = 1; i <= 15; i++) points.add("点位 " + i);
+        for (int i = 1; i <= 15; i++)
+            points.add("点位 " + i);
 
         PointAdapter adapter = new PointAdapter(points, pointText -> {
             if (selectedLayerButton == null) {
@@ -150,7 +231,8 @@ public class DeliveryActivity extends AppCompatActivity {
         private final OnPointClickListener mListener;
 
         PointAdapter(List<String> points, OnPointClickListener listener) {
-            mPoints = points; mListener = listener;
+            mPoints = points;
+            mListener = listener;
         }
 
         @NonNull
@@ -175,15 +257,91 @@ public class DeliveryActivity extends AppCompatActivity {
         }
 
         @Override
-        public int getItemCount() { return mPoints.size(); }
+        public int getItemCount() {
+            return mPoints.size();
+        }
 
         static class PointViewHolder extends RecyclerView.ViewHolder {
             Button pointButton;
-            PointViewHolder(Button b) { super(b); pointButton = b; }
+
+            PointViewHolder(Button b) {
+                super(b);
+                pointButton = b;
+            }
         }
     }
 
     interface OnPointClickListener {
         void onPointClick(String pointText);
+    }
+//
+//    /**
+//     * 更新开门按钮的状态和文本
+//     */
+    private void updateDoorButtonState() {
+        if (openDoorButton == null) {
+            return;
+        }
+        
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                runOnUiThread(() -> {
+                    if (allClosed) {
+                        openDoorButton.setText("开门");
+                    } else {
+                        openDoorButton.setText("闭门");
+                    }
+                    openDoorButton.setEnabled(true);
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    openDoorButton.setEnabled(true);
+                });
+            }
+        });
+    }
+
+    /**
+     * 舱门状态回调监听器
+     */
+    private final IDoorCallback doorCallback = new IDoorCallback() {
+        @Override
+        public void onDoorStateChanged(int doorId, int state) {
+            // 当任何舱门状态变化时，更新按钮状态
+            runOnUiThread(() -> updateDoorButtonState());
+        }
+
+        @Override
+        public void onDoorTypeChanged(DoorType type) {
+            // 舱门类型变化，暂不处理
+        }
+
+        @Override
+        public void onDoorTypeSettingResult(boolean success) {
+            // 舱门类型设置结果，暂不处理
+        }
+
+        @Override
+        public void onDoorError(int doorId, int errorCode) {
+            // 舱门错误，可以在这里显示错误提示
+            runOnUiThread(() -> {
+                Toast.makeText(DeliveryActivity.this,
+                        "舱门错误 (ID: " + doorId + ", 错误码: " + errorCode + ")",
+                        Toast.LENGTH_SHORT).show();
+            });
+        }
+    };
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // 注销舱门状态回调
+        if (doorService != null) {
+            doorService.unregisterCallback(doorCallback);
+        }
     }
 }
