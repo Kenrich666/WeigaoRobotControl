@@ -61,7 +61,7 @@ public class DoorServiceImpl implements IDoorService {
      */
     private void initPeanutDoor() {
         try {
-            peanutDoor = PeanutDoor.getInstance();
+            peanutDoor = getPeanutDoorInstance();
             peanutDoor.init(context);
             peanutDoor.setDoorListerner(LISTENER_TAG, mDoorListener);
             initialized = true;
@@ -450,5 +450,15 @@ public class DoorServiceImpl implements IDoorService {
         if (callback != null) {
             callback.onError(new ApiError(code, message));
         }
+    }
+
+    /**
+     * 获取 PeanutDoor 单例的工厂方法。
+     * <p>
+     * 设计为 protected 以便在测试子类中重写并注入 Mock 对象。
+     * </p>
+     */
+    protected PeanutDoor getPeanutDoorInstance() {
+        return PeanutDoor.getInstance();
     }
 }

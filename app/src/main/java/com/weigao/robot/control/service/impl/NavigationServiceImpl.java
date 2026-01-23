@@ -151,7 +151,7 @@ public class NavigationServiceImpl implements INavigationService {
                 builder.setTargets(targets);
             }
 
-            peanutNavigation = builder.build();
+            peanutNavigation = createPeanutNavigation(builder);
             currentPosition = 0;
             notifySuccess(callback);
         } catch (Exception e) {
@@ -561,5 +561,15 @@ public class NavigationServiceImpl implements INavigationService {
         if (callback != null) {
             callback.onError(new ApiError(code, message));
         }
+    }
+
+    /**
+     * 创建 PeanutNavigation 实例的工厂方法。
+     * <p>
+     * 设计为 protected 以便在测试子类中重写并注入 Mock 对象。
+     * </p>
+     */
+    protected PeanutNavigation createPeanutNavigation(PeanutNavigation.Builder builder) {
+        return builder.build();
     }
 }
