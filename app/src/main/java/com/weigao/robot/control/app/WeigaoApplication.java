@@ -4,6 +4,7 @@ import android.app.Application;
 import android.util.Log;
 
 import com.keenon.sdk.external.PeanutSDK;
+import com.keenon.sdk.component.runtime.PeanutRuntime;
 import com.keenon.common.constant.PeanutConstants;
 import com.keenon.common.external.PeanutConfig;
 
@@ -19,24 +20,31 @@ public class WeigaoApplication extends Application {
 
     private static final String TAG = "WeigaoApplication";
 
-    /** 应用实例 */
+    /**
+     * 应用实例
+     */
     private static WeigaoApplication instance;
 
-    /** SDK 是否已初始化 */
+    /**
+     * SDK 是否已初始化
+     */
     private boolean sdkInitialized = false;
 
-    /** SDK 初始化监听器 */
+    /**
+     * SDK 初始化监听器
+     */
     private SdkInitListener sdkInitListener;
 
     // ==================== 配置参数（可根据实际情况修改） ====================
 
-    /** 舱门数量 */
-    private static final int DOOR_COUNT = 2;
-
-    /** 离线鉴权 AppId（需从销售申请） */
+    /**
+     * 离线鉴权 AppId（需从销售申请）
+     */
     private static final String APP_ID = "d8b123262fa3463e835fc15392e07b60";
 
-    /** 离线鉴权 Secret（需从销售申请） */
+    /**
+     * 离线鉴权 Secret（需从销售申请）
+     */
     private static final String APP_SECRET = "nPlQERTP4qIvwJ5MT16y/dDQlY4DRvx/0qahVJEzuYkJRFSQoJM6CZtGLebwINKLAx/kACtCq7UBvt1QCODovm2gq7dsXAK48NrqiEj8bNDBhl/HV12geRHoXVo8pNCKUWHvfPMjy0I/XYP54J8bZYwJS7gRXJoFiDqwPsXMZYs=";
 
     @Override
@@ -79,29 +87,20 @@ public class WeigaoApplication extends Application {
         try {
             // 配置 SDK 参数
             PeanutConfig.getConfig()
-                    // 设置通信协议：CoAP代理 + 串口
-                    .setLinkType(PeanutConstants.LinkType.COM_COAP)
-                    // 设置主板串口端口
-                    .setLinkCOM(PeanutConstants.COM1)
-                    // 设置服务地址（立体视觉定位使用本地地址）
-                    .setLinkIP(PeanutConstants.LOCAL_LINK_PROXY)
-                    // 设置服务端口
-                    .setLinkPort(5683)
-                    // 设置灯板串口端口
-                    .setEmotionLinkCOM(PeanutConstants.COM2)
-                    // 设置门控板串口端口
-                    .setDoorLinkCOM(PeanutConstants.COM2)
-                    // 设置舱门数量
-                    .setDoorNum(DOOR_COUNT)
-                    // 开启日志 (警告：Android 10+ 必须关闭，否则因无法获取 IMEI 导致 SecurityException 崩溃)
-                    .setConnectionTimeout(PeanutConstants.CONNECTION_TIMEOUT)
-                    .enableLog(false)
+                    // 设置通信协议：CoAP (参考 SampleApp 默认 Remote/Laser 模式)
+                    .setLinkType(PeanutConstants.LinkType.COAP)
+                    // 设置服务地址
+                    .setLinkIP(PeanutConstants.REMOTE_LINK_PROXY)
+                    // 开启日志
+                    .enableLog(true)
                     // 设置日志级别
                     .setLogLevel(Log.DEBUG)
-                    // 设置离线鉴权 AppId
-                    .setAppId(APP_ID)
-                    // 设置离线鉴权 Secret
-                    .setSecret(APP_SECRET);
+                    // 设置离线鉴权 AppId (恢复 Weigao ID)
+                    .setAppId("d8b123262fa3463e835fc15392e07b60")
+                    // 设置离线鉴权 Secret (恢复 Weigao Secret)
+                    .setSecret(
+                            "nPlQERTP4qIvwJ5MT16y/dDQlY4DRvx/0qahVJEzuYkJRFSQoJM6CZtGLebwINKLAx/kACtCq7UBvt1QCODovm2gq7dsXAK48NrqiEj8bNDBhl/HV12geRHoXVo8pNCKUWHvfPMjy0I/XYP54J8bZYwJS7gRXJoFiDqwPsXMZYs=")
+                    .enableUMLog(false);
 
             // 初始化 SDK
             PeanutSDK.getInstance().init(getApplicationContext(), mInitListener);
@@ -127,6 +126,25 @@ public class WeigaoApplication extends Application {
 
                 // 初始化服务管理器
                 ServiceManager.getInstance().initialize(getApplicationContext());
+
+                // 启动 PeanutRuntime (参考 SampleApp)
+                PeanutRuntime.getInstance().start(new PeanutRuntime.Listener() {
+                    @Override
+                    public void onEvent(int event, Object obj) {
+                        Log.d(TAG, "PeanutRuntime onEvent: " + event + ", obj: " + obj);
+                    }
+
+                    @Override
+                    public void onHealth(Object content) {
+                        Log.d(TAG, "PeanutRuntime onHealth: " + content);
+                    }
+
+                    @Override
+                    public void onHeartbeat(Object content) {
+                        // 心跳日志可能会很频繁，视情况开启
+                        // Log.d(TAG, "PeanutRuntime onHeartbeat: " + content);
+                    }
+                });
 
                 // 通知监听器
                 if (sdkInitListener != null) {

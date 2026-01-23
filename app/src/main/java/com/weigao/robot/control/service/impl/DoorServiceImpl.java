@@ -15,6 +15,15 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IDoorService;
+import com.keenon.sdk.external.PeanutSDK;
+import com.keenon.sdk.external.IDataCallback;
+import com.keenon.sdk.sensor.door.SensorDoor;
+import com.keenon.sdk.scmIot.protopack.base.ProtoDev;
+import com.keenon.sdk.sensor.common.SensorObserver;
+import com.keenon.sdk.sensor.common.Event;
+import com.keenon.sdk.sensor.common.Sensor;
+import com.keenon.sdk.sensor.common.SensorEvent;
+import com.keenon.sdk.constant.TopicName;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -50,6 +59,9 @@ public class DoorServiceImpl implements IDoorService {
     /** 是否已初始化 */
     private boolean initialized = false;
 
+    /** 内部跟踪：所有门是否已打开 (用于 T3 SensorDoor 状态同步) */
+    private boolean allDoorsOpen = false;
+
     public DoorServiceImpl(Context context) {
         this.context = context.getApplicationContext();
         Log.d(TAG, "DoorServiceImpl 已创建");
@@ -62,15 +74,71 @@ public class DoorServiceImpl implements IDoorService {
     private void initPeanutDoor() {
         try {
             peanutDoor = getPeanutDoorInstance();
-            peanutDoor.init(context);
-            peanutDoor.setDoorListerner(LISTENER_TAG, mDoorListener);
+            // 移除 peanutDoor.init(context) 以避免权限错误 (avc: denied)
+            // SDK Facade 模式下不需要应用层直接初始化底层组件
+
+            // 参考 SampleApp，使用 setDoorType 初始化并注册监听
+            peanutDoor.setDoorType(Door.SET_TYPE_AUTO, "keenon", mDoorListener);
+
+            // T3 机器人使用 SensorDoor API
+            SensorDoor.getInstance().setUSBDirect(true);
+
+            // 注册 SensorDoor 观察者以跟踪实际舱门状态
+            SensorDoor.getInstance().addObserver(mSensorDoorObserver);
+
+            // 订阅舱门状态以获取初始状态
+            PeanutSDK.getInstance().subscribe(TopicName.DOOR_SWITCH_STATUS, mDoorStatusCallback);
+
             initialized = true;
-            Log.d(TAG, "PeanutDoor 初始化成功");
+            Log.d(TAG, "PeanutDoor 监听器注册成功 (Type=AUTO), SensorDoor 已初始化");
         } catch (Exception e) {
             Log.e(TAG, "PeanutDoor 初始化异常", e);
             initialized = false;
         }
     }
+
+    /**
+     * SensorDoor 观察者 - 用于跟踪实际舱门状态变化
+     */
+    private final SensorObserver mSensorDoorObserver = new SensorObserver() {
+        @Override
+        public void onUpdate(Event event, Sensor sensor) {
+            Log.d(TAG, "SensorDoor onUpdate: " + event.getName());
+            if (SensorEvent.SET_DOOR_SWITCH_ACK.equals(event.getName())) {
+                // 舱门开关操作已确认
+                Log.d(TAG, "SensorDoor 操作已确认");
+            }
+        }
+    };
+
+    /**
+     * 舱门状态订阅回调 - 用于获取初始状态和状态更新
+     */
+    private final IDataCallback mDoorStatusCallback = new IDataCallback() {
+        @Override
+        public void success(String response) {
+            Log.d(TAG, "Door status update: " + response);
+            // 解析响应以更新 allDoorsOpen 状态
+            // 响应格式可能是 JSON，包含舱门状态信息
+            try {
+                // 简单解析：如果响应包含 "open" 或者状态值表示打开
+                if (response != null && (response.contains("\"open\":true") || response.contains("\"status\":-1"))) {
+                    allDoorsOpen = true;
+                } else if (response != null
+                        && (response.contains("\"open\":false") || response.contains("\"status\":0"))) {
+                    allDoorsOpen = false;
+                }
+                Log.d(TAG, "allDoorsOpen updated to: " + allDoorsOpen);
+            } catch (Exception e) {
+                Log.e(TAG, "解析舱门状态异常", e);
+            }
+        }
+
+        @Override
+        public void error(com.keenon.sdk.hedera.model.ApiError error) {
+            Log.e(TAG, "Door status error: " + error.getMsg());
+        }
+    };
 
     /**
      * SDK 舱门回调
@@ -117,11 +185,14 @@ public class DoorServiceImpl implements IDoorService {
     public void openDoor(int doorId, boolean single, IResultCallback<Void> callback) {
         Log.d(TAG, "openDoor: doorId=" + doorId + ", single=" + single);
         try {
-            if (peanutDoor != null && isValidDoorId(doorId)) {
-                peanutDoor.openDoor(doorId, single);
+            if (isValidDoorId(doorId)) {
+                // T3 机器人使用 SensorDoor API
+                int protoDoorId = (doorId == 0) ? ProtoDev.SENSOR_DOOR_1 : ProtoDev.SENSOR_DOOR_2;
+                SensorDoor.getInstance().setDoorSwitch(protoDoorId, true);
+                Log.d(TAG, "SensorDoor open: protoDoorId=" + protoDoorId);
                 notifySuccess(callback);
             } else {
-                notifyError(callback, -1, "无效的舱门ID或未初始化");
+                notifyError(callback, -1, "无效的舱门ID");
             }
         } catch (Exception e) {
             Log.e(TAG, "openDoor 异常", e);
@@ -133,11 +204,14 @@ public class DoorServiceImpl implements IDoorService {
     public void closeDoor(int doorId, IResultCallback<Void> callback) {
         Log.d(TAG, "closeDoor: doorId=" + doorId);
         try {
-            if (peanutDoor != null && isValidDoorId(doorId)) {
-                peanutDoor.closeDoor(doorId);
+            if (isValidDoorId(doorId)) {
+                // T3 机器人使用 SensorDoor API
+                int protoDoorId = (doorId == 0) ? ProtoDev.SENSOR_DOOR_1 : ProtoDev.SENSOR_DOOR_2;
+                SensorDoor.getInstance().setDoorSwitch(protoDoorId, false);
+                Log.d(TAG, "SensorDoor close: protoDoorId=" + protoDoorId);
                 notifySuccess(callback);
             } else {
-                notifyError(callback, -1, "无效的舱门ID或未初始化");
+                notifyError(callback, -1, "无效的舱门ID");
             }
         } catch (Exception e) {
             Log.e(TAG, "closeDoor 异常", e);
@@ -149,12 +223,11 @@ public class DoorServiceImpl implements IDoorService {
     public void openAllDoors(boolean single, IResultCallback<Void> callback) {
         Log.d(TAG, "openAllDoors: single=" + single);
         try {
-            if (peanutDoor != null) {
-                // 遍历打开所有舱门
-                for (int doorId = 1; doorId <= doorCount; doorId++) {
-                    peanutDoor.openDoor(doorId, single);
-                }
-            }
+            // T3 机器人使用 SensorDoor API 打开所有舱门
+            SensorDoor.getInstance().setDoorSwitch(ProtoDev.SENSOR_DOOR_1, true);
+            SensorDoor.getInstance().setDoorSwitch(ProtoDev.SENSOR_DOOR_2, true);
+            allDoorsOpen = true; // 更新内部状态
+            Log.d(TAG, "SensorDoor openAll: DOOR_1 and DOOR_2");
             notifySuccess(callback);
         } catch (Exception e) {
             Log.e(TAG, "openAllDoors 异常", e);
@@ -166,9 +239,11 @@ public class DoorServiceImpl implements IDoorService {
     public void closeAllDoors(IResultCallback<Void> callback) {
         Log.d(TAG, "closeAllDoors");
         try {
-            if (peanutDoor != null) {
-                peanutDoor.closeAllDoor();
-            }
+            // T3 机器人使用 SensorDoor API 关闭所有舱门
+            SensorDoor.getInstance().setDoorSwitch(ProtoDev.SENSOR_DOOR_1, false);
+            SensorDoor.getInstance().setDoorSwitch(ProtoDev.SENSOR_DOOR_2, false);
+            allDoorsOpen = false; // 更新内部状态
+            Log.d(TAG, "SensorDoor closeAll: DOOR_1 and DOOR_2");
             notifySuccess(callback);
         } catch (Exception e) {
             Log.e(TAG, "closeAllDoors 异常", e);
@@ -179,10 +254,9 @@ public class DoorServiceImpl implements IDoorService {
     @Override
     public void isAllDoorsClosed(IResultCallback<Boolean> callback) {
         try {
-            boolean allClosed = false;
-            if (peanutDoor != null) {
-                allClosed = peanutDoor.isAllDoorClose();
-            }
+            // 使用内部状态，因为 SensorDoor 没有直接的状态查询方法
+            boolean allClosed = !allDoorsOpen;
+            Log.d(TAG, "isAllDoorsClosed: " + allClosed + " (internal state)");
             if (callback != null) {
                 callback.onSuccess(allClosed);
             }
@@ -437,17 +511,20 @@ public class DoorServiceImpl implements IDoorService {
     // ==================== 辅助方法 ====================
 
     private boolean isValidDoorId(int doorId) {
-        return doorId >= 1 && doorId <= doorCount;
+        // SDK ID 是 0-based
+        return doorId >= 0 && doorId < doorCount;
     }
 
     private void notifySuccess(IResultCallback<Void> callback) {
         if (callback != null) {
+            Log.d(TAG, "notifySuccess: 执行成功");
             callback.onSuccess(null);
         }
     }
 
     private void notifyError(IResultCallback<?> callback, int code, String message) {
         if (callback != null) {
+            Log.e(TAG, "notifyError: code=" + code + ", message=" + message);
             callback.onError(new ApiError(code, message));
         }
     }
