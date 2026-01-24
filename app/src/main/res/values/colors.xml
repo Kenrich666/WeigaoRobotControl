@@ -7,4 +7,11 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Password Screen Colors -->
+    <color name="password_bg_start">#1B2E4B</color>
+    <color name="password_bg_end">#0F1925</color>
+    <color name="password_btn_stroke">#33AADD</color>
+    <color name="password_btn_pressed">#2233AADD</color>
+    <color name="password_text_hint">#AAAAAA</color>
 </resources>

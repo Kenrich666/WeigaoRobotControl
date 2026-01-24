@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 
 public class DeliveryNavigationActivity extends AppCompatActivity {
+    
+    private static final int REQUEST_CODE_PASSWORD = 1001;
 
     private TextView tvStatus, currentTaskTextView, tvHint;
     private Button btnPauseEnd, btnContinue;
@@ -80,7 +82,29 @@ public class DeliveryNavigationActivity extends AppCompatActivity {
         });
 
         // Button click listeners
-        btnPauseEnd.setOnClickListener(v -> finish());
+        btnPauseEnd.setOnClickListener(v -> {
+            // Check if we are in "Finished" state (text is "Return Home") or "Paused" state (text is "End Task")
+            // Actually the logic uses the same button. 
+            // If text is "Return Home", maybe we don't need password? 
+            // The requirement says: "In the end task button... need password to finish task".
+            // "Return Home" is technically finishing the navigation flow. 
+            // But usually "End Task" (during delivery) is the critical one.
+            // Let's check the button text or logic.
+            // updateTaskText determines if it is finished.
+            
+            // If currentTaskIndex >= deliveryTasks.size(), it's "Return Home". 
+            // If < size, it is "End Task".
+            // Requirement: "After jump to finish task button... ensure password correct".
+            // It likely refers to the "End" button when pausing.
+            
+            if (currentTaskIndex >= deliveryTasks.size()) {
+                 finish(); // Just return home if already finished normally
+            } else {
+                 // Verify password to end task prematurely
+                 android.content.Intent intent = new android.content.Intent(DeliveryNavigationActivity.this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
+                 startActivityForResult(intent, REQUEST_CODE_PASSWORD);
+            }
+        });
         btnContinue.setOnClickListener(v -> setPauseState(false));
     }
 
@@ -120,5 +144,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity {
         if (buttonId == R.id.l2_button) return 2;
         if (buttonId == R.id.l3_button) return 3;
         return 0; // Should not happen
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_PASSWORD && resultCode == RESULT_OK) {
+            finish();
+        }
     }
 }
