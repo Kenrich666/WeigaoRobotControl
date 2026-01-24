@@ -23,28 +23,28 @@
 
  
 
-·     集成之前请仔细阅读[准备工作](#25970172)，以便于你了解集成前所需要做的准备。
+·    集成之前请仔细阅读[准备工作](#25970172)，以便于你了解集成前所需要做的准备。
 
-·     如果您想了解如何运行样例工程Peanut Sample，请查看[Sample运行](#91af3a32)。
+·    如果您想了解如何运行样例工程Peanut Sample，请查看[Sample运行](#91af3a32)。
 
-·     如果您想了解怎样把SDK集成的自己应用中,请查看[SDK集成](#88ab823e)。
+·    如果您想了解怎样把SDK集成的自己应用中,请查看[SDK集成](#88ab823e)。
 
-·     如果您想了解SDK的代码简单集成使用，请查看[SDK初始化](#fd5a4bcf)；如您想更详细的了解SDK中的方法使
+·    如果您想了解SDK的代码简单集成使用，请查看[SDK初始化](#fd5a4bcf)；如您想更详细的了解SDK中的方法使
  用，请查看《API列表》。
 
-·     如果集成开发过程中遇到错误，请参照《常量字段值-错误码》。
+·    如果集成开发过程中遇到错误，请参照《常量字段值-错误码》。
 
 ## 2. 准备工作
 
 
 
-·     准备一台Peanut机器人。
+·    准备一台Peanut机器人。
 
-·     准备一根公对公双头USB线，建议2~3米。
+·    准备一根公对公双头USB线，建议2~3米。
 
-·     联系技术支持，布置现场机器人运行环境，并从技术支持获取一份《机器人运行目标点位置表》。
+·    联系技术支持，布置现场机器人运行环境，并从技术支持获取一份《机器人运行目标点位置表》。
 
-·     联系销售申请离线鉴权信息。
+·    联系销售申请离线鉴权信息。
 
 ## 3. 集成流程
 
@@ -62,13 +62,13 @@
 
 文件目录说明如下：
 
-·     doc是本文档所在的目录。
+·    doc是本文档所在的目录。
 
-·     javadoc是。
+·    javadoc是。
 
-·     libs是SDK库文件。
+·    libs是SDK库文件。
 
-·     sample是包含SDK基本功能的演示样例程序，可直接用Android Studio打开并编译。
+·    sample是包含SDK基本功能的演示样例程序，可直接用Android Studio打开并编译。
 
 ## 3.2. Sample运行
 
@@ -86,9 +86,9 @@
 
  
 
-·     如果机器人启动完毕后直接进入机器人的默认应用程序，请联系技术支持人员，获知如何退出自启动的程序，并取消机器人默认应用程序的开机启动与进程守护。
+·    如果机器人启动完毕后直接进入机器人的默认应用程序，请联系技术支持人员，获知如何退出自启动的程序，并取消机器人默认应用程序的开机启动与进程守护。
 
-·     检查并强行停止默认应用程序。具体步骤为，回到Android桌面，点击【设置】、【应用】，选择默认的Peanut程序，点击【强行停止】。这一步骤是为了防止默认应用程序与Peanut Sample程序同时与机器人内部通讯造成通讯错误。
+·    检查并强行停止默认应用程序。具体步骤为，回到Android桌面，点击【设置】、【应用】，选择默认的Peanut程序，点击【强行停止】。这一步骤是为了防止默认应用程序与Peanut Sample程序同时与机器人内部通讯造成通讯错误。
 
  
 
@@ -96,11 +96,11 @@
 
  
 
-·     打开机器人腰部后半部分腰带，打开方法为按住两侧卡扣并弹出，用力掰下中部卡扣，取下腰带后可看到右侧USB接口。此USB接口可以设置为HOST模式与DEVICE模式。设置为HOST模式时，可使用U盘。设置为DEVICE模式时，可使用ADB调试Android应用程序。
+·    打开机器人腰部后半部分腰带，打开方法为按住两侧卡扣并弹出，用力掰下中部卡扣，取下腰带后可看到右侧USB接口。此USB接口可以设置为HOST模式与DEVICE模式。设置为HOST模式时，可使用U盘。设置为DEVICE模式时，可使用ADB调试Android应用程序。
 
-·     设置USB为DEVICE模式。具体步骤为，回到Android桌面，点出【设置】、【开发者选项】、【USB模式切换】，选中【Device模式】。
+·    设置USB为DEVICE模式。具体步骤为，回到Android桌面，点出【设置】、【开发者选项】、【USB模式切换】，选中【Device模式】。
 
-·     使用双头USB线连接装电脑与机器人腰部的USB接口（不同机型位置不同，可咨询技术支持）。
+·    使用双头USB线连接装电脑与机器人腰部的USB接口（不同机型位置不同，可咨询技术支持）。
 
 ![img](file:///C:/Users/kenrich/AppData/Local/Temp/msohtmlclip1/01/clip_image004.jpg)
 
@@ -108,11 +108,11 @@
 
  
 
-·     打开Android Studio。Sample程序在Android Studio开发并测试通过。
+·    打开Android Studio。Sample程序在Android Studio开发并测试通过。
 
-·     打开SDK文件目录下的Sample工程。
+·    打开SDK文件目录下的Sample工程。
 
-·     编译并运行。Sample程序会运行在机器人上。
+·    编译并运行。Sample程序会运行在机器人上。
 
  
 
@@ -132,7 +132,7 @@
 
  
 
-·     android 配置packagingOptions
+·    android 配置packagingOptions
 
  
 
@@ -164,7 +164,7 @@ packagingOptions {
 
  
 
-·     确保对libs/peanut-sdk-xxx.aar的依赖：
+·    确保对libs/peanut-sdk-xxx.aar的依赖：
 
  
 
@@ -368,6 +368,15 @@ public enum LinkType {
 **遇到环境配置无法解决请先与技术支持沟通确认部署是否正确。**
 
 **遇到功能使用问题请按照问题反馈模板联系技术。**
+
+ 
+
+ 
+
+
+
+**
+**
 
  
 
@@ -1156,23 +1165,23 @@ private OnAudioListener mAudioListener = new OnAudioListener() {
 
 public interface OnAudioListener {
 
-​     // 麦克风硬件不存在
+​    // 麦克风硬件不存在
 
-​     int ERROR_DEVICE_NOT_FOUND = -100;
+​    int ERROR_DEVICE_NOT_FOUND = -100;
 
-​     // 麦克风硬件打开失败
+​    // 麦克风硬件打开失败
 
-​     int ERROR_DEVICE_OPEN_FAILED = -200;
+​    int ERROR_DEVICE_OPEN_FAILED = -200;
 
  
 
-​     void onSuccess();
+​    void onSuccess();
 
-​     void onError(int errorCode);
+​    void onError(int errorCode);
 
-​     void onAudioData(byte[] bytes, int len);
+​    void onAudioData(byte[] bytes, int len);
 
-​     void onHeartbeat(int state);
+​    void onHeartbeat(int state);
 
 }
 
@@ -1443,7 +1452,7 @@ SensorDoor.getInstance().setDoorSwitch(doorID,false)
 
  
 
-·     IDataCallback是数据接口。
+·    IDataCallback是数据接口。
 
 public interface IDataCallback {
 
@@ -1457,7 +1466,7 @@ public interface IDataCallback {
 
 }
 
-·     IProgressCallback接口表示处理文件的时候可以使用这个返回进度。
+·    IProgressCallback接口表示处理文件的时候可以使用这个返回进度。
 
 public interface IProgressCallback extends IDataCallback {
 
@@ -1919,7 +1928,7 @@ public void updateConfigCompat(IRobotCallBack callBack, String params)
 
 使用方法：
 
-​     
+​    
 
  
 
