@@ -25,9 +25,13 @@ import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 
+import com.keenon.sdk.component.navigation.route.RouteNode;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import com.weigao.robot.control.model.NavigationNode;
+
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,7 +45,9 @@ public class DeliveryActivity extends AppCompatActivity {
     private static final String TAG = "DeliveryActivity";
     private Button selectedLayerButton;
     // 存储配对关系
-    private final HashMap<Integer, String> pairings = new HashMap<>();
+    // 存储配对关系
+    private final HashMap<Integer, NavigationNode> pairings = new HashMap<>();
+
 
     /** 舱门服务 */
     private IDoorService doorService;
@@ -214,17 +220,17 @@ public class DeliveryActivity extends AppCompatActivity {
         RecyclerView pointsRecyclerView = findViewById(R.id.points_recyclerview);
         pointsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
-        List<String> points = new ArrayList<>();
-        PointAdapter adapter = new PointAdapter(points, pointText -> {
+        List<NavigationNode> points = new ArrayList<>();
+        PointAdapter adapter = new PointAdapter(points, node -> {
             if (selectedLayerButton == null) {
                 Toast.makeText(this, "请先选择一个机器人层", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             // 配对或修改配对：直接覆盖
-            pairings.put(selectedLayerButton.getId(), pointText);
-            selectedLayerButton.setText(pointText);
-            Toast.makeText(this, "已配对: " + pointText, Toast.LENGTH_SHORT).show();
+            pairings.put(selectedLayerButton.getId(), node);
+            selectedLayerButton.setText(node.getName());
+            Toast.makeText(this, "已配对: " + node.getName(), Toast.LENGTH_SHORT).show();
 
             // 配对后立即刷新样式为绿色并取消“选中”状态
             refreshLayerStyle(selectedLayerButton);
@@ -234,12 +240,16 @@ public class DeliveryActivity extends AppCompatActivity {
 
         // 获取并解析真实点位
         getRealPoints(points, adapter);
+
     }
 
     /**
      * 获取真实点位列表
      */
-    private void getRealPoints(List<String> points, PointAdapter adapter) {
+    /**
+     * 获取真实点位列表
+     */
+    private void getRealPoints(List<NavigationNode> points, PointAdapter adapter) {
         if (robotStateService == null)
             return;
 
@@ -248,7 +258,7 @@ public class DeliveryActivity extends AppCompatActivity {
             public void onSuccess(String result) {
                 // 在工作线程解析，UI线程更新
                 new Thread(() -> {
-                    List<String> realPoints = new ArrayList<>();
+                    List<NavigationNode> realPoints = new ArrayList<>();
                     try {
                         if (result != null && !result.isEmpty()) {
                             // 先解析为 JSONObject
@@ -259,13 +269,45 @@ public class DeliveryActivity extends AppCompatActivity {
                             if (jsonArray != null) {
                                 for (int i = 0; i < jsonArray.length(); i++) {
                                     JSONObject obj = jsonArray.getJSONObject(i);
+                                    NavigationNode node = new NavigationNode();
+                                    
+                                    // 解析基本属性
+                                    int id = obj.optInt("id");
                                     String name = obj.optString("name");
-                                    if (name != null && !name.isEmpty()) {
-                                        realPoints.add(name);
-                                    } else {
-                                        // 如果没有name，尝试用id
-                                        realPoints.add(String.valueOf(obj.optInt("id")));
+                                    if (name.isEmpty()) {
+                                        name = String.valueOf(id);
                                     }
+                                    node.setId(id);
+                                    node.setName(name);
+                                    node.setFloor(obj.optInt("floor"));
+
+                                    // 解析 pose
+                                    JSONObject pose = obj.optJSONObject("pose");
+                                    if (pose != null) {
+                                        JSONObject position = pose.optJSONObject("position");
+                                        if (position != null) {
+                                            node.setX(position.optDouble("x"));
+                                            node.setY(position.optDouble("y"));
+                                        }
+                                        JSONObject orientation = pose.optJSONObject("orientation");
+                                        if (orientation != null) {
+                                            double w = orientation.optDouble("w");
+                                            double x = orientation.optDouble("x");
+                                            double y = orientation.optDouble("y");
+                                            double z = orientation.optDouble("z");
+                                            // 计算航向角 phi
+                                            double phi = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+                                            node.setPhi(phi);
+                                        }
+                                    }
+
+                                    // 填充 routeNode 用于兼容
+                                    RouteNode routeNode = new RouteNode();
+                                    routeNode.setId(id);
+                                    routeNode.setName(name);
+                                    node.setRouteNode(routeNode);
+
+                                    realPoints.add(node);
                                 }
                             }
                         }
@@ -308,12 +350,12 @@ public class DeliveryActivity extends AppCompatActivity {
         }
     }
 
-    // --- Adapter 代码 (保持不变) ---
+    // --- Adapter 代码 ---
     private static class PointAdapter extends RecyclerView.Adapter<PointAdapter.PointViewHolder> {
-        private final List<String> mPoints;
+        private final List<NavigationNode> mPoints;
         private final OnPointClickListener mListener;
 
-        PointAdapter(List<String> points, OnPointClickListener listener) {
+        PointAdapter(List<NavigationNode> points, OnPointClickListener listener) {
             mPoints = points;
             mListener = listener;
         }
@@ -334,9 +376,9 @@ public class DeliveryActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull PointViewHolder holder, int position) {
-            String text = mPoints.get(position);
-            holder.pointButton.setText(text);
-            holder.pointButton.setOnClickListener(v -> mListener.onPointClick(text));
+            NavigationNode node = mPoints.get(position);
+            holder.pointButton.setText(node.getName());
+            holder.pointButton.setOnClickListener(v -> mListener.onPointClick(node));
         }
 
         @Override
@@ -355,7 +397,7 @@ public class DeliveryActivity extends AppCompatActivity {
     }
 
     interface OnPointClickListener {
-        void onPointClick(String pointText);
+        void onPointClick(NavigationNode node);
     }
 
     //
