@@ -59,7 +59,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity {
 
         // Sort tasks by layer number
         deliveryTasks = new ArrayList<>(pairings.entrySet());
-        Collections.sort(deliveryTasks, Comparator.comparing(entry -> getLayerNumber(entry.getKey())));
+        Collections.sort(deliveryTasks,
+                (o1, o2) -> Integer.compare(getLayerNumber(o1.getKey()), getLayerNumber(o2.getKey())));
 
         updateTaskText();
 
@@ -116,9 +117,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity {
     }
 
     private int getLayerNumber(int buttonId) {
-        if (buttonId == R.id.l1_button) return 1;
-        if (buttonId == R.id.l2_button) return 2;
-        if (buttonId == R.id.l3_button) return 3;
+        if (buttonId == R.id.l1_button)
+            return 1;
+        if (buttonId == R.id.l2_button)
+            return 2;
+        if (buttonId == R.id.l3_button)
+            return 3;
         return 0; // Should not happen
     }
 }

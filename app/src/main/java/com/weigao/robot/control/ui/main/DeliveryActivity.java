@@ -22,7 +22,12 @@ import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IDoorService;
+import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +45,8 @@ public class DeliveryActivity extends AppCompatActivity {
 
     /** 舱门服务 */
     private IDoorService doorService;
+    /** 机器人状态服务 */
+    private IRobotStateService robotStateService;
 
     /** 开门按钮引用 */
     private Button openDoorButton;
@@ -51,6 +58,8 @@ public class DeliveryActivity extends AppCompatActivity {
 
         // 获取舱门服务
         doorService = ServiceManager.getInstance().getDoorService();
+        // 获取机器人状态服务
+        robotStateService = ServiceManager.getInstance().getRobotStateService();
 
         // 注册舱门状态回调
         doorService.registerCallback(doorCallback);
@@ -206,9 +215,6 @@ public class DeliveryActivity extends AppCompatActivity {
         pointsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
         List<String> points = new ArrayList<>();
-        for (int i = 1; i <= 15; i++)
-            points.add("点位 " + i);
-
         PointAdapter adapter = new PointAdapter(points, pointText -> {
             if (selectedLayerButton == null) {
                 Toast.makeText(this, "请先选择一个机器人层", Toast.LENGTH_SHORT).show();
@@ -225,6 +231,69 @@ public class DeliveryActivity extends AppCompatActivity {
             selectedLayerButton = null;
         });
         pointsRecyclerView.setAdapter(adapter);
+
+        // 获取并解析真实点位
+        getRealPoints(points, adapter);
+    }
+
+    /**
+     * 获取真实点位列表
+     */
+    private void getRealPoints(List<String> points, PointAdapter adapter) {
+        if (robotStateService == null)
+            return;
+
+        robotStateService.getDestinationList(new IResultCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                // 在工作线程解析，UI线程更新
+                new Thread(() -> {
+                    List<String> realPoints = new ArrayList<>();
+                    try {
+                        if (result != null && !result.isEmpty()) {
+                            // 先解析为 JSONObject
+                            JSONObject resultObj = new JSONObject(result);
+                            // 获取 data 数组
+                            JSONArray jsonArray = resultObj.optJSONArray("data");
+
+                            if (jsonArray != null) {
+                                for (int i = 0; i < jsonArray.length(); i++) {
+                                    JSONObject obj = jsonArray.getJSONObject(i);
+                                    String name = obj.optString("name");
+                                    if (name != null && !name.isEmpty()) {
+                                        realPoints.add(name);
+                                    } else {
+                                        // 如果没有name，尝试用id
+                                        realPoints.add(String.valueOf(obj.optInt("id")));
+                                    }
+                                }
+                            }
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "点位解析失败: " + e.getMessage());
+                    }
+
+                    // 如果列表仍为空（解析失败或无数据），保留空列表或添加提示
+                    if (realPoints.isEmpty()) {
+                        Log.w(TAG, "未获取到有效点位");
+                    }
+
+                    runOnUiThread(() -> {
+                        points.clear();
+                        points.addAll(realPoints);
+                        adapter.notifyDataSetChanged();
+                    });
+                }).start();
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                Log.e(TAG, "获取点位失败: " + error.getMessage());
+                runOnUiThread(() -> {
+                    Toast.makeText(DeliveryActivity.this, "获取点位失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     /**
