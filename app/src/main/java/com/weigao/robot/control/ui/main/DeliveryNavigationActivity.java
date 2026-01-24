@@ -59,9 +59,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity {
             return;
         }
 
-        // Sort tasks by layer number
+        // Sort tasks by layer number - Compatible with API 21
         deliveryTasks = new ArrayList<>(pairings.entrySet());
-        Collections.sort(deliveryTasks, Comparator.comparing(entry -> getLayerNumber(entry.getKey())));
+        Collections.sort(deliveryTasks, new Comparator<Map.Entry<Integer, String>>() {
+            @Override
+            public int compare(Map.Entry<Integer, String> o1, Map.Entry<Integer, String> o2) {
+                return Integer.compare(getLayerNumber(o1.getKey()), getLayerNumber(o2.getKey()));
+            }
+        });
 
         updateTaskText();
 
@@ -83,20 +88,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity {
 
         // Button click listeners
         btnPauseEnd.setOnClickListener(v -> {
-            // Check if we are in "Finished" state (text is "Return Home") or "Paused" state (text is "End Task")
-            // Actually the logic uses the same button. 
-            // If text is "Return Home", maybe we don't need password? 
-            // The requirement says: "In the end task button... need password to finish task".
-            // "Return Home" is technically finishing the navigation flow. 
-            // But usually "End Task" (during delivery) is the critical one.
-            // Let's check the button text or logic.
-            // updateTaskText determines if it is finished.
-            
-            // If currentTaskIndex >= deliveryTasks.size(), it's "Return Home". 
-            // If < size, it is "End Task".
-            // Requirement: "After jump to finish task button... ensure password correct".
-            // It likely refers to the "End" button when pausing.
-            
             if (currentTaskIndex >= deliveryTasks.size()) {
                  finish(); // Just return home if already finished normally
             } else {
@@ -145,6 +136,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity {
         if (buttonId == R.id.l3_button) return 3;
         return 0; // Should not happen
     }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
         super.onActivityResult(requestCode, resultCode, data);

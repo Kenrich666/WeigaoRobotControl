@@ -15,7 +15,7 @@ import com.weigao.robot.control.R;
 
 import java.util.ArrayList;
 import java.util.List;
-
+// 密码验证
 public class PasswordActivity extends AppCompatActivity implements View.OnClickListener {
 
     private StringBuilder currentPassword = new StringBuilder();
