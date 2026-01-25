@@ -525,8 +525,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_PASSWORD && resultCode == RESULT_OK) {
-            finish();
-        }
+//        if (requestCode == REQUEST_CODE_PASSWORD && resultCode == RESULT_OK) {
+//            finish();
+//        }
     }
 }
