@@ -26,12 +26,12 @@ import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 
 import com.keenon.sdk.component.navigation.route.RouteNode;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.weigao.robot.control.model.NavigationNode;
-
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,16 +45,20 @@ public class DeliveryActivity extends AppCompatActivity {
     private static final String TAG = "DeliveryActivity";
     private Button selectedLayerButton;
     // 存储配对关系
-    // 存储配对关系
     private final HashMap<Integer, NavigationNode> pairings = new HashMap<>();
 
-
-    /** 舱门服务 */
+    /**
+     * 舱门服务
+     */
     private IDoorService doorService;
-    /** 机器人状态服务 */
+    /**
+     * 机器人状态服务
+     */
     private IRobotStateService robotStateService;
 
-    /** 开门按钮引用 */
+    /**
+     * 开门按钮引用
+     */
     private Button openDoorButton;
 
     @Override
@@ -270,7 +274,7 @@ public class DeliveryActivity extends AppCompatActivity {
                                 for (int i = 0; i < jsonArray.length(); i++) {
                                     JSONObject obj = jsonArray.getJSONObject(i);
                                     NavigationNode node = new NavigationNode();
-                                    
+
                                     // 解析基本属性
                                     int id = obj.optInt("id");
                                     String name = obj.optString("name");
@@ -305,6 +309,10 @@ public class DeliveryActivity extends AppCompatActivity {
                                     RouteNode routeNode = new RouteNode();
                                     routeNode.setId(id);
                                     routeNode.setName(name);
+
+                                    // 注意：不再通过反射设置 Location，后续导航将使用 ID 模式
+                                    // SDK 会根据 ID 自动查找数据库中的坐标信息
+
                                     node.setRouteNode(routeNode);
 
                                     realPoints.add(node);

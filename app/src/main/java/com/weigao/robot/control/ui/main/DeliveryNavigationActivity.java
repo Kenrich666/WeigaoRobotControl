@@ -81,8 +81,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         Log.d(TAG, "【导航服务】已注册回调监听器");
 
         // 获取配送任务
-        HashMap<Integer, NavigationNode> pairings = (HashMap<Integer, NavigationNode>) getIntent().getSerializableExtra("pairings");
-
+        HashMap<Integer, NavigationNode> pairings = (HashMap<Integer, NavigationNode>) getIntent()
+                .getSerializableExtra("pairings");
 
         if (pairings == null || pairings.isEmpty()) {
             Log.w(TAG, "【警告】没有配送任务");
@@ -146,7 +146,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         }
         Log.d(TAG, "【目标点】目标点数量: " + targetNodes.size());
     }
-
 
     /**
      * 设置手势检测器（双击暂停）
@@ -267,21 +266,41 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         });
     }
 
+    private boolean waitingForNext = false;
+
     /**
      * 恢复导航
      */
     private void resumeNavigation() {
-        navigationService.start(new IResultCallback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
-                Log.d(TAG, "【导航控制】恢复成功");
-            }
+        if (waitingForNext) {
+            Log.d(TAG, "【导航控制】恢复导航：处于等待跳转状态，立即前往下一目标");
+            waitingForNext = false;
+            navigationService.pilotNext(new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    Log.d(TAG, "【导航控制】前往下一点成功");
+                    runOnUiThread(() -> tvStatus.setText("送物中"));
+                }
 
-            @Override
-            public void onError(ApiError error) {
-                Log.e(TAG, "【导航控制】恢复失败: " + error.getMessage());
-            }
-        });
+                @Override
+                public void onError(ApiError error) {
+                    Log.e(TAG, "【导航控制】前往下一点失败: " + error.getMessage());
+                }
+            });
+        } else {
+            Log.d(TAG, "【导航控制】恢复导航：继续当前路径");
+            navigationService.start(new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    Log.d(TAG, "【导航控制】恢复成功");
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    Log.e(TAG, "【导航控制】恢复失败: " + error.getMessage());
+                }
+            });
+        }
     }
 
     /**
@@ -461,9 +480,11 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             Log.d(TAG, "【到达处理】还有下一个点，3秒后继续");
             // 延迟3秒后前往下一个点
             tvStatus.setText("已到达，3秒后继续");
+            waitingForNext = true;
             rootLayout.postDelayed(() -> {
                 if (isNavigating && !isPaused) {
                     Log.d(TAG, "【到达处理】前往下一个目标点");
+                    waitingForNext = false;
                     navigationService.pilotNext(new IResultCallback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
@@ -476,6 +497,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                             Log.e(TAG, "【导航控制】前往下一点失败: " + error.getMessage());
                         }
                     });
+                } else {
+                    Log.d(TAG, "【到达处理】已暂停或停止，跳过自动跳转，保持 waitingForNext=true");
                 }
             }, 3000);
         } else {

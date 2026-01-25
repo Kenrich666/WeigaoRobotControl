@@ -88,9 +88,14 @@ public class WeigaoApplication extends Application {
             // 配置 SDK 参数
             PeanutConfig.getConfig()
                     // 设置通信协议：CoAP (参考 SampleApp)
-                    .setLinkType(PeanutConstants.LinkType.COAP)
+                    .setLinkType(PeanutConstants.LinkType.COM_COAP)
+                    .setLinkCOM(PeanutConstants.COM1)
                     // 设置服务地址
                     .setLinkIP(PeanutConstants.REMOTE_LINK_PROXY)
+                    .setLinkPort(5683)
+                    .setEmotionLinkCOM(PeanutConstants.COM2)
+                    .setDoorLinkCOM(PeanutConstants.COM2)
+                    .setConnectionTimeout(PeanutConstants.CONNECTION_TIMEOUT)
                     // 开启日志
                     .enableLog(false)
                     // 设置日志级别

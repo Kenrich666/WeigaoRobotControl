@@ -125,40 +125,48 @@ public class NavigationServiceImpl implements INavigationService {
     public void setTargets(List<Integer> targetIds, IResultCallback<Void> callback) {
         Log.d(TAG, "【设置目标】目标点ID列表: " + targetIds);
         try {
-            // [修复] 1. 防止内存泄漏：如果已存在实例，先释放
-            if (peanutNavigation != null) {
-                peanutNavigation.stop();
-                peanutNavigation.release();
-                peanutNavigation = null;
-            }
-            // 将 targetIds 转换为 NavigationNode 列表
-            targetNodes.clear();
             Integer[] targets = null;
             if (targetIds != null && !targetIds.isEmpty()) {
                 targets = targetIds.toArray(new Integer[0]);
+            }
+
+            // 更新 NavigationNode 列表（仅用于本地记录和回调）
+            targetNodes.clear();
+            if (targetIds != null) {
                 for (Integer id : targetIds) {
                     NavigationNode node = new NavigationNode();
                     node.setId(id);
+                    // 尝试从缓存或 SDK 获取名称/坐标？目前仅记录 ID
                     targetNodes.add(node);
                 }
             }
 
-            // 创建 PeanutNavigation
-            PeanutNavigation.Builder builder = new PeanutNavigation.Builder()
-                    .setListener(mNavigationListener)
-                    .setBlockingTimeOut(blockingTimeout)
-                    .setRoutePolicy(routePolicy)
-                    .enableAutoRepeat(autoRepeat);
+            if (peanutNavigation != null) {
+                // 复用现有实例
+                Log.d(TAG, "【设置目标】复用现有 PeanutNavigation 实例");
+                peanutNavigation.stop();
+                if (targets != null) {
+                    peanutNavigation.setTargets(targets);
+                }
+            } else {
+                // 创建新实例
+                PeanutNavigation.Builder builder = new PeanutNavigation.Builder()
+                        .setListener(mNavigationListener)
+                        .setBlockingTimeOut(blockingTimeout)
+                        .setRoutePolicy(routePolicy)
+                        .enableAutoRepeat(autoRepeat);
 
-            if (repeatCount > 0) {
-                builder.setRepeatCount(repeatCount);
+                if (repeatCount > 0) {
+                    builder.setRepeatCount(repeatCount);
+                }
+
+                if (targets != null) {
+                    builder.setTargets(targets);
+                }
+
+                peanutNavigation = createPeanutNavigation(builder);
+                Log.d(TAG, "【设置目标】创建新 PeanutNavigation 实例");
             }
-
-            if (targets != null) {
-                builder.setTargets(targets);
-            }
-
-            peanutNavigation = createPeanutNavigation(builder);
             currentPosition = 0;
             notifySuccess(callback);
         } catch (Exception e) {
@@ -171,60 +179,53 @@ public class NavigationServiceImpl implements INavigationService {
     public void setTargetNodes(List<NavigationNode> targets, IResultCallback<Void> callback) {
         Log.d(TAG, "【设置目标】setTargetNodes: count=" + (targets != null ? targets.size() : 0));
         try {
-            // 释放旧实例，防止内存泄漏
-            if (peanutNavigation != null) {
-                peanutNavigation.stop();
-                peanutNavigation.release();
-                peanutNavigation = null;
-            }
-
+            List<Integer> targetIds = new ArrayList<>();
+            // 更新本地 targetNodes 缓存，保留详细信息
             targetNodes.clear();
-            List<RouteNode> routeNodeList = new ArrayList<>();
 
             if (targets != null && !targets.isEmpty()) {
                 for (NavigationNode node : targets) {
                     targetNodes.add(node);
-                    // 从 NavigationNode 提取 RouteNode
-                    RouteNode rn = node.getRouteNode();
-                    if (rn != null) {
-                        routeNodeList.add(rn);
-                        Log.d(TAG, "【目标点】添加 RouteNode: id=" + rn.getId() + ", name=" + rn.getName());
-                    } else {
-                        // 如果没有 RouteNode，创建临时的
-                        RouteNode tempNode = new RouteNode();
-                        tempNode.setId(node.getId());
-                        tempNode.setName(node.getName());
-                        routeNodeList.add(tempNode);
-                        Log.d(TAG, "【目标点】创建临时 RouteNode: id=" + node.getId() + ", name=" + node.getName());
-                    }
+                    targetIds.add(node.getId());
+                    Log.d(TAG, "【目标点】添加目标 ID: " + node.getId() + ", name=" + node.getName());
                 }
             }
 
-            // 创建 PeanutNavigation (不在Builder中设置targets，因为Builder只接受Integer[])
-            PeanutNavigation.Builder builder = new PeanutNavigation.Builder()
-                    .setListener(mNavigationListener)
-                    .setBlockingTimeOut(blockingTimeout)
-                    .setRoutePolicy(routePolicy)
-                    .enableAutoRepeat(autoRepeat);
+            // 委托给 setTargets(List<Integer>) 处理 SDK 调用
+            // 注意：我们不需要传递回调给 setTargets，因为我们要自己处理成功/失败
+            // 但为了简化，直接调用 setTargets 逻辑的复用部分
 
-            if (repeatCount > 0) {
-                builder.setRepeatCount(repeatCount);
+            // 这里为了避免递归调用的回调混乱，我们直接执行 setTargets 的核心逻辑
+            Integer[] targetIdArray = targetIds.toArray(new Integer[0]);
+
+            if (peanutNavigation != null) {
+                Log.d(TAG, "【设置目标】复用实例 (setTargetNodes)");
+                peanutNavigation.stop();
+                peanutNavigation.setTargets(targetIdArray);
+            } else {
+                Log.d(TAG, "【设置目标】新建实例 (setTargetNodes)");
+                PeanutNavigation.Builder builder = new PeanutNavigation.Builder()
+                        .setListener(mNavigationListener)
+                        .setBlockingTimeOut(blockingTimeout)
+                        .setRoutePolicy(routePolicy)
+                        .enableAutoRepeat(autoRepeat);
+
+                if (repeatCount > 0) {
+                    builder.setRepeatCount(repeatCount);
+                }
+
+                builder.setTargets(targetIdArray);
+                peanutNavigation = createPeanutNavigation(builder);
             }
 
-            peanutNavigation = createPeanutNavigation(builder);
-
-            // 使用实例方法 setTargets(List<RouteNode>) 设置目标点
-            if (!routeNodeList.isEmpty()) {
-                peanutNavigation.setTargets(routeNodeList);
-            }
             currentPosition = 0;
             notifySuccess(callback);
+
         } catch (Exception e) {
             Log.e(TAG, "setTargetNodes 异常", e);
             notifyError(callback, -1, e.getMessage());
         }
     }
-
 
     @Override
     public void prepare(IResultCallback<Void> callback) {
@@ -613,6 +614,22 @@ public class NavigationServiceImpl implements INavigationService {
             Log.w(TAG, "获取 RouteNode 位置信息失败", e);
         }
         return node;
+    }
+
+    /**
+     * 防御性初始化 NavigationInfo，防止 SDK 内部空指针
+     */
+    private void initNavigationInfo(RouteNode routeNode) {
+        try {
+            if (routeNode != null && routeNode.getNavigationInfo() != null) {
+                routeNode.getNavigationInfo().setTotalDistance(0f);
+                routeNode.getNavigationInfo().setRemainDistance(0f);
+                routeNode.getNavigationInfo().setTotalTime(0f);
+                routeNode.getNavigationInfo().setRemainTime(0f);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "initNavigationInfo 失败", e);
+        }
     }
 
     private void notifySuccess(IResultCallback<Void> callback) {
