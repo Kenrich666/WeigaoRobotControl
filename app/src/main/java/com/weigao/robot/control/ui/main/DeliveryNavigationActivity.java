@@ -521,4 +521,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             Log.d(TAG, "【导航服务】已注销回调监听器");
         }
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_PASSWORD && resultCode == RESULT_OK) {
+            finish();
+        }
+    }
 }

@@ -34,6 +34,7 @@
         <activity android:name=".ui.main.ReturnActivity" />
         <activity android:name=".ui.main.CircularDeliveryActivity" />
         <activity android:name=".ui.main.DeliveryNavigationActivity" />
+        <activity android:name=".ui.auth.PasswordActivity" />
     </application>
 
 </manifest>
