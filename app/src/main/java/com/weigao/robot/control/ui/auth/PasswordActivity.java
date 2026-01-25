@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.content.Intent;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -20,18 +21,10 @@ public class PasswordActivity extends AppCompatActivity implements View.OnClickL
 
     private StringBuilder currentPassword = new StringBuilder();
     private int maxPasswordLength = 4; // Default 4
-    private static final int SUPER_PASSWORD_LENGTH = 6;
     private static final String DEFAULT_PASSWORD = "1234"; // Placeholder
-    private static final String SUPER_PASSWORD = "123456"; // Placeholder
 
     private TextView tvTitle;
     private List<ImageView> dots = new ArrayList<>();
-    
-    // Secret trigger logic
-    private int titleClickCount = 0;
-    private long lastTitleClickTime = 0;
-    private static final int CLICK_THRESHOLD = 8;
-    private static final long CLICK_TIME_WINDOW = 1000; // 1 second window to chain clicks? No, 500ms between clicks is better.
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -40,6 +33,7 @@ public class PasswordActivity extends AppCompatActivity implements View.OnClickL
 
         initViews();
         setupListeners();
+        initPasswordSettings();
     }
 
     private void initViews() {
@@ -71,32 +65,21 @@ public class PasswordActivity extends AppCompatActivity implements View.OnClickL
         }
         
         // Function buttons
-        findViewById(R.id.btn_cancel).setOnClickListener(v -> {
-            if (currentPassword.length() > 0) {
-                currentPassword.deleteCharAt(currentPassword.length() - 1);
-                updateDots();
-            } else {
-                finish(); // Close activity
-            }
-        });
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+
+        View btnDelete = findViewById(R.id.btn_delete);
+        if (btnDelete != null) {
+            btnDelete.setOnClickListener(v -> {
+                if (currentPassword.length() > 0) {
+                    currentPassword.deleteCharAt(currentPassword.length() - 1);
+                    updateDots();
+                }
+            });
+        }
         
 
 
-        // Secret trigger on Title
-        tvTitle.setOnClickListener(v -> {
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - lastTitleClickTime < 500) {
-                titleClickCount++;
-            } else {
-                titleClickCount = 1;
-            }
-            lastTitleClickTime = currentTime;
 
-            if (titleClickCount >= CLICK_THRESHOLD) {
-                toggleSuperPasswordMode();
-                titleClickCount = 0;
-            }
-        });
     }
 
     @Override
@@ -140,46 +123,42 @@ public class PasswordActivity extends AppCompatActivity implements View.OnClickL
         }
     }
 
+    private void initPasswordSettings() {
+        // Ensure standard 4-digit length
+        maxPasswordLength = 4;
+        updateDotsVisibility();
+    }
+
     private void verifyPassword() {
         String input = currentPassword.toString();
-        boolean isValid = false;
+        android.content.SharedPreferences prefs = getSharedPreferences("app_config", MODE_PRIVATE);
+        String savedPassword = prefs.getString("access_password", DEFAULT_PASSWORD);
         
-        if (maxPasswordLength == 4) {
-            isValid = input.equals(DEFAULT_PASSWORD);
-        } else {
-            isValid = input.equals(SUPER_PASSWORD);
+        // If no password saved, default to "1234"
+        if (savedPassword == null || savedPassword.isEmpty()) {
+            savedPassword = DEFAULT_PASSWORD;
         }
+        
+        boolean isValid = input.equals(savedPassword);
 
         if (isValid) {
-            Toast.makeText(this, "Password Correct!", Toast.LENGTH_SHORT).show();
-            // TODO: Proceed to next screen or unlock
+            Toast.makeText(this, "密码正确", Toast.LENGTH_SHORT).show();
+            
+            // Check for target intent to launch
+            Intent targetIntent = (Intent) getIntent().getParcelableExtra("target_intent");
+            if (targetIntent != null) {
+                startActivity(targetIntent);
+            }
+            
             setResult(RESULT_OK);
             finish();
         } else {
-            Toast.makeText(this, "Wrong Password", Toast.LENGTH_SHORT).show();
-            // Shake animation or visual feedback could be added here
-            
+            Toast.makeText(this, "密码错误", Toast.LENGTH_SHORT).show();
             // Clear input after a short delay
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 currentPassword.setLength(0);
                 updateDots();
             }, 500);
         }
-    }
-
-    private void toggleSuperPasswordMode() {
-        if (maxPasswordLength == 4) {
-            maxPasswordLength = SUPER_PASSWORD_LENGTH;
-            tvTitle.setText("输入超级密码");
-            Toast.makeText(this, "Switched to Super Password Mode", Toast.LENGTH_SHORT).show();
-        } else {
-            // Optional: Toggle back? Usually hidden modes don't toggle back easily or irrelevant.
-            // Let's keep it one way or toggle back for testing.
-             maxPasswordLength = 4;
-             tvTitle.setText("输入密码");
-        }
-        currentPassword.setLength(0);
-        updateDotsVisibility();
-        updateDots();
     }
 }

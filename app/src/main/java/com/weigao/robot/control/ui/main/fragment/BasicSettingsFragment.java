@@ -6,7 +6,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.EditText;
 import android.widget.Toast;
+import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -32,9 +34,40 @@ public class BasicSettingsFragment extends Fragment {
         View closeDrawerButton = view.findViewById(R.id.btn_close_drawer);
         closeDrawerButton.setOnClickListener(v -> drawerLayout.closeDrawer(GravityCompat.END));
 
+        EditText etCurrent = view.findViewById(R.id.et_current_password);
+        EditText etNew = view.findViewById(R.id.et_new_password);
         View submitPasswordButton = view.findViewById(R.id.btn_submit_password);
+        
         submitPasswordButton.setOnClickListener(v -> {
+            String currentInput = etCurrent.getText().toString().trim();
+            String newInput = etNew.getText().toString().trim();
+
+            if (TextUtils.isEmpty(currentInput) || TextUtils.isEmpty(newInput)) {
+                Toast.makeText(getContext(), "请输入完整密码", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            android.content.SharedPreferences prefs = requireContext().getSharedPreferences("app_config", android.content.Context.MODE_PRIVATE);
+            String savedPassword = prefs.getString("access_password", "1234");
+
+            if (!currentInput.equals(savedPassword)) {
+                Toast.makeText(getContext(), "当前密码错误", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Limit to exact 4 digits
+            if (newInput.length() != 4) {
+                Toast.makeText(getContext(), "新密码长度需为4位数字", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Save new password
+            prefs.edit().putString("access_password", newInput).apply();
             Toast.makeText(getContext(), "密码已修改", Toast.LENGTH_SHORT).show();
+            
+            // Clear inputs
+            etCurrent.setText("");
+            etNew.setText("");
             drawerLayout.closeDrawer(GravityCompat.END);
         });
 

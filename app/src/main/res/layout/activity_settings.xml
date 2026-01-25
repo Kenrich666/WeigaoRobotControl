@@ -62,6 +62,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="声音设置"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
 
             <com.google.android.material.button.MaterialButton
@@ -69,6 +70,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="定时任务"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
 
             <com.google.android.material.button.MaterialButton
@@ -76,6 +78,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="配送模式"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
 
             <com.google.android.material.button.MaterialButton
@@ -90,6 +93,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="远程设置"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
 
             <com.google.android.material.button.MaterialButton
@@ -97,6 +101,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="呼叫器设置"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
 
             <com.google.android.material.button.MaterialButton
@@ -111,6 +116,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="wifi网络"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
 
             <com.google.android.material.button.MaterialButton
@@ -118,6 +124,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="场景设置"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
 
             <com.google.android.material.button.MaterialButton
@@ -125,6 +132,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="了解我"
+                android:visibility="gone"
                 app:backgroundTint="#2196F3" />
         </LinearLayout>
     </ScrollView>

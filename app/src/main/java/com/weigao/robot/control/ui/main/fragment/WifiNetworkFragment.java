@@ -17,7 +17,7 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
 
 import com.weigao.robot.control.R;
-
+//暂时不开发
 public class WifiNetworkFragment extends Fragment {
 
     private SwitchCompat switchWifi;

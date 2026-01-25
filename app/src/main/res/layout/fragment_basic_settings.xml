@@ -269,7 +269,7 @@
                 android:layout_marginTop="0dp"
                 android:background="@android:drawable/editbox_background"
                 android:hint="请输入当前密码"
-                android:inputType="textPassword"
+                android:inputType="numberPassword"
                 android:padding="12dp"
                 android:textSize="8sp" />
 
@@ -289,7 +289,7 @@
                 android:layout_marginTop="0dp"
                 android:background="@android:drawable/editbox_background"
                 android:hint="请输入新密码"
-                android:inputType="textPassword"
+                android:inputType="numberPassword"
                 android:padding="12dp"
                 android:textSize="8sp" />
 

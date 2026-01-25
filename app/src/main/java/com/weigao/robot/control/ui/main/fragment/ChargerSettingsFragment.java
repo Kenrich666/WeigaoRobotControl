@@ -200,16 +200,20 @@ public class ChargerSettingsFragment extends Fragment {
                 chargerService.startManualCharge(new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
-                        runOnUiThread(() -> 
-                            Toast.makeText(getContext(), "开始手动充电匹配", Toast.LENGTH_SHORT).show()
-                        );
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "开始手动充电匹配", Toast.LENGTH_SHORT).show()
+                            );
+                        }
                     }
 
                     @Override
                     public void onError(ApiError error) {
-                        runOnUiThread(() -> 
-                            Toast.makeText(getContext(), "启动手动充电失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                        );
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "启动手动充电失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                            );
+                        }
                     }
                 });
             }
@@ -222,16 +226,20 @@ public class ChargerSettingsFragment extends Fragment {
                 chargerService.stopCharge(new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
-                        runOnUiThread(() -> 
-                            Toast.makeText(getContext(), "已停止充电", Toast.LENGTH_SHORT).show()
-                        );
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "已停止充电", Toast.LENGTH_SHORT).show()
+                            );
+                        }
                     }
 
                     @Override
                     public void onError(ApiError error) {
-                        runOnUiThread(() -> 
-                            Toast.makeText(getContext(), "停止充电失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
-                        );
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "停止充电失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                            );
+                        }
                     }
                 });
             }

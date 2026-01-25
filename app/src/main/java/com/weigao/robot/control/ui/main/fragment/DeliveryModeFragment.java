@@ -12,7 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.weigao.robot.control.R;
-
+//没有服务可调用
 public class DeliveryModeFragment extends Fragment {
 
     private SeekBar seekbarMealPickupDuration;
