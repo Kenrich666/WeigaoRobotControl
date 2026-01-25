@@ -1,6 +1,8 @@
 package com.weigao.robot.control.model;
 
+import com.keenon.sdk.component.navigation.route.RouteNode;
 import java.io.Serializable;
+
 
 /**
  * 导航节点数据模型
@@ -30,8 +32,12 @@ public class NavigationNode implements Serializable {
     /** 楼层 */
     private int floor;
 
+    /** SDK 原始路线节点 */
+    private RouteNode routeNode;
+
     /** 是否为中间点 */
     private boolean isWaypoint;
+
 
     public NavigationNode() {
     }
@@ -41,6 +47,9 @@ public class NavigationNode implements Serializable {
         this.name = name;
         this.x = x;
         this.y = y;
+        this.routeNode = new RouteNode();
+        this.routeNode.setId(id);
+        this.routeNode.setName(name);
     }
 
     public int getId() {
@@ -98,6 +107,15 @@ public class NavigationNode implements Serializable {
     public void setWaypoint(boolean waypoint) {
         isWaypoint = waypoint;
     }
+
+    public RouteNode getRouteNode() {
+        return routeNode;
+    }
+
+    public void setRouteNode(RouteNode routeNode) {
+        this.routeNode = routeNode;
+    }
+
 
     @Override
     public String toString() {

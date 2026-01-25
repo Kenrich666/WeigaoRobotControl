@@ -70,13 +70,14 @@ public class NavigationServiceImpl implements INavigationService {
     private final Navigation.Listener mNavigationListener = new Navigation.Listener() {
         @Override
         public void onStateChanged(int state, int schedule) {
-            Log.d(TAG, "onStateChanged: state=" + state + ", schedule=" + schedule);
+            String stateStr = getStateString(state);
+            Log.d(TAG, "【导航回调】状态变化: " + stateStr + " (state=" + state + "), schedule=" + schedule);
             notifyStateChanged(state, schedule);
         }
 
         @Override
         public void onRouteNode(int index, RouteNode routeNode) {
-            Log.d(TAG, "onRouteNode: index=" + index);
+            Log.d(TAG, "【导航回调】到达路线节点，索引: " + index + ", 点位ID: " + (routeNode != null ? routeNode.getId() : "null"));
             currentPosition = index;
             NavigationNode node = convertToNavigationNode(routeNode);
             notifyRouteNode(index, node);
@@ -84,14 +85,20 @@ public class NavigationServiceImpl implements INavigationService {
 
         @Override
         public void onRoutePrepared(RouteNode... routeNodes) {
-            Log.d(TAG, "onRoutePrepared: count=" + (routeNodes != null ? routeNodes.length : 0));
+            Log.d(TAG, "【导航回调】路线准备完成，点位数量: " + (routeNodes != null ? routeNodes.length : 0));
             // 更新目标点列表
             targetNodes.clear();
+            List<NavigationNode> nodeList = new ArrayList<>();
             if (routeNodes != null) {
                 for (RouteNode rn : routeNodes) {
-                    targetNodes.add(convertToNavigationNode(rn));
+                    NavigationNode node = convertToNavigationNode(rn);
+                    targetNodes.add(node);
+                    nodeList.add(node);
+                    Log.d(TAG, "【导航回调】路线点位: " + node.toString());
                 }
             }
+            // 通知回调监听器
+            notifyRoutePrepared(nodeList);
         }
 
         @Override
@@ -116,42 +123,50 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void setTargets(List<Integer> targetIds, IResultCallback<Void> callback) {
-        Log.d(TAG, "setTargets: " + targetIds);
+        Log.d(TAG, "【设置目标】目标点ID列表: " + targetIds);
         try {
-            // [修复] 1. 防止内存泄漏：如果已存在实例，先释放
-            if (peanutNavigation != null) {
-                peanutNavigation.stop();
-                peanutNavigation.release();
-                peanutNavigation = null;
-            }
-            // 将 targetIds 转换为 NavigationNode 列表
-            targetNodes.clear();
             Integer[] targets = null;
             if (targetIds != null && !targetIds.isEmpty()) {
                 targets = targetIds.toArray(new Integer[0]);
+            }
+
+            // 更新 NavigationNode 列表（仅用于本地记录和回调）
+            targetNodes.clear();
+            if (targetIds != null) {
                 for (Integer id : targetIds) {
                     NavigationNode node = new NavigationNode();
                     node.setId(id);
+                    // 尝试从缓存或 SDK 获取名称/坐标？目前仅记录 ID
                     targetNodes.add(node);
                 }
             }
 
-            // 创建 PeanutNavigation
-            PeanutNavigation.Builder builder = new PeanutNavigation.Builder()
-                    .setListener(mNavigationListener)
-                    .setBlockingTimeOut(blockingTimeout)
-                    .setRoutePolicy(routePolicy)
-                    .enableAutoRepeat(autoRepeat);
+            if (peanutNavigation != null) {
+                // 复用现有实例
+                Log.d(TAG, "【设置目标】复用现有 PeanutNavigation 实例");
+                peanutNavigation.stop();
+                if (targets != null) {
+                    peanutNavigation.setTargets(targets);
+                }
+            } else {
+                // 创建新实例
+                PeanutNavigation.Builder builder = new PeanutNavigation.Builder()
+                        .setListener(mNavigationListener)
+                        .setBlockingTimeOut(blockingTimeout)
+                        .setRoutePolicy(routePolicy)
+                        .enableAutoRepeat(autoRepeat);
 
-            if (repeatCount > 0) {
-                builder.setRepeatCount(repeatCount);
+                if (repeatCount > 0) {
+                    builder.setRepeatCount(repeatCount);
+                }
+
+                if (targets != null) {
+                    builder.setTargets(targets);
+                }
+
+                peanutNavigation = createPeanutNavigation(builder);
+                Log.d(TAG, "【设置目标】创建新 PeanutNavigation 实例");
             }
-
-            if (targets != null) {
-                builder.setTargets(targets);
-            }
-
-            peanutNavigation = createPeanutNavigation(builder);
             currentPosition = 0;
             notifySuccess(callback);
         } catch (Exception e) {
@@ -162,22 +177,59 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void setTargetNodes(List<NavigationNode> targets, IResultCallback<Void> callback) {
-        Log.d(TAG, "setTargetNodes: count=" + (targets != null ? targets.size() : 0));
-        if (targets != null && !targets.isEmpty()) {
-            List<Integer> ids = new ArrayList<>();
-            for (NavigationNode node : targets) {
-                ids.add(node.getId());
+        Log.d(TAG, "【设置目标】setTargetNodes: count=" + (targets != null ? targets.size() : 0));
+        try {
+            List<Integer> targetIds = new ArrayList<>();
+            // 更新本地 targetNodes 缓存，保留详细信息
+            targetNodes.clear();
+
+            if (targets != null && !targets.isEmpty()) {
+                for (NavigationNode node : targets) {
+                    targetNodes.add(node);
+                    targetIds.add(node.getId());
+                    Log.d(TAG, "【目标点】添加目标 ID: " + node.getId() + ", name=" + node.getName());
+                }
             }
-            setTargets(ids, callback);
-        } else {
-            targetNodes = new ArrayList<>();
+
+            // 委托给 setTargets(List<Integer>) 处理 SDK 调用
+            // 注意：我们不需要传递回调给 setTargets，因为我们要自己处理成功/失败
+            // 但为了简化，直接调用 setTargets 逻辑的复用部分
+
+            // 这里为了避免递归调用的回调混乱，我们直接执行 setTargets 的核心逻辑
+            Integer[] targetIdArray = targetIds.toArray(new Integer[0]);
+
+            if (peanutNavigation != null) {
+                Log.d(TAG, "【设置目标】复用实例 (setTargetNodes)");
+                peanutNavigation.stop();
+                peanutNavigation.setTargets(targetIdArray);
+            } else {
+                Log.d(TAG, "【设置目标】新建实例 (setTargetNodes)");
+                PeanutNavigation.Builder builder = new PeanutNavigation.Builder()
+                        .setListener(mNavigationListener)
+                        .setBlockingTimeOut(blockingTimeout)
+                        .setRoutePolicy(routePolicy)
+                        .enableAutoRepeat(autoRepeat);
+
+                if (repeatCount > 0) {
+                    builder.setRepeatCount(repeatCount);
+                }
+
+                builder.setTargets(targetIdArray);
+                peanutNavigation = createPeanutNavigation(builder);
+            }
+
+            currentPosition = 0;
             notifySuccess(callback);
+
+        } catch (Exception e) {
+            Log.e(TAG, "setTargetNodes 异常", e);
+            notifyError(callback, -1, e.getMessage());
         }
     }
 
     @Override
     public void prepare(IResultCallback<Void> callback) {
-        Log.d(TAG, "prepare");
+        Log.d(TAG, "【准备导航】开始规划路线...");
         try {
             if (peanutNavigation != null) {
                 peanutNavigation.prepare();
@@ -191,7 +243,7 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void start(IResultCallback<Void> callback) {
-        Log.d(TAG, "start");
+        Log.d(TAG, "【开始导航】启动导航...");
         try {
             if (peanutNavigation != null) {
                 peanutNavigation.setPilotWhenReady(true);
@@ -205,7 +257,7 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void pause(IResultCallback<Void> callback) {
-        Log.d(TAG, "pause");
+        Log.d(TAG, "【暂停导航】暂停中...");
         try {
             if (peanutNavigation != null) {
                 peanutNavigation.setPilotWhenReady(false);
@@ -219,7 +271,7 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void stop(IResultCallback<Void> callback) {
-        Log.d(TAG, "stop");
+        Log.d(TAG, "【停止导航】停止导航...");
         try {
             if (peanutNavigation != null) {
                 peanutNavigation.stop();
@@ -233,7 +285,7 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void pilotNext(IResultCallback<Void> callback) {
-        Log.d(TAG, "pilotNext");
+        Log.d(TAG, "【前往下一点】开始前往下一个目标点...");
         try {
             if (peanutNavigation != null) {
                 peanutNavigation.pilotNext();
@@ -483,6 +535,17 @@ public class NavigationServiceImpl implements INavigationService {
         }
     }
 
+    private void notifyRoutePrepared(List<NavigationNode> nodes) {
+        Log.d(TAG, "【回调分发】通知路线准备完成，监听器数量: " + callbacks.size());
+        for (INavigationCallback callback : callbacks) {
+            try {
+                callback.onRoutePrepared(nodes);
+            } catch (Exception e) {
+                Log.e(TAG, "回调 onRoutePrepared 异常", e);
+            }
+        }
+    }
+
     private void notifyDistanceChanged(double distance) {
         for (INavigationCallback callback : callbacks) {
             try {
@@ -519,8 +582,10 @@ public class NavigationServiceImpl implements INavigationService {
         NavigationNode node = new NavigationNode();
         node.setId(routeNode.getId());
         node.setName(routeNode.getName());
+        node.setRouteNode(routeNode);
 
         // RouteNode 的坐标信息在 Location 对象中
+
         // 根据 SDK 文档，Location 包含 x, y, phi 字段
         try {
             // 尝试通过反射或直接访问 Location
@@ -551,6 +616,22 @@ public class NavigationServiceImpl implements INavigationService {
         return node;
     }
 
+    /**
+     * 防御性初始化 NavigationInfo，防止 SDK 内部空指针
+     */
+    private void initNavigationInfo(RouteNode routeNode) {
+        try {
+            if (routeNode != null && routeNode.getNavigationInfo() != null) {
+                routeNode.getNavigationInfo().setTotalDistance(0f);
+                routeNode.getNavigationInfo().setRemainDistance(0f);
+                routeNode.getNavigationInfo().setTotalTime(0f);
+                routeNode.getNavigationInfo().setRemainTime(0f);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "initNavigationInfo 失败", e);
+        }
+    }
+
     private void notifySuccess(IResultCallback<Void> callback) {
         if (callback != null) {
             callback.onSuccess(null);
@@ -560,6 +641,38 @@ public class NavigationServiceImpl implements INavigationService {
     private void notifyError(IResultCallback<?> callback, int code, String message) {
         if (callback != null) {
             callback.onError(new ApiError(code, message));
+        }
+    }
+
+    /**
+     * 将导航状态码转换为中文描述
+     */
+    private String getStateString(int state) {
+        switch (state) {
+            case Navigation.STATE_IDLE:
+                return "空闲";
+            case Navigation.STATE_PREPARED:
+                return "已准备";
+            case Navigation.STATE_RUNNING:
+                return "导航中";
+            case Navigation.STATE_DESTINATION:
+                return "已到达目标点";
+            case Navigation.STATE_PAUSED:
+                return "已暂停";
+            case Navigation.STATE_BLOCKED:
+                return "被阻挡";
+            case Navigation.STATE_BLOCKING:
+                return "阻挡超时";
+            case Navigation.STATE_COLLISION:
+                return "碰撞";
+            case Navigation.STATE_STOPPED:
+                return "已停止";
+            case Navigation.STATE_ERROR:
+                return "错误";
+            case Navigation.STATE_END:
+                return "已结束";
+            default:
+                return "未知状态";
         }
     }
 
