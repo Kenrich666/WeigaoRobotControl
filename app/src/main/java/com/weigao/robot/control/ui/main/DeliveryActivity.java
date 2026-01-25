@@ -22,7 +22,16 @@ import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IDoorService;
+import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
+
+import com.keenon.sdk.component.navigation.route.RouteNode;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.weigao.robot.control.model.NavigationNode;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,12 +45,20 @@ public class DeliveryActivity extends AppCompatActivity {
     private static final String TAG = "DeliveryActivity";
     private Button selectedLayerButton;
     // 存储配对关系
-    private final HashMap<Integer, String> pairings = new HashMap<>();
+    private final HashMap<Integer, NavigationNode> pairings = new HashMap<>();
 
-    /** 舱门服务 */
+    /**
+     * 舱门服务
+     */
     private IDoorService doorService;
+    /**
+     * 机器人状态服务
+     */
+    private IRobotStateService robotStateService;
 
-    /** 开门按钮引用 */
+    /**
+     * 开门按钮引用
+     */
     private Button openDoorButton;
 
     @Override
@@ -51,6 +68,8 @@ public class DeliveryActivity extends AppCompatActivity {
 
         // 获取舱门服务
         doorService = ServiceManager.getInstance().getDoorService();
+        // 获取机器人状态服务
+        robotStateService = ServiceManager.getInstance().getRobotStateService();
 
         // 注册舱门状态回调
         doorService.registerCallback(doorCallback);
@@ -205,26 +224,126 @@ public class DeliveryActivity extends AppCompatActivity {
         RecyclerView pointsRecyclerView = findViewById(R.id.points_recyclerview);
         pointsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
-        List<String> points = new ArrayList<>();
-        for (int i = 1; i <= 15; i++)
-            points.add("点位 " + i);
-
-        PointAdapter adapter = new PointAdapter(points, pointText -> {
+        List<NavigationNode> points = new ArrayList<>();
+        PointAdapter adapter = new PointAdapter(points, node -> {
             if (selectedLayerButton == null) {
                 Toast.makeText(this, "请先选择一个机器人层", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             // 配对或修改配对：直接覆盖
-            pairings.put(selectedLayerButton.getId(), pointText);
-            selectedLayerButton.setText(pointText);
-            Toast.makeText(this, "已配对: " + pointText, Toast.LENGTH_SHORT).show();
+            pairings.put(selectedLayerButton.getId(), node);
+            selectedLayerButton.setText(node.getName());
+            Toast.makeText(this, "已配对: " + node.getName(), Toast.LENGTH_SHORT).show();
 
             // 配对后立即刷新样式为绿色并取消“选中”状态
             refreshLayerStyle(selectedLayerButton);
             selectedLayerButton = null;
         });
         pointsRecyclerView.setAdapter(adapter);
+
+        // 获取并解析真实点位
+        getRealPoints(points, adapter);
+
+    }
+
+    /**
+     * 获取真实点位列表
+     */
+    /**
+     * 获取真实点位列表
+     */
+    private void getRealPoints(List<NavigationNode> points, PointAdapter adapter) {
+        if (robotStateService == null)
+            return;
+
+        robotStateService.getDestinationList(new IResultCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                // 在工作线程解析，UI线程更新
+                new Thread(() -> {
+                    List<NavigationNode> realPoints = new ArrayList<>();
+                    try {
+                        if (result != null && !result.isEmpty()) {
+                            // 先解析为 JSONObject
+                            JSONObject resultObj = new JSONObject(result);
+                            // 获取 data 数组
+                            JSONArray jsonArray = resultObj.optJSONArray("data");
+
+                            if (jsonArray != null) {
+                                for (int i = 0; i < jsonArray.length(); i++) {
+                                    JSONObject obj = jsonArray.getJSONObject(i);
+                                    NavigationNode node = new NavigationNode();
+
+                                    // 解析基本属性
+                                    int id = obj.optInt("id");
+                                    String name = obj.optString("name");
+                                    if (name.isEmpty()) {
+                                        name = String.valueOf(id);
+                                    }
+                                    node.setId(id);
+                                    node.setName(name);
+                                    node.setFloor(obj.optInt("floor"));
+
+                                    // 解析 pose
+                                    JSONObject pose = obj.optJSONObject("pose");
+                                    if (pose != null) {
+                                        JSONObject position = pose.optJSONObject("position");
+                                        if (position != null) {
+                                            node.setX(position.optDouble("x"));
+                                            node.setY(position.optDouble("y"));
+                                        }
+                                        JSONObject orientation = pose.optJSONObject("orientation");
+                                        if (orientation != null) {
+                                            double w = orientation.optDouble("w");
+                                            double x = orientation.optDouble("x");
+                                            double y = orientation.optDouble("y");
+                                            double z = orientation.optDouble("z");
+                                            // 计算航向角 phi
+                                            double phi = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+                                            node.setPhi(phi);
+                                        }
+                                    }
+
+                                    // 填充 routeNode 用于兼容
+                                    RouteNode routeNode = new RouteNode();
+                                    routeNode.setId(id);
+                                    routeNode.setName(name);
+
+                                    // 注意：不再通过反射设置 Location，后续导航将使用 ID 模式
+                                    // SDK 会根据 ID 自动查找数据库中的坐标信息
+
+                                    node.setRouteNode(routeNode);
+
+                                    realPoints.add(node);
+                                }
+                            }
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "点位解析失败: " + e.getMessage());
+                    }
+
+                    // 如果列表仍为空（解析失败或无数据），保留空列表或添加提示
+                    if (realPoints.isEmpty()) {
+                        Log.w(TAG, "未获取到有效点位");
+                    }
+
+                    runOnUiThread(() -> {
+                        points.clear();
+                        points.addAll(realPoints);
+                        adapter.notifyDataSetChanged();
+                    });
+                }).start();
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                Log.e(TAG, "获取点位失败: " + error.getMessage());
+                runOnUiThread(() -> {
+                    Toast.makeText(DeliveryActivity.this, "获取点位失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     /**
@@ -239,12 +358,12 @@ public class DeliveryActivity extends AppCompatActivity {
         }
     }
 
-    // --- Adapter 代码 (保持不变) ---
+    // --- Adapter 代码 ---
     private static class PointAdapter extends RecyclerView.Adapter<PointAdapter.PointViewHolder> {
-        private final List<String> mPoints;
+        private final List<NavigationNode> mPoints;
         private final OnPointClickListener mListener;
 
-        PointAdapter(List<String> points, OnPointClickListener listener) {
+        PointAdapter(List<NavigationNode> points, OnPointClickListener listener) {
             mPoints = points;
             mListener = listener;
         }
@@ -265,9 +384,9 @@ public class DeliveryActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull PointViewHolder holder, int position) {
-            String text = mPoints.get(position);
-            holder.pointButton.setText(text);
-            holder.pointButton.setOnClickListener(v -> mListener.onPointClick(text));
+            NavigationNode node = mPoints.get(position);
+            holder.pointButton.setText(node.getName());
+            holder.pointButton.setOnClickListener(v -> mListener.onPointClick(node));
         }
 
         @Override
@@ -286,7 +405,7 @@ public class DeliveryActivity extends AppCompatActivity {
     }
 
     interface OnPointClickListener {
-        void onPointClick(String pointText);
+        void onPointClick(NavigationNode node);
     }
 
     //

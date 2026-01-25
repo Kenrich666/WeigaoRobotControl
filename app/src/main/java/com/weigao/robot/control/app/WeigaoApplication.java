@@ -87,19 +87,21 @@ public class WeigaoApplication extends Application {
         try {
             // 配置 SDK 参数
             PeanutConfig.getConfig()
-                    // 设置通信协议：CoAP (参考 SampleApp 默认 Remote/Laser 模式)
-                    .setLinkType(PeanutConstants.LinkType.COAP)
+                    // 设置通信协议：CoAP (参考 SampleApp)
+                    .setLinkType(PeanutConstants.LinkType.COM_COAP)
+                    .setLinkCOM(PeanutConstants.COM1)
                     // 设置服务地址
                     .setLinkIP(PeanutConstants.REMOTE_LINK_PROXY)
+                    .setLinkPort(5683)
+                    .setEmotionLinkCOM(PeanutConstants.COM2)
+                    .setDoorLinkCOM(PeanutConstants.COM2)
+                    .setConnectionTimeout(PeanutConstants.CONNECTION_TIMEOUT)
                     // 开启日志
-                    .enableLog(true)
+                    .enableLog(false)
                     // 设置日志级别
                     .setLogLevel(Log.DEBUG)
-                    // 设置离线鉴权 AppId (恢复 Weigao ID)
-                    .setAppId("d8b123262fa3463e835fc15392e07b60")
-                    // 设置离线鉴权 Secret (恢复 Weigao Secret)
-                    .setSecret(
-                            "nPlQERTP4qIvwJ5MT16y/dDQlY4DRvx/0qahVJEzuYkJRFSQoJM6CZtGLebwINKLAx/kACtCq7UBvt1QCODovm2gq7dsXAK48NrqiEj8bNDBhl/HV12geRHoXVo8pNCKUWHvfPMjy0I/XYP54J8bZYwJS7gRXJoFiDqwPsXMZYs=")
+                    .setAppId(APP_ID)
+                    .setSecret(APP_SECRET)
                     .enableUMLog(false);
 
             // 初始化 SDK
