@@ -161,9 +161,64 @@ public class DeliveryActivity extends AppCompatActivity {
                 Toast.makeText(this, "请至少配对一个层", Toast.LENGTH_SHORT).show();
                 return;
             }
-            Intent intent = new Intent(this, DeliveryNavigationActivity.class);
-            intent.putExtra("pairings", pairings);
-            startActivity(intent);
+
+            if (doorService == null) {
+                startDelivery();
+                return;
+            }
+
+            // 禁用按钮，避免重复点击
+            v.setEnabled(false);
+
+            // 检查舱门状态
+            doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+                @Override
+                public void onSuccess(Boolean allClosed) {
+                    runOnUiThread(() -> {
+                        if (allClosed) {
+                            // 已关闭，直接开始
+                            startDelivery();
+                            v.setEnabled(true);
+                        } else {
+                            // 未关闭，先关门
+                            Toast.makeText(DeliveryActivity.this, "检测到舱门未关，正在关闭...", Toast.LENGTH_SHORT).show();
+                            doorService.closeAllDoors(new IResultCallback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(DeliveryActivity.this, "舱门已关闭，5秒后开始配送...", Toast.LENGTH_SHORT)
+                                                .show();
+
+                                        // 增加5秒等待时间
+                                        new Handler().postDelayed(() -> {
+                                            startDelivery();
+                                            v.setEnabled(true);
+                                        }, 5000);
+                                    });
+                                }
+
+                                @Override
+                                public void onError(ApiError error) {
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(DeliveryActivity.this, "自动关门失败: " + error.getMessage(),
+                                                Toast.LENGTH_SHORT).show();
+                                        v.setEnabled(true);
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(DeliveryActivity.this, "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT)
+                                .show();
+                        v.setEnabled(true);
+                    });
+                }
+            });
         });
 
         // --- 2. 层选择与“删除”逻辑 ---
@@ -453,7 +508,7 @@ public class DeliveryActivity extends AppCompatActivity {
                     if (allClosed) {
                         openDoorButton.setText("开门");
                     } else {
-                        openDoorButton.setText("闭门");
+                        openDoorButton.setText("关门");
                     }
                     // 延迟 5 秒后才重新启用按钮，防止连续点击
                     new Handler().postDelayed(() -> {
@@ -510,6 +565,66 @@ public class DeliveryActivity extends AppCompatActivity {
             });
         }
     };
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1002 && resultCode == RESULT_OK) {
+            Log.d(TAG, "配送任务结束返回");
+            if (data != null && data.hasExtra("remaining_pairings")) {
+                HashMap<Integer, NavigationNode> remaining = (HashMap<Integer, NavigationNode>) data
+                        .getSerializableExtra("remaining_pairings");
+                pairings.clear();
+                if (remaining != null) {
+                    pairings.putAll(remaining);
+                }
+                updateUIFromPairings();
+            } else {
+                Log.d(TAG, "未收到剩余配对信息，重置界面");
+                resetUI();
+            }
+        }
+    }
+
+    /**
+     * 重置界面状态（清空配对信息）
+     */
+    private void resetUI() {
+        pairings.clear();
+        updateUIFromPairings();
+    }
+
+    /**
+     * 根据当前的配对信息更新UI
+     */
+    private void updateUIFromPairings() {
+        updateButtonState(findViewById(R.id.l1_button), "L1 层");
+        updateButtonState(findViewById(R.id.l2_button), "L2 层");
+        updateButtonState(findViewById(R.id.l3_button), "L3 层");
+        selectedLayerButton = null;
+    }
+
+    private void updateButtonState(Button btn, String defaultText) {
+        if (btn == null)
+            return;
+        if (pairings.containsKey(btn.getId())) {
+            NavigationNode node = pairings.get(btn.getId());
+            if (node != null) {
+                btn.setText(node.getName());
+            }
+            refreshLayerStyle(btn);
+        } else {
+            btn.setText(defaultText);
+            refreshLayerStyle(btn);
+        }
+    }
+
+    private void startDelivery() {
+        Intent intent = new Intent(this, DeliveryNavigationActivity.class);
+        intent.putExtra("pairings", pairings);
+        // 使用 startActivityForResult 以便在任务完成后接收通知
+        startActivityForResult(intent, 1002);
+    }
 
     @Override
     protected void onDestroy() {

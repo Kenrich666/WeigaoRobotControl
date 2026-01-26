@@ -19,6 +19,7 @@ import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
 import android.content.Intent;
 import android.os.CountDownTimer;
+import com.weigao.robot.control.ui.auth.PasswordActivity;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,6 +46,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     // 确认关闭状态标记
     private boolean isConfirmState = false;
     private CountDownTimer departureTimer;
+    private static final int REQUEST_CODE_VERIFY_PASSWORD = 2001;
 
     // 存储配对关系：层级 -> 导航点
     // TODO：配对信息占位符，跳转该页面需要附带配对信息，将pairings赋值即可
@@ -196,30 +198,10 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             btnOpenCabin.setEnabled(false);
 
             if (!isConfirmState) {
-                // 1. 当前为"打开舱门"操作
-                // 注意：打开舱门不应停止倒计时，用户确认收货时才停止
-                Toast.makeText(this, "正在打开舱门...", Toast.LENGTH_SHORT).show();
-                doorService.openAllDoors(false, new IResultCallback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(ConfirmReceiptActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
-                            // 切换按钮状态和文本
-                            btnOpenCabin.setText("确认收货");
-                            btnOpenCabin.setEnabled(true);
-                            isConfirmState = true;
-                        });
-                    }
-
-                    @Override
-                    public void onError(ApiError error) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(),
-                                    Toast.LENGTH_SHORT).show();
-                            btnOpenCabin.setEnabled(true);
-                        });
-                    }
-                });
+                // 1. 当前为"打开舱门"操作，需先验证密码
+                Toast.makeText(this, "请先验证密码", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(this, PasswordActivity.class);
+                startActivityForResult(intent, REQUEST_CODE_VERIFY_PASSWORD);
             } else {
                 // 2. 当前为"确认收货"操作（关闭舱门）
                 // 用户确认收货，立刻取消自动离场倒计时
@@ -391,5 +373,51 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             departureTimer.cancel();
             departureTimer = null;
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_VERIFY_PASSWORD && resultCode == RESULT_OK) {
+            // 密码验证通过，执行开门
+            performOpenCabin();
+        } else if (requestCode == REQUEST_CODE_VERIFY_PASSWORD) {
+            // 验证未通过或取消，恢复按钮状态
+            btnOpenCabin.setEnabled(true);
+        }
+    }
+
+    /**
+     * 执行开门操作
+     */
+    private void performOpenCabin() {
+        Toast.makeText(this, "正在打开舱门...", Toast.LENGTH_SHORT).show();
+        doorService.openAllDoors(false, new IResultCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ConfirmReceiptActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
+                    // 切换按钮状态和文本
+                    btnOpenCabin.setText("确认收货");
+                    isConfirmState = true;
+
+                    // 防止连击，延迟3秒启用确认收货按钮
+                    new android.os.Handler().postDelayed(() -> {
+                        if (!isFinishing()) {
+                            btnOpenCabin.setEnabled(true);
+                        }
+                    }, 3000);
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                    btnOpenCabin.setEnabled(true);
+                });
+            }
+        });
     }
 }
