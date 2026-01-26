@@ -24,7 +24,11 @@
         android:theme="@style/Theme.WeigaoRobotControl">
         <activity
             android:name=".ui.main.MainActivity"
-            android:exported="true">
+            android:exported="false" />
+        <activity
+            android:name=".ui.main.PositioningActivity"
+            android:exported="true"
+            android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -36,6 +40,7 @@
         <activity android:name=".ui.main.ReturnActivity" />
         <activity android:name=".ui.main.CircularDeliveryActivity" />
         <activity android:name=".ui.main.DeliveryNavigationActivity" />
+        <activity android:name=".ui.main.ConfirmReceiptActivity" />
         <activity android:name=".ui.auth.PasswordActivity" />
     </application>
 

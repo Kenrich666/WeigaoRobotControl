@@ -13,11 +13,12 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="音量"
+            android:text="音量设置"
             android:textColor="@android:color/black"
             android:textSize="18sp"
             android:textStyle="bold" />
 
+        <!-- 配送音量 (Music Volume in original, mapping to Delivery Volume) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -27,34 +28,31 @@
             android:paddingBottom="8dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="80dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="0dp"
-                android:text="音乐"
+                android:text="配送音量"
                 android:textSize="16sp" />
 
             <SeekBar
-                android:id="@+id/seekbar_music_volume"
-                android:layout_width="532dp"
+                android:id="@+id/seekbar_delivery_volume"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:max="10"
+                android:max="100"
                 android:progress="0"
                 android:progressTint="#4A90E2"
                 android:thumbTint="#4A90E2" />
 
             <TextView
-                android:id="@+id/tv_music_volume_value"
-                android:layout_width="wrap_content"
+                android:id="@+id/tv_delivery_volume_value"
+                android:layout_width="50dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="0dp"
-                android:layout_marginEnd="50dp"
                 android:gravity="end"
-                android:minWidth="40dp"
                 android:text="0"
                 android:textSize="16sp" />
         </LinearLayout>
 
+        <!-- 语音音量 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -64,10 +62,9 @@
             android:paddingBottom="8dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="80dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="0dp"
-                android:text="语音"
+                android:text="语音音量"
                 android:textSize="16sp" />
 
             <SeekBar
@@ -75,28 +72,157 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:max="10"
+                android:max="100"
                 android:progress="0"
                 android:progressTint="#4A90E2"
                 android:thumbTint="#4A90E2" />
 
             <TextView
                 android:id="@+id/tv_voice_volume_value"
-                android:layout_width="wrap_content"
+                android:layout_width="50dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="0dp"
-                android:layout_marginEnd="50dp"
                 android:gravity="end"
-                android:minWidth="40dp"
                 android:text="0"
                 android:textSize="16sp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#E0E0E0" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="音乐路径配置"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <!-- 配送音乐路径 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:text="配送音乐路径"
+                android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/et_delivery_music_path"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="请输入路径"
+                android:textSize="14sp"
+                android:inputType="text" />
+        </LinearLayout>
+
+        <!-- 循环音乐路径 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:text="循环音乐路径"
+                android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/et_loop_music_path"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="请输入路径"
+                android:textSize="14sp"
+                android:inputType="text" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#E0E0E0" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="播报频率配置"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <!-- 播报频率 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:text="播报频率(秒)"
+                android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/et_announcement_freq"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="请输入频率数值"
+                android:textSize="14sp"
+                android:inputType="number" />
+        </LinearLayout>
+
+        <!-- 循环播报频率 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="120dp"
+                android:layout_height="wrap_content"
+                android:text="循环播报频率(秒)"
+                android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/et_loop_announcement_freq"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="请输入频率数值"
+                android:textSize="14sp"
+                android:inputType="number" />
         </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="语音提示包括出发语音、避障语音、运行中语音、配送语音等提示,皆一致调节音量"
-            android:textSize="14sp" />
+            android:layout_marginTop="16dp"
+            android:text="提示: 语音提示包括出发语音、避障语音、运行中语音、配送语音等。"
+            android:textSize="12sp"
+            android:textColor="#757575" />
 
     </LinearLayout>
 </ScrollView>

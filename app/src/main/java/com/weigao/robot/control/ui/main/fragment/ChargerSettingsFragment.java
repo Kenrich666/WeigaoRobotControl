@@ -2,6 +2,7 @@ package com.weigao.robot.control.ui.main.fragment;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,121 +18,254 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.weigao.robot.control.R;
-
+import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.IChargerCallback;
+import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.model.ChargerInfo;
+import com.weigao.robot.control.service.IChargerService;
+import com.weigao.robot.control.service.ServiceManager;
+// 使用到的函数：
+// 1. ServiceManager.getInstance().getChargerService(): 获取充电服务实例
+// 2. IChargerService.registerCallback(IChargerCallback): 注册充电状态监听 (回调 onChargerInfoChanged)
+// 3. IChargerService.unregisterCallback(IChargerCallback): 注销监听
+// 4. IChargerService.getChargerInfo(IResultCallback<ChargerInfo>): 主动获取当前电量和充电状态
+// 5. IChargerService.startAutoCharge(IResultCallback<Void>): 下发自动回充指令
+// 6. IChargerService.startManualCharge(IResultCallback<Void>): 下发手动充电指令
+// 7. IChargerService.stopCharge(IResultCallback<Void>): 下发停止充电指令
+//
+// 涉及的 Model：
+// - ChargerInfo: 包含 power (电量百分比), isCharging (是否正在充电) 等状态信息
+/**
+ * 充电设置页面 Fragment
+ * 负责展示电池状态、充电进度，并提供自动回充、手动充电、停止充电等操作功能。
+ */
 public class ChargerSettingsFragment extends Fragment {
+
+    private static final String TAG = "ChargerSettingsFragment";
 
     private ImageView batteryIcon;
     private TextView batteryPercentage;
-    private TextView estimatedTime;
-    private Button chargeNowButton;
     private TextView helpText;
-    private RelativeLayout powerSavingModeLayout;
-    private TextView currentModeValue;
+    private Button chargeNowButton;
+    private Button manualChargeButton;
+    private Button stopChargeButton;
     private ProgressBar batteryProgress;
     private ProgressBar batteryProgressBackground;
 
-    // Power saving modes
-    private static final String[] POWER_MODES = {
-        "标准模式",
-        "省电模式",
-        "深度省电",
-        "超级省电",
-        "性能模式"
-    };
-    
-    private static final String[] POWER_MODES_DESC = {
-        "正常性能，不限制功能",
-        "降低性能，延长续航约30%",
-        "大幅降低性能，延长续航约50%",
-        "最低性能，最大续航约70%",
-        "最高性能，续航时间较短"
-    };
+    private IChargerService chargerService;
 
-    private int currentPowerModeIndex = 2; // Default: 深度省电
+
+    private int currentBatteryLevel = 0;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_charger_settings, container, false);
         
+        // 获取充电服务实例
+        chargerService = ServiceManager.getInstance().getChargerService();
+
+        // 初始化 UI 控件
         initViews(view);
+        // 设置按钮点击监听器
         setupListeners();
-        updateBatteryStatus();
+        // 初始假数据更新，真实数据将在 onResume (IChargerCallback) 中刷新
+        updateBatteryUI(0, false);
         
         return view;
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        // 页面可见时注册回调，并主动刷新一次状态
+        if (chargerService != null) {
+            chargerService.registerCallback(chargerCallback);
+            refreshBatteryStatus();
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // 页面暂停时取消注册，避免内存泄漏以及不必要的后台 UI 更新
+        if (chargerService != null) {
+            chargerService.unregisterCallback(chargerCallback);
+        }
+    }
+
+    // 充电服务回调接口实现，用于监听底层充电状态变化
+    private final IChargerCallback chargerCallback = new IChargerCallback() {
+        @Override
+        public void onChargerInfoChanged(int event, ChargerInfo chargerInfo) {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    if (chargerInfo != null) {
+                        updateBatteryUI(chargerInfo.getPower(), chargerInfo.isCharging());
+                    }
+                });
+            }
+        }
+
+        @Override
+        public void onChargerStatusChanged(int status) {
+            Log.d(TAG, "onChargerStatusChanged: " + status);
+        }
+
+        @Override
+        public void onChargerError(int errorCode) {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    Toast.makeText(getContext(), "充电服务异常: " + errorCode, Toast.LENGTH_SHORT).show();
+                });
+            }
+        }
+    };
+
+    /**
+     * 主动获取最新的电池和充电状态
+     */
+    private void refreshBatteryStatus() {
+        if (chargerService == null) return;
+        
+        chargerService.getChargerInfo(new IResultCallback<ChargerInfo>() {
+            @Override
+            public void onSuccess(ChargerInfo result) {
+                if (getActivity() != null && result != null) {
+                    getActivity().runOnUiThread(() -> {
+                        updateBatteryUI(result.getPower(), result.isCharging());
+                    });
+                }
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                Log.e(TAG, "获取充电信息失败: " + error.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 初始化所有 View 控件
+     */
     private void initViews(View view) {
         batteryIcon = view.findViewById(R.id.batteryIcon);
         batteryPercentage = view.findViewById(R.id.batteryPercentage);
         batteryProgress = view.findViewById(R.id.batteryProgress);
         batteryProgressBackground = view.findViewById(R.id.batteryProgressBackground);
-        estimatedTime = view.findViewById(R.id.estimatedTime);
+
         chargeNowButton = view.findViewById(R.id.chargeNowButton);
+        manualChargeButton = view.findViewById(R.id.manualChargeButton);
+        stopChargeButton = view.findViewById(R.id.stopChargeButton);
         helpText = view.findViewById(R.id.helpText);
-        powerSavingModeLayout = view.findViewById(R.id.powerSavingModeLayout);
-        currentModeValue = view.findViewById(R.id.currentModeValue);
-        
-        // Set initial power mode
-        currentModeValue.setText(POWER_MODES[currentPowerModeIndex]);
     }
 
     private void setupListeners() {
-        // Charge Now Button Click
+        // "立即充电" (自动回充) 按钮点击事件
         chargeNowButton.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "开始充电...", Toast.LENGTH_SHORT).show();
-            // TODO: Implement charging logic
+            if (chargerService != null) {
+                // 下发自动回充指令
+                chargerService.startAutoCharge(new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "开始自动回充任务", Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "启动回充失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    }
+                });
+            }
         });
 
-        // Help Text Click
+        // "帮助说明" 点击事件
         helpText.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "手动推至充电桩", Toast.LENGTH_SHORT).show();
-            // TODO: Show manual charging instructions
+            // 提示用户手动充电的操作方式
+            Toast.makeText(getContext(), "请手动将机器人推至充电桩接触弹片", Toast.LENGTH_SHORT).show();
         });
 
-        // Power Saving Mode Click - Show Dialog
-        powerSavingModeLayout.setOnClickListener(v -> {
-            showPowerModeDialog();
+        // "手动充电" 按钮点击事件
+        manualChargeButton.setOnClickListener(v -> {
+            if (chargerService != null) {
+                // 下发手动充电指令 (通常用于告知系统开始进行手动接触匹配)
+                chargerService.startManualCharge(new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "开始手动充电匹配", Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "启动手动充电失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    }
+                });
+            }
         });
+
+        // "停止充电" 按钮点击事件
+        stopChargeButton.setOnClickListener(v -> {
+            if (chargerService != null) {
+                // 下发停止充电指令
+                chargerService.stopCharge(new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "已停止充电", Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(getContext(), "停止充电失败: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    }
+                });
+            }
+        });
+
+
     }
 
-    private void showPowerModeDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("选择省电模式");
-        
-        // Create custom view for dialog with descriptions
-        String[] displayItems = new String[POWER_MODES.length];
-        for (int i = 0; i < POWER_MODES.length; i++) {
-            displayItems[i] = POWER_MODES[i] + "\n" + POWER_MODES_DESC[i];
-        }
-        
-        builder.setSingleChoiceItems(displayItems, currentPowerModeIndex, (dialog, which) -> {
-            currentPowerModeIndex = which;
-            currentModeValue.setText(POWER_MODES[which]);
-            Toast.makeText(getContext(), "已切换到: " + POWER_MODES[which], Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
-            
-            // Update battery estimation based on mode
-            updateBatteryEstimation();
-        });
-        
-        builder.setNegativeButton("取消", (dialog, which) -> dialog.dismiss());
-        
-        AlertDialog dialog = builder.create();
-        dialog.show();
-    }
 
-    private void updateBatteryStatus() {
-        // Simulated battery data - replace with actual battery status
-        int batteryLevel = 79;
-        int hours = 12;
-        int minutes = 38;
-        
+
+    /**
+     * 更新电池 UI 显示：包括百分比、进度条颜色、充电状态按钮等
+     * @param batteryLevel 当前电量 (0-100)
+     * @param isCharging 是否正在充电
+     */
+    private void updateBatteryUI(int batteryLevel, boolean isCharging) {
+        currentBatteryLevel = batteryLevel;
         batteryPercentage.setText(batteryLevel + "%");
-        estimatedTime.setText(hours + "小时" + minutes + "分钟");
+        
+        // 更新进度条
         batteryProgress.setProgress(batteryLevel);
         
-        // Update battery icon and progress color based on level
+        // 根据电量动态设置颜色：
+        // < 20%: 红色
+        // < 50%: 橙色
+        // >= 50%: 绿色
         int color;
         if (batteryLevel < 20) {
             color = getResources().getColor(android.R.color.holo_red_dark);
@@ -143,49 +277,20 @@ public class ChargerSettingsFragment extends Fragment {
         
         batteryIcon.setColorFilter(color);
         batteryProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(color));
-    }
 
-    private void updateBatteryEstimation() {
-        // Adjust battery estimation based on power mode
-        int baseHours = 12;
-        int baseMinutes = 38;
-        
-        switch (currentPowerModeIndex) {
-            case 0: // 标准模式
-                // No change
-                break;
-            case 1: // 省电模式
-                baseHours = (int)(baseHours * 1.3);
-                break;
-            case 2: // 深度省电
-                baseHours = (int)(baseHours * 1.5);
-                break;
-            case 3: // 超级省电
-                baseHours = (int)(baseHours * 1.7);
-                break;
-            case 4: // 性能模式
-                baseHours = (int)(baseHours * 0.8);
-                break;
-        }
-        
-        estimatedTime.setText(baseHours + "小时" + baseMinutes + "分钟");
-    }
 
-    // Method to update battery status from external source
-    public void setBatteryStatus(int percentage, int hours, int minutes) {
-        if (batteryPercentage != null) {
-            batteryPercentage.setText(percentage + "%");
-            batteryProgress.setProgress(percentage);
-        }
-        if (estimatedTime != null) {
-            estimatedTime.setText(hours + "小时" + minutes + "分钟");
+
+        if (isCharging) {
+            // 充电中禁用“自动回充”和“手动充电”按钮
+            chargeNowButton.setEnabled(false);
+            chargeNowButton.setText("充电中");
+            manualChargeButton.setEnabled(false);
+        } else {
+            chargeNowButton.setEnabled(true);
+            chargeNowButton.setText("自动回充 (Auto)");
+            manualChargeButton.setEnabled(true);
         }
     }
 
-    // Method to update power saving mode
-    public void setPowerSavingMode(String mode) {
-        if (currentModeValue != null) {
-            currentModeValue.setText(mode);
-        }
-    }
+
 }

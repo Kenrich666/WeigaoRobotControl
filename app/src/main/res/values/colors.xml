@@ -14,4 +14,15 @@
     <color name="password_btn_stroke">#33AADD</color>
     <color name="password_btn_pressed">#2233AADD</color>
     <color name="password_text_hint">#AAAAAA</color>
+    <!-- Modern Tech UI Colors -->
+    <color name="tech_bg_start">#1a2a3a</color> <!-- Deep Blue-Grey -->
+    <color name="tech_bg_end">#0d1218</color>   <!-- Near Black -->
+    <color name="tech_primary">#2196F3</color>  <!-- Material Blue -->
+    <color name="tech_secondary">#00E676</color> <!-- Bright Green -->
+    <color name="tech_accent">#00BCD4</color>    <!-- Cyan -->
+    <color name="tech_surface">#2A3744</color>   <!-- Lighter Surface -->
+    <color name="tech_text_primary">#FFFFFF</color>
+    <color name="tech_text_secondary">#B0BEC5</color>
+    <color name="tech_button_start">#3facff</color>
+    <color name="tech_button_end">#007ad9</color>
 </resources>

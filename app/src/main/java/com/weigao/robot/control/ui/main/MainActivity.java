@@ -17,6 +17,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.keenon.sdk.external.PeanutSDK;
 import com.weigao.robot.control.R;
+import com.weigao.robot.control.ui.auth.PasswordActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -36,25 +37,34 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_settings).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                Intent targetIntent = new Intent(MainActivity.this, SettingsActivity.class);
+                Intent passwordIntent = new Intent(MainActivity.this, PasswordActivity.class);
+                passwordIntent.putExtra("target_intent", targetIntent);
+                startActivity(passwordIntent);
             }
         });
 
         findViewById(R.id.btn_item_delivery).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, DeliveryActivity.class);
-                intent.putExtra("delivery_type", "物品配送");
-                startActivity(intent);
+                Intent targetIntent = new Intent(MainActivity.this, DeliveryActivity.class);
+                targetIntent.putExtra("delivery_type", "物品配送");
+                
+                Intent passwordIntent = new Intent(MainActivity.this, PasswordActivity.class);
+                passwordIntent.putExtra("target_intent", targetIntent);
+                startActivity(passwordIntent);
             }
         });
 
         findViewById(R.id.btn_loop_delivery).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, CircularDeliveryActivity.class);
-                intent.putExtra("delivery_type", "循环配送");
-                startActivity(intent);
+                Intent targetIntent = new Intent(MainActivity.this, CircularDeliveryActivity.class);
+                targetIntent.putExtra("delivery_type", "循环配送");
+
+                Intent passwordIntent = new Intent(MainActivity.this, PasswordActivity.class);
+                passwordIntent.putExtra("target_intent", targetIntent);
+                startActivity(passwordIntent);
             }
         });
 

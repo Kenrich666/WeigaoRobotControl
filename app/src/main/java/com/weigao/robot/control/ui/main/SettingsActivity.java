@@ -24,7 +24,7 @@ import com.weigao.robot.control.ui.main.fragment.WifiNetworkFragment;
 
 import java.util.ArrayList;
 import java.util.List;
-
+//设置页面
 public class SettingsActivity extends AppCompatActivity implements View.OnClickListener {
 
     private final List<MaterialButton> menuButtons = new ArrayList<>();
