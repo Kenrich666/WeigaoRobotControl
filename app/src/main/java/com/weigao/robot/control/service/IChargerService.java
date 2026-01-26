@@ -1,5 +1,6 @@
 package com.weigao.robot.control.service;
 
+import com.keenon.sdk.component.charger.PeanutCharger;
 import com.weigao.robot.control.callback.IChargerCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.ChargerInfo;
@@ -17,16 +18,16 @@ public interface IChargerService {
     // SDK参考：PeanutCharger.performAction(int action)
 
     /** 充电动作：自动充电（机器人自动导航到充电桩） */
-    int CHARGE_ACTION_AUTO = 1;
+    int CHARGE_ACTION_AUTO = PeanutCharger.CHARGE_ACTION_AUTO;
 
     /** 充电动作：手动充电（机器人已在充电桩附近时使用） */
-    int CHARGE_ACTION_MANUAL = 2;
+    int CHARGE_ACTION_MANUAL = PeanutCharger.CHARGE_ACTION_MANUAL;
 
     /** 充电动作：适配器充电（使用外接适配器） */
-    int CHARGE_ACTION_ADAPTER = 3;
+    int CHARGE_ACTION_ADAPTER = PeanutCharger.CHARGE_ACTION_ADAPTER;
 
     /** 充电动作：停止充电 */
-    int CHARGE_ACTION_STOP = 4;
+    int CHARGE_ACTION_STOP = PeanutCharger.CHARGE_ACTION_STOP;
 
     /**
      * 开始自动充电

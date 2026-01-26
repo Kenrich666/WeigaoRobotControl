@@ -74,7 +74,10 @@ public class RobotStateServiceImpl implements IRobotStateService {
                 peanutRuntime.registerListener(mRuntimeListener);
                 // 启动运行时 (如果尚未启动)
                 peanutRuntime.start();
-                Log.d(TAG, "PeanutRuntime 初始化及监听注册成功");
+                // [关键修复] 启动后立即触发开机定位
+                peanutRuntime.location();
+
+                Log.d(TAG, "PeanutRuntime 初始化及监听注册成功，已触发 location()");
                 // 初始化时立即同步一次状态
                 updateStateFromSdk();
             } else {
