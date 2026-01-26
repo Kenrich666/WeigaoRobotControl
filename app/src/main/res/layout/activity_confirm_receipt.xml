@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:background="#F8F9FA">
 
-    <!-- Top Guideline mimicking DeliveryActivity (though we might not put buttons above it) -->
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline_top"
         android:layout_width="wrap_content"
@@ -21,7 +20,6 @@
         android:orientation="horizontal"
         app:layout_constraintGuide_percent="0.85" />
 
-    <!-- Robot Body Visualization (Left Side) -->
     <LinearLayout
         android:id="@+id/robot_body"
         android:layout_width="200dp"
@@ -45,8 +43,6 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <!-- Layer Indicators -->
-        <!-- These will be colored Blue if the layer is selected/targeted -->
         <TextView
             android:id="@+id/layer_l1"
             android:layout_width="match_parent"
@@ -86,7 +82,6 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Right Side Info -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/info_container"
         android:layout_width="0dp"
@@ -100,15 +95,29 @@
             android:id="@+id/tv_title_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="12dp"
             android:text="已到达目的地"
             android:textColor="#666666"
             android:textSize="28sp"
-            app:layout_constraintBottom_toTopOf="@+id/tv_point_name"
+            app:layout_constraintBottom_toTopOf="@+id/tv_countdown"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_chainStyle="packed" />
+
+        <TextView
+            android:id="@+id/tv_countdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:text="30s 后自动离开"
+            android:textColor="#FF5722"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toTopOf="@+id/tv_point_name"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tv_title_status" />
 
         <TextView
             android:id="@+id/tv_point_name"
@@ -128,8 +137,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
-            android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:orientation="horizontal"
             app:layout_constraintBottom_toTopOf="@+id/btn_open_cabin"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -152,6 +161,7 @@
                 android:textColor="#239EE9"
                 android:textSize="40sp"
                 android:textStyle="bold" />
+
         </LinearLayout>
 
         <Button

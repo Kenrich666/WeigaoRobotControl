@@ -21,6 +21,7 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import android.content.Intent;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,16 +39,22 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private static final String TAG = "DeliveryNavActivity";
 
+    private static final int REQUEST_CODE_CONFIRM_RECEIPT = 1001;
+
     private TextView tvStatus, currentTaskTextView, tvHint;
     private Button btnPauseEnd, btnContinue;
     private LinearLayout llPauseControls;
     private View rootLayout;
 
     private List<Map.Entry<Integer, NavigationNode>> deliveryTasks;
+    // 存储配对关系，提升为成员变量以便在后续操作中修改
+    private HashMap<Integer, NavigationNode> pairings;
 
     private int currentTaskIndex = 0;
     private boolean isPaused = false;
     private boolean isNavigating = false;
+    // 是否正在返回原点
+    private boolean isReturning = false;
 
     private GestureDetector gestureDetector;
 
@@ -81,7 +88,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         Log.d(TAG, "【导航服务】已注册回调监听器");
 
         // 获取配送任务
-        HashMap<Integer, NavigationNode> pairings = (HashMap<Integer, NavigationNode>) getIntent()
+        pairings = (HashMap<Integer, NavigationNode>) getIntent()
                 .getSerializableExtra("pairings");
 
         if (pairings == null || pairings.isEmpty()) {
@@ -179,8 +186,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             finish();
         });
 
+        // "完成取物" / "继续" 按钮逻辑复用
+        // 若在到达等待状态，执行 processDeparture
         btnContinue.setOnClickListener(v -> {
-            Log.d(TAG, "【用户操作】点击继续按钮");
+            Log.d(TAG, "【用户操作】点击继续/完成取物按钮");
             setPauseState(false);
             resumeNavigation();
         });
@@ -296,6 +305,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         } else {
             Log.d(TAG, "【导航控制】恢复导航：继续当前路径");
             navigationService.start(new IResultCallback<Void>() {
+
                 @Override
                 public void onSuccess(Void result) {
                     Log.d(TAG, "【导航控制】恢复成功");
@@ -305,6 +315,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 public void onError(ApiError error) {
                     Log.e(TAG, "【导航控制】恢复失败: " + error.getMessage());
                 }
+
             });
         }
     }
@@ -352,6 +363,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      */
     private void updateTaskText() {
         runOnUiThread(() -> {
+            if (isReturning) {
+                String targetName = (targetNodes != null && !targetNodes.isEmpty()) ? targetNodes.get(0).getName()
+                        : "原点";
+                currentTaskTextView.setText("任务完成，正在返回：" + targetName);
+                tvStatus.setText("返航中");
+                return;
+            }
+
             if (currentTaskIndex < deliveryTasks.size()) {
                 Map.Entry<Integer, NavigationNode> currentTask = deliveryTasks.get(currentTaskIndex);
                 String pointText = currentTask.getValue().getName();
@@ -361,17 +380,21 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 Log.d(TAG, "【UI更新】当前任务: " + pointText + " (" + (currentTaskIndex + 1) + "/" + totalTasks + ")");
 
             } else {
-                currentTaskTextView.setText("所有任务已完成！");
-                tvStatus.setText("已完成");
-                tvHint.setVisibility(View.GONE);
-                llPauseControls.setVisibility(View.VISIBLE);
-                btnContinue.setVisibility(View.GONE);
-                btnPauseEnd.setText("返回首页");
-                rootLayout.setOnTouchListener(null);
-                isNavigating = false;
-                Log.d(TAG, "【UI更新】所有任务已完成");
+                showMissionCompletedUI();
             }
         });
+    }
+
+    private void showMissionCompletedUI() {
+        currentTaskTextView.setText("所有任务已完成！");
+        tvStatus.setText("已完成");
+        tvHint.setVisibility(View.GONE);
+        llPauseControls.setVisibility(View.VISIBLE);
+        btnContinue.setVisibility(View.GONE);
+        btnPauseEnd.setText("返回首页");
+        rootLayout.setOnTouchListener(null);
+        isNavigating = false;
+        Log.d(TAG, "【UI更新】所有任务已完成");
     }
 
     /**
@@ -478,41 +501,35 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 处理到达目标点
      */
     private void handleArrival() {
+        if (isReturning) {
+            Log.d(TAG, "【到达处理】已回到原点，任务彻底结束");
+            runOnUiThread(() -> {
+                Toast.makeText(this, "已回到原点", Toast.LENGTH_LONG).show();
+                showMissionCompletedUI();
+            });
+            return;
+        }
+
         Log.d(TAG, "【到达处理】当前索引: " + currentTaskIndex + ", 总任务数: " + deliveryTasks.size());
 
-        // 检查是否还有下一个点
-        if (currentTaskIndex < deliveryTasks.size() - 1) {
-            // 还有下一个点，继续导航
-            Log.d(TAG, "【到达处理】还有下一个点，3秒后继续");
-            // 延迟3秒后前往下一个点
-            tvStatus.setText("已到达，3秒后继续");
-            waitingForNext = true;
-            rootLayout.postDelayed(() -> {
-                if (isNavigating && !isPaused) {
-                    Log.d(TAG, "【到达处理】前往下一个目标点");
-                    waitingForNext = false;
-                    navigationService.pilotNext(new IResultCallback<Void>() {
-                        @Override
-                        public void onSuccess(Void result) {
-                            Log.d(TAG, "【导航控制】前往下一点成功");
-                            runOnUiThread(() -> tvStatus.setText("送物中"));
-                        }
+        // 无论是否是最后一个点，都跳转确认页面供用户取货
+        waitingForNext = true;
 
-                        @Override
-                        public void onError(ApiError error) {
-                            Log.e(TAG, "【导航控制】前往下一点失败: " + error.getMessage());
-                        }
-                    });
-                } else {
-                    Log.d(TAG, "【到达处理】已暂停或停止，跳过自动跳转，保持 waitingForNext=true");
-                }
-            }, 3000);
-        } else {
-            // 所有任务完成
-            Log.d(TAG, "【到达处理】所有任务已完成");
-            currentTaskIndex = deliveryTasks.size();
-            updateTaskText();
+        // 跳转到 ConfirmReceiptActivity
+        Intent intent = new Intent(this, ConfirmReceiptActivity.class);
+
+        // 传递配对信息(用于显示需要取货的层)
+        HashMap<Integer, NavigationNode> pairings = (HashMap<Integer, NavigationNode>) getIntent()
+                .getSerializableExtra("pairings");
+        if (pairings != null) {
+            intent.putExtra("pairings", pairings);
         }
+
+        // 传递当前站点信息
+        NavigationNode currentNode = deliveryTasks.get(currentTaskIndex).getValue();
+        intent.putExtra("current_node", currentNode);
+
+        startActivityForResult(intent, REQUEST_CODE_CONFIRM_RECEIPT);
     }
 
     @Override
@@ -531,8 +548,74 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-//        if (requestCode == REQUEST_CODE_PASSWORD && resultCode == RESULT_OK) {
-//            finish();
-//        }
+        if (requestCode == REQUEST_CODE_CONFIRM_RECEIPT) {
+            if (resultCode == RESULT_OK) {
+                Log.d(TAG, "【ConfirmReceipt】返回确认");
+                waitingForNext = false;
+
+                // 用户已确认收货，从配对关系中移除对应的层级
+                if (pairings != null && currentTaskIndex < deliveryTasks.size()) {
+                    NavigationNode finishedNode = deliveryTasks.get(currentTaskIndex).getValue();
+                    if (finishedNode != null) {
+                        List<Integer> keysToRemove = new ArrayList<>();
+                        for (Map.Entry<Integer, NavigationNode> entry : pairings.entrySet()) {
+                            if (entry.getValue().getId() == finishedNode.getId()) {
+                                keysToRemove.add(entry.getKey());
+                            }
+                        }
+                        for (Integer key : keysToRemove) {
+                            pairings.remove(key);
+                        }
+                        Log.d(TAG, "【数据更新】已移除点位 " + finishedNode.getName() + " 的配对关系");
+                    }
+                }
+
+                // 判断是否还有下一站
+                if (currentTaskIndex < deliveryTasks.size() - 1) {
+                    Log.d(TAG, "【导航控制】还有下一站，前往下一站");
+                    navigationService.pilotNext(new IResultCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            Log.d(TAG, "【导航控制】前往下一点成功");
+                            runOnUiThread(() -> tvStatus.setText("送物中"));
+                        }
+
+                        @Override
+                        public void onError(ApiError error) {
+                            Log.e(TAG, "【导航控制】前往下一点失败: " + error.getMessage());
+                            runOnUiThread(() -> Toast.makeText(DeliveryNavigationActivity.this,
+                                    "跳转失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+                        }
+                    });
+                } else {
+                    Log.d(TAG, "【导航控制】最后一站完成，检查是否需要返回原点");
+                    // 标记配送任务完成
+                    currentTaskIndex = deliveryTasks.size();
+
+                    // 检查是否有原点数据
+                    if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
+                        Log.d(TAG, "【导航控制】找到原点，开始自动返回");
+                        NavigationNode originNode = DeliveryActivity.originPoints.get(0);
+
+                        // 设置返回模式
+                        isReturning = true;
+
+                        // 重置目标点为原点
+                        targetNodes = new ArrayList<>();
+                        targetNodes.add(originNode);
+
+                        // 更新UI并开始导航
+                        updateTaskText();
+                        startNavigation();
+                    } else {
+                        Log.d(TAG, "【导航控制】无原点数据，直接结束");
+                        updateTaskText();
+                    }
+                }
+            } else {
+                Log.d(TAG, "【ConfirmReceipt】返回非OK，可能取消或异常");
+                // 视需求处理，暂时保持等待或恢复
+            }
+        }
     }
 }
