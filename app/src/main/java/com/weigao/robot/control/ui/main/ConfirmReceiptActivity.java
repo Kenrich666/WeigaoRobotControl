@@ -8,6 +8,7 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.weigao.robot.control.R;
 import com.weigao.robot.control.model.NavigationNode;
@@ -17,6 +18,7 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
 import android.content.Intent;
+import android.os.CountDownTimer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,13 +36,15 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
     private TextView tvPointName;
     private TextView tvLayersList;
+    private TextView tvCountdown;
     private TextView layerL1, layerL2, layerL3;
     private Button btnOpenCabin;
-    
+
     // 舱门服务
     private IDoorService doorService;
     // 确认关闭状态标记
     private boolean isConfirmState = false;
+    private CountDownTimer departureTimer;
 
     // 存储配对关系：层级 -> 导航点
     // TODO：配对信息占位符，跳转该页面需要附带配对信息，将pairings赋值即可
@@ -58,12 +62,14 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         updateUI();
 
         setupListeners();
+        startDepartureTimer();
     }
 
     private void initViews() {
         tvPointName = findViewById(R.id.tv_point_name);
         tvLayersList = findViewById(R.id.tv_layers_list);
-        
+        tvCountdown = findViewById(R.id.tv_countdown);
+
         layerL1 = findViewById(R.id.layer_l1);
         layerL2 = findViewById(R.id.layer_l2);
         layerL3 = findViewById(R.id.layer_l3);
@@ -87,7 +93,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             pairings = new HashMap<>();
             Log.w(TAG, "pairings为空");
         }
-        
+
         if (currentNode == null) {
             Log.w(TAG, "currentNode为空，使用测试数据");
             // 仅用于测试/预览，实际应由上个页面传入
@@ -112,7 +118,11 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 NavigationNode node = entry.getValue();
                 // 比较ID或名称，这里假设ID唯一
                 if (node != null && node.getId() == currentNode.getId()) {
-                    targetLayers.add(entry.getKey());
+                    // 将资源ID转换为层号 (1, 2, 3)
+                    int layerNum = getLayerNumber(entry.getKey());
+                    if (layerNum > 0) {
+                        targetLayers.add(layerNum);
+                    }
                 }
             }
         }
@@ -124,7 +134,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         StringBuilder layersText = new StringBuilder();
         for (Integer layer : targetLayers) {
             layersText.append("L").append(layer).append(" ");
-            
+
             // 高亮显示的层级
             highlightLayer(layer);
         }
@@ -137,22 +147,40 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     }
 
     /**
+     * 将按钮ID转换为层号
+     */
+    private int getLayerNumber(int id) {
+        if (id == R.id.l1_button)
+            return 1;
+        if (id == R.id.l2_button)
+            return 2;
+        if (id == R.id.l3_button)
+            return 3;
+        // 兼容处理：如果已经是层号
+        if (id == 1 || id == 2 || id == 3)
+            return id;
+        return 0;
+    }
+
+    /**
      * 高亮指定层级
      */
     private void highlightLayer(int layer) {
         // 将对应的层级背景设置为高亮色（蓝色圆角），文字设为白色
+        int whiteColor = ContextCompat.getColor(this, android.R.color.white);
+
         switch (layer) {
             case 1:
                 layerL1.setBackgroundResource(R.drawable.blue_rounded_button);
-                layerL1.setTextColor(getResources().getColor(android.R.color.white, null));
+                layerL1.setTextColor(whiteColor);
                 break;
             case 2:
                 layerL2.setBackgroundResource(R.drawable.blue_rounded_button);
-                layerL2.setTextColor(getResources().getColor(android.R.color.white, null));
+                layerL2.setTextColor(whiteColor);
                 break;
             case 3:
                 layerL3.setBackgroundResource(R.drawable.blue_rounded_button);
-                layerL3.setTextColor(getResources().getColor(android.R.color.white, null));
+                layerL3.setTextColor(whiteColor);
                 break;
         }
     }
@@ -169,6 +197,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
             if (!isConfirmState) {
                 // 1. 当前为"打开舱门"操作
+                // 注意：打开舱门不应停止倒计时，用户确认收货时才停止
                 Toast.makeText(this, "正在打开舱门...", Toast.LENGTH_SHORT).show();
                 doorService.openAllDoors(false, new IResultCallback<Void>() {
                     @Override
@@ -185,41 +214,182 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                     @Override
                     public void onError(ApiError error) {
                         runOnUiThread(() -> {
-                            Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(),
+                                    Toast.LENGTH_SHORT).show();
                             btnOpenCabin.setEnabled(true);
                         });
                     }
                 });
             } else {
                 // 2. 当前为"确认收货"操作（关闭舱门）
-                Toast.makeText(this, "正在关闭舱门...", Toast.LENGTH_SHORT).show();
-                doorService.closeAllDoors(new IResultCallback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(ConfirmReceiptActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
-                            
-                            // 跳转到配送导航页面
-                            Intent intent = new Intent(ConfirmReceiptActivity.this, DeliveryNavigationActivity.class);
-                            if (pairings != null) {
-                                intent.putExtra("pairings", pairings);
-                            }
-                            // 在跳转时添加了 FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_SINGLE_TOP 标志，确保返回导航页面时不重复创建 Activity 实例，维持导航状态。
-                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                            startActivity(intent);
-                            finish();
-                        });
-                    }
+                // 用户确认收货，立刻取消自动离场倒计时
+                if (departureTimer != null) {
+                    departureTimer.cancel();
+                    tvCountdown.setVisibility(android.view.View.INVISIBLE);
+                }
 
-                    @Override
-                    public void onError(ApiError error) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(ConfirmReceiptActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                            btnOpenCabin.setEnabled(true);
-                        });
+                attemptCloseAndLeave(true);
+            }
+        });
+    }
+
+    /**
+     * 启动离场倒计时 (30秒)
+     */
+    private void startDepartureTimer() {
+        if (departureTimer != null) {
+            departureTimer.cancel();
+        }
+
+        departureTimer = new CountDownTimer(30000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                if (!isFinishing()) {
+                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动离开");
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                Log.d(TAG, "【倒计时】30秒结束，自动离场");
+                processAutoDeparture();
+            }
+        }.start();
+    }
+
+    /**
+     * 处理超时自动离场
+     */
+    private void processAutoDeparture() {
+        if (isFinishing())
+            return;
+
+        runOnUiThread(() -> {
+            btnOpenCabin.setEnabled(false);
+            tvCountdown.setText("正在离开...");
+        });
+
+        if (doorService != null) {
+            // 先检查状态，如果已关闭直接走，否则尝试关闭
+            doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+                @Override
+                public void onSuccess(Boolean allClosed) {
+                    if (allClosed) {
+                        finishWithSuccess();
+                    } else {
+                        runOnUiThread(() -> Toast.makeText(ConfirmReceiptActivity.this, "超时自动关门...", Toast.LENGTH_SHORT)
+                                .show());
+                        attemptCloseAndLeave(false);
+                    }
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    // 查询失败，也尝试关闭保底
+                    attemptCloseAndLeave(false);
+                }
+            });
+        } else {
+            finishWithSuccess();
+        }
+    }
+
+    /**
+     * 尝试关闭舱门并离开
+     * 
+     * @param isManual 是否是手动触发
+     */
+    private void attemptCloseAndLeave(boolean isManual) {
+        runOnUiThread(() -> Toast.makeText(this, "正在关闭舱门...", Toast.LENGTH_SHORT).show());
+
+        doorService.closeAllDoors(new IResultCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                runOnUiThread(() -> {
+                    // 指令下发成功，开始轮询检查舱门是否真正关闭
+                    // 只有真正关闭后才允许离开（防止移动时门还开着）
+                    checkDoorClosedRecursive(10); // 10次重试，每次1秒
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ConfirmReceiptActivity.this, "关门指令失败: " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                    // 如果是手动，允许重试；如果是自动，可能需要人工干预
+                    btnOpenCabin.setEnabled(true);
+                    if (!isManual) {
+                        tvCountdown.setText("关门异常");
                     }
                 });
             }
         });
+    }
+
+    /**
+     * 递归检查舱门是否关闭
+     */
+    private void checkDoorClosedRecursive(int remainingRetries) {
+        if (isFinishing() || doorService == null)
+            return;
+
+        if (remainingRetries <= 0) {
+            runOnUiThread(() -> {
+                Toast.makeText(ConfirmReceiptActivity.this, "关门检测超时，请检查舱门状态", Toast.LENGTH_LONG).show();
+                btnOpenCabin.setEnabled(true);
+                tvCountdown.setText("关门超时");
+            });
+            return;
+        }
+
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                runOnUiThread(() -> {
+                    if (allClosed) {
+                        Toast.makeText(ConfirmReceiptActivity.this, "舱门已关闭，5秒后离场...", Toast.LENGTH_SHORT).show();
+                        tvCountdown.setVisibility(android.view.View.VISIBLE);
+                        tvCountdown.setText("准备离场...");
+
+                        // 增加5秒延迟，确保门完全关闭后再移动
+                        new android.os.Handler().postDelayed(() -> {
+                            finishWithSuccess();
+                        }, 5000);
+                    } else {
+                        // 未关闭，等待1秒后重试
+                        new android.os.Handler().postDelayed(() -> {
+                            checkDoorClosedRecursive(remainingRetries - 1);
+                        }, 1000);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                // 查询出错也重试
+                runOnUiThread(() -> {
+                    new android.os.Handler().postDelayed(() -> {
+                        checkDoorClosedRecursive(remainingRetries - 1);
+                    }, 1000);
+                });
+            }
+        });
+    }
+
+    private void finishWithSuccess() {
+        runOnUiThread(() -> {
+            setResult(RESULT_OK);
+            finish();
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (departureTimer != null) {
+            departureTimer.cancel();
+            departureTimer = null;
+        }
     }
 }

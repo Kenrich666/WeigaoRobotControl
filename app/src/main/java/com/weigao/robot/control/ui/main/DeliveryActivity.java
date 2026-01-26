@@ -253,6 +253,13 @@ public class DeliveryActivity extends AppCompatActivity {
     /**
      * 获取真实点位列表
      */
+    // 存储特定类型的点位供后续使用
+    public static List<NavigationNode> originPoints = new ArrayList<>();
+    public static List<NavigationNode> chargePoints = new ArrayList<>();
+
+    /**
+     * 获取真实点位列表
+     */
     private void getRealPoints(List<NavigationNode> points, PointAdapter adapter) {
         if (robotStateService == null)
             return;
@@ -262,7 +269,11 @@ public class DeliveryActivity extends AppCompatActivity {
             public void onSuccess(String result) {
                 // 在工作线程解析，UI线程更新
                 new Thread(() -> {
-                    List<NavigationNode> realPoints = new ArrayList<>();
+                    List<NavigationNode> normalPoints = new ArrayList<>();
+                    // 清空之前的缓存
+                    originPoints.clear();
+                    chargePoints.clear();
+
                     try {
                         if (result != null && !result.isEmpty()) {
                             // 先解析为 JSONObject
@@ -278,6 +289,8 @@ public class DeliveryActivity extends AppCompatActivity {
                                     // 解析基本属性
                                     int id = obj.optInt("id");
                                     String name = obj.optString("name");
+                                    String type = obj.optString("type"); // 获取点位类型
+
                                     if (name.isEmpty()) {
                                         name = String.valueOf(id);
                                     }
@@ -310,7 +323,7 @@ public class DeliveryActivity extends AppCompatActivity {
                                     routeNode.setId(id);
                                     routeNode.setName(name);
 
-                                    // 初始化 NavigationInfo 以防止 SDK 内部 NPE
+                                    // 初始化 NavigationInfo以防止 SDK 内部 NPE
                                     if (routeNode.getNavigationInfo() != null) {
                                         // [关键修复] 设置为 99999f，防止 SDK 误判
                                         routeNode.getNavigationInfo().setTotalDistance(99999f);
@@ -321,7 +334,17 @@ public class DeliveryActivity extends AppCompatActivity {
 
                                     node.setRouteNode(routeNode);
 
-                                    realPoints.add(node);
+                                    // 根据类型分类存储
+                                    if ("origin".equals(type)) {
+                                        originPoints.add(node);
+                                        Log.d(TAG, "解析到原点: " + name);
+                                    } else if ("charge".equals(type)) {
+                                        chargePoints.add(node);
+                                        Log.d(TAG, "解析到充电点: " + name);
+                                    } else if ("normal".equals(type)) {
+                                        // 仅 normal 类型显示在界面上
+                                        normalPoints.add(node);
+                                    }
                                 }
                             }
                         }
@@ -330,13 +353,13 @@ public class DeliveryActivity extends AppCompatActivity {
                     }
 
                     // 如果列表仍为空（解析失败或无数据），保留空列表或添加提示
-                    if (realPoints.isEmpty()) {
-                        Log.w(TAG, "未获取到有效点位");
+                    if (normalPoints.isEmpty()) {
+                        Log.w(TAG, "未获取到有效普通点位");
                     }
 
                     runOnUiThread(() -> {
                         points.clear();
-                        points.addAll(realPoints);
+                        points.addAll(normalPoints);
                         adapter.notifyDataSetChanged();
                     });
                 }).start();
@@ -432,12 +455,12 @@ public class DeliveryActivity extends AppCompatActivity {
                     } else {
                         openDoorButton.setText("闭门");
                     }
-                    // 延迟 1.5 秒后才重新启用按钮，防止连续点击
+                    // 延迟 5 秒后才重新启用按钮，防止连续点击
                     new Handler().postDelayed(() -> {
                         if (openDoorButton != null) {
                             openDoorButton.setEnabled(true);
                         }
-                    }, 1500);
+                    }, 5000);
                 });
             }
 
