@@ -133,23 +133,13 @@ public class ChargerServiceImpl implements IChargerService {
         try {
             if (peanutCharger != null) {
                 // 映射动作到 SDK 常量
-                int sdkAction;
-                switch (action) {
-                    case CHARGE_ACTION_AUTO:
-                        sdkAction = PeanutCharger.CHARGE_ACTION_AUTO;
-                        break;
-                    case CHARGE_ACTION_MANUAL:
-                        sdkAction = PeanutCharger.CHARGE_ACTION_MANUAL;
-                        break;
-                    case CHARGE_ACTION_ADAPTER:
-                        sdkAction = PeanutCharger.CHARGE_ACTION_ADAPTER;
-                        break;
-                    case CHARGE_ACTION_STOP:
-                        sdkAction = PeanutCharger.CHARGE_ACTION_STOP;
-                        break;
-                    default:
-                        sdkAction = action;
-                }
+                int sdkAction = switch (action) {
+                    case CHARGE_ACTION_AUTO -> PeanutCharger.CHARGE_ACTION_AUTO;
+                    case CHARGE_ACTION_MANUAL -> PeanutCharger.CHARGE_ACTION_MANUAL;
+                    case CHARGE_ACTION_ADAPTER -> PeanutCharger.CHARGE_ACTION_ADAPTER;
+                    case CHARGE_ACTION_STOP -> PeanutCharger.CHARGE_ACTION_STOP;
+                    default -> action;
+                };
                 peanutCharger.performAction(sdkAction);
 
                 // 更新本地状态

@@ -310,8 +310,14 @@ public class DeliveryActivity extends AppCompatActivity {
                                     routeNode.setId(id);
                                     routeNode.setName(name);
 
-                                    // 注意：不再通过反射设置 Location，后续导航将使用 ID 模式
-                                    // SDK 会根据 ID 自动查找数据库中的坐标信息
+                                    // 初始化 NavigationInfo 以防止 SDK 内部 NPE
+                                    if (routeNode.getNavigationInfo() != null) {
+                                        // [关键修复] 设置为 99999f，防止 SDK 误判
+                                        routeNode.getNavigationInfo().setTotalDistance(99999f);
+                                        routeNode.getNavigationInfo().setRemainDistance(99999f);
+                                        routeNode.getNavigationInfo().setTotalTime(99999f);
+                                        routeNode.getNavigationInfo().setRemainTime(99999f);
+                                    }
 
                                     node.setRouteNode(routeNode);
 
