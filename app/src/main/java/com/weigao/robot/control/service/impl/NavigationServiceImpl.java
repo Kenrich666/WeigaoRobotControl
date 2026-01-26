@@ -45,7 +45,7 @@ public class NavigationServiceImpl implements INavigationService {
     private int speed = 40;
 
     /** 路线策略 */
-    private int routePolicy = POLICY_ADAPTIVE;
+    private int routePolicy = POLICY_FIXED;
 
     /** 阻挡超时（ms） */
     private int blockingTimeout = 30000;
