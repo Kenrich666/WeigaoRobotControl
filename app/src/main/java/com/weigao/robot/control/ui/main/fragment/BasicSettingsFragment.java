@@ -47,28 +47,42 @@ public class BasicSettingsFragment extends Fragment {
                 return;
             }
 
-            android.content.SharedPreferences prefs = requireContext().getSharedPreferences("app_config", android.content.Context.MODE_PRIVATE);
-            String savedPassword = prefs.getString("access_password", "1234");
-
-            if (!currentInput.equals(savedPassword)) {
-                Toast.makeText(getContext(), "当前密码错误", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            // Limit to exact 4 digits
-            if (newInput.length() != 4) {
-                Toast.makeText(getContext(), "新密码长度需为4位数字", Toast.LENGTH_SHORT).show();
+            // Limit to exact 6 digits
+            if (newInput.length() != 6) {
+                Toast.makeText(getContext(), "新密码长度需为6位数字", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // Save new password
-            prefs.edit().putString("access_password", newInput).apply();
-            Toast.makeText(getContext(), "密码已修改", Toast.LENGTH_SHORT).show();
-            
-            // Clear inputs
-            etCurrent.setText("");
-            etNew.setText("");
-            drawerLayout.closeDrawer(GravityCompat.END);
+            com.weigao.robot.control.service.ISecurityService securityService = 
+                    com.weigao.robot.control.service.ServiceManager.getInstance().getSecurityService();
+
+            if (securityService != null) {
+                securityService.setPassword(currentInput, newInput, new com.weigao.robot.control.callback.IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getContext(), "密码已修改", Toast.LENGTH_SHORT).show();
+                                // Clear inputs
+                                etCurrent.setText("");
+                                etNew.setText("");
+                                drawerLayout.closeDrawer(GravityCompat.END);
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onError(com.weigao.robot.control.callback.ApiError error) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getContext(), "修改失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    }
+                });
+            } else {
+                Toast.makeText(getContext(), "安全服务不可用", Toast.LENGTH_SHORT).show();
+            }
         });
 
         SeekBar seekBar = view.findViewById(R.id.seekbar_led_brightness);

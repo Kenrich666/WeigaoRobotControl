@@ -60,7 +60,7 @@
                     <!-- Battery Icon Center -->
                     <LinearLayout
                         android:layout_width="100dp"
-                        android:layout_height="100dp"
+                        android:layout_height="wrap_content"
                         android:layout_centerInParent="true"
                         android:background="@android:drawable/dialog_holo_light_frame"
                         android:backgroundTint="#FFFFFF"
@@ -87,6 +87,17 @@
                             android:textSize="20sp"
                             android:textStyle="bold"
                             android:textColor="#333333" />
+
+                        <!-- Charging Status Text -->
+                        <TextView
+                            android:id="@+id/tvChargingStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="正在充电"
+                            android:textColor="#4CAF50"
+                            android:textSize="14sp"
+                            android:visibility="gone" />
                     </LinearLayout>
                 </RelativeLayout>
 

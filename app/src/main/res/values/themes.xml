@@ -6,4 +6,8 @@
     </style>
 
     <style name="Theme.WeigaoRobotControl" parent="Base.Theme.WeigaoRobotControl" />
+    
+    <style name="Theme.WeigaoRobotControl.Dialog" parent="Theme.Material3.DayNight.Dialog">
+       <!--  Customize dialog theme if needed, e.g. transparent background -->
+    </style>
 </resources>
