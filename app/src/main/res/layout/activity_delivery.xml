@@ -68,7 +68,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:gravity="center"
-            android:text="送药机器人"
+            android:text="威高智能配送机器人"
             android:textStyle="bold"
             android:textColor="#444444"/>
 

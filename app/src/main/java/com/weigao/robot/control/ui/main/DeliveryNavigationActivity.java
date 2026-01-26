@@ -21,6 +21,7 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+
 import android.content.Intent;
 
 import java.util.ArrayList;
@@ -58,11 +59,20 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private GestureDetector gestureDetector;
 
-    /** 导航服务 */
+    /**
+     * 导航服务
+     */
     private INavigationService navigationService;
 
-    /** 当前导航的目标点列表 */
+    /**
+     * 当前导航的目标点列表
+     */
     private List<NavigationNode> targetNodes;
+
+    /**
+     * 开始导航
+     */
+    private boolean hasRunningStateReceived = false;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -137,21 +147,52 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     /**
      * 准备导航目标点列表
      * <p>
-     * 直接从 deliveryTasks 中提取 NavigationNode
+     * 从 deliveryTasks 中提取唯一的 NavigationNode，合并同一目的地的任务
+     * </p>
+     */
+    // 新增：按唯一目标点分组的任务列表
+    private List<List<Map.Entry<Integer, NavigationNode>>> uniqueDeliveryTasks;
+    private int currentUniqueTargetIndex = 0;
+
+    /**
+     * 准备导航目标点列表
+     * <p>
+     * 从 deliveryTasks 中提取唯一的 NavigationNode，并构建 uniqueDeliveryTasks
      * </p>
      */
     private void prepareNavigationTargets() {
         targetNodes = new ArrayList<>();
+        uniqueDeliveryTasks = new ArrayList<>();
+        List<Integer> addedIds = new ArrayList<>();
+
         for (Map.Entry<Integer, NavigationNode> task : deliveryTasks) {
             NavigationNode node = task.getValue();
             if (node != null) {
-                targetNodes.add(node);
-                Log.d(TAG, "【目标点】添加目标点: id=" + node.getId() + ", name=" + node.getName());
+                int nodeId = node.getId();
+                if (!addedIds.contains(nodeId)) {
+                    // 新的唯一目标点
+                    targetNodes.add(node);
+                    addedIds.add(nodeId);
+
+                    // 创建新的任务组
+                    List<Map.Entry<Integer, NavigationNode>> taskGroup = new ArrayList<>();
+                    taskGroup.add(task);
+                    uniqueDeliveryTasks.add(taskGroup);
+
+                    Log.d(TAG, "【目标点】添加唯一目标点: id=" + nodeId + ", name=" + node.getName());
+                } else {
+                    // 已存在的目标点，找到对应的任务组并添加
+                    int index = addedIds.indexOf(nodeId);
+                    if (index != -1 && index < uniqueDeliveryTasks.size()) {
+                        uniqueDeliveryTasks.get(index).add(task);
+                        Log.d(TAG, "【目标点】将任务合并到现有目标点: id=" + nodeId);
+                    }
+                }
             } else {
                 Log.w(TAG, "【警告】任务节点为空");
             }
         }
-        Log.d(TAG, "【目标点】目标点数量: " + targetNodes.size());
+        Log.d(TAG, "【目标点】合并后目标点数量: " + targetNodes.size());
     }
 
     /**
@@ -182,6 +223,11 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private void setupButtons() {
         btnPauseEnd.setOnClickListener(v -> {
             Log.d(TAG, "【用户操作】点击结束按钮");
+            Intent returnIntent = new Intent();
+            if (pairings != null) {
+                returnIntent.putExtra("remaining_pairings", pairings);
+            }
+            setResult(RESULT_OK, returnIntent);
             stopNavigation();
             finish();
         });
@@ -205,6 +251,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             finish();
             return;
         }
+
+        // 重置运行状态标志，防止粘性到达事件
+        hasRunningStateReceived = false;
 
         Log.d(TAG, "【导航控制】开始导航，目标点数量: " + targetNodes.size());
         isNavigating = true;
@@ -287,6 +336,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 恢复导航
      */
     private void resumeNavigation() {
+        // 重置标志位，因为恢复或跳转都会重新进入运行状态
+        hasRunningStateReceived = false;
+
         if (waitingForNext) {
             Log.d(TAG, "【导航控制】恢复导航：处于等待跳转状态，立即前往下一目标");
             waitingForNext = false;
@@ -294,7 +346,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 @Override
                 public void onSuccess(Void result) {
                     Log.d(TAG, "【导航控制】前往下一点成功");
-                    runOnUiThread(() -> tvStatus.setText("送物中"));
+                    runOnUiThread(() -> tvStatus.setText("配送中"));
                 }
 
                 @Override
@@ -350,7 +402,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 tvHint.setVisibility(View.INVISIBLE);
                 Log.d(TAG, "【UI更新】显示暂停状态");
             } else {
-                tvStatus.setText("送物中");
+                tvStatus.setText("配送中");
                 llPauseControls.setVisibility(View.GONE);
                 tvHint.setVisibility(View.VISIBLE);
                 Log.d(TAG, "【UI更新】显示导航中状态");
@@ -361,23 +413,36 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     /**
      * 更新任务文本
      */
+    /**
+     * 更新任务文本
+     */
+    private boolean isMissionFinished = false;
+
+    /**
+     * 更新任务文本
+     */
     private void updateTaskText() {
         runOnUiThread(() -> {
+            if (isMissionFinished)
+                return;
+
             if (isReturning) {
                 String targetName = (targetNodes != null && !targetNodes.isEmpty()) ? targetNodes.get(0).getName()
                         : "原点";
-                currentTaskTextView.setText("任务完成，正在返回：" + targetName);
+                currentTaskTextView.setText("所有任务已完成，正在返回：" + targetName);
                 tvStatus.setText("返航中");
                 return;
             }
 
-            if (currentTaskIndex < deliveryTasks.size()) {
-                Map.Entry<Integer, NavigationNode> currentTask = deliveryTasks.get(currentTaskIndex);
-                String pointText = currentTask.getValue().getName();
-                int totalTasks = deliveryTasks.size();
+            if (currentUniqueTargetIndex < targetNodes.size()) {
+                NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
+                String pointText = currentNode.getName();
+                int totalUniqueTasks = targetNodes.size();
+
                 currentTaskTextView.setText(String.format("正在前往：%s (第 %d/%d 个)",
-                        pointText, currentTaskIndex + 1, totalTasks));
-                Log.d(TAG, "【UI更新】当前任务: " + pointText + " (" + (currentTaskIndex + 1) + "/" + totalTasks + ")");
+                        pointText, currentUniqueTargetIndex + 1, totalUniqueTasks));
+                Log.d(TAG, "【UI更新】当前任务: " + pointText + " (" + (currentUniqueTargetIndex + 1) + "/" + totalUniqueTasks
+                        + ")");
 
             } else {
                 showMissionCompletedUI();
@@ -386,8 +451,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     }
 
     private void showMissionCompletedUI() {
+        isMissionFinished = true;
         currentTaskTextView.setText("所有任务已完成！");
-        tvStatus.setText("已完成");
+        tvStatus.setText("配送完成");
         tvHint.setVisibility(View.GONE);
         llPauseControls.setVisibility(View.VISIBLE);
         btnContinue.setVisibility(View.GONE);
@@ -417,11 +483,29 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         Log.d(TAG, "【导航回调】onStateChanged - state: " + state + ", schedule: " + schedule);
         runOnUiThread(() -> {
             switch (state) {
+                case Navigation.STATE_RUNNING:
+                    Log.d(TAG, "【导航回调】正在运行中");
+                    hasRunningStateReceived = true;
+                    // 如果不是暂停状态，确保显示为配送中
+                    if (!isPaused && !tvStatus.getText().toString().equals("配送中") && !isReturning) {
+                        tvStatus.setText("配送中");
+                    }
+                    if (isReturning && !tvStatus.getText().toString().equals("返航中") && !isMissionFinished) {
+                        tvStatus.setText("返航中");
+                    }
+                    break;
+
                 case Navigation.STATE_DESTINATION:
                     // 到达目标点
-                    Log.d(TAG, "【导航回调】已到达目标点");
-                    Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
-                    handleArrival();
+                    if (hasRunningStateReceived) {
+                        Log.d(TAG, "【导航回调】已到达目标点");
+                        Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
+                        handleArrival();
+                        // 重置标志，防止重复触发，且等待下一段运行
+                        hasRunningStateReceived = false;
+                    } else {
+                        Log.w(TAG, "【导航回调】忽略无效的到达状态(未经历运行阶段)");
+                    }
                     break;
 
                 case Navigation.STATE_COLLISION:
@@ -446,7 +530,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     @Override
     public void onRouteNode(int index, NavigationNode node) {
         Log.d(TAG, "【导航回调】onRouteNode - index: " + index + ", node: " + (node != null ? node.toString() : "null"));
-        currentTaskIndex = index;
+        // SDK返回的index对应的是setTargets传入列表的索引，即unique目标的索引
+        currentUniqueTargetIndex = index;
         runOnUiThread(() -> updateTaskText());
     }
 
@@ -459,7 +544,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】自动开始导航成功");
                 runOnUiThread(() -> {
-                    tvStatus.setText("送物中");
+                    tvStatus.setText("配送中");
                     Toast.makeText(DeliveryNavigationActivity.this, "开始导航", Toast.LENGTH_SHORT).show();
                 });
             }
@@ -510,7 +595,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             return;
         }
 
-        Log.d(TAG, "【到达处理】当前索引: " + currentTaskIndex + ", 总任务数: " + deliveryTasks.size());
+        Log.d(TAG, "【到达处理】当前唯一目标索引: " + currentUniqueTargetIndex + ", 总唯一目标数: " + targetNodes.size());
 
         // 无论是否是最后一个点，都跳转确认页面供用户取货
         waitingForNext = true;
@@ -519,6 +604,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         Intent intent = new Intent(this, ConfirmReceiptActivity.class);
 
         // 传递配对信息(用于显示需要取货的层)
+        // ConfirmReceiptActivity 会根据当前节点ID自动筛选出对应的所有层级，所以传完整的pairings即可
         HashMap<Integer, NavigationNode> pairings = (HashMap<Integer, NavigationNode>) getIntent()
                 .getSerializableExtra("pairings");
         if (pairings != null) {
@@ -526,8 +612,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         }
 
         // 传递当前站点信息
-        NavigationNode currentNode = deliveryTasks.get(currentTaskIndex).getValue();
-        intent.putExtra("current_node", currentNode);
+        if (currentUniqueTargetIndex < targetNodes.size()) {
+            NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
+            intent.putExtra("current_node", currentNode);
+        }
 
         startActivityForResult(intent, REQUEST_CODE_CONFIRM_RECEIPT);
     }
@@ -554,30 +642,23 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 waitingForNext = false;
 
                 // 用户已确认收货，从配对关系中移除对应的层级
-                if (pairings != null && currentTaskIndex < deliveryTasks.size()) {
-                    NavigationNode finishedNode = deliveryTasks.get(currentTaskIndex).getValue();
-                    if (finishedNode != null) {
-                        List<Integer> keysToRemove = new ArrayList<>();
-                        for (Map.Entry<Integer, NavigationNode> entry : pairings.entrySet()) {
-                            if (entry.getValue().getId() == finishedNode.getId()) {
-                                keysToRemove.add(entry.getKey());
-                            }
-                        }
-                        for (Integer key : keysToRemove) {
-                            pairings.remove(key);
-                        }
-                        Log.d(TAG, "【数据更新】已移除点位 " + finishedNode.getName() + " 的配对关系");
+                if (pairings != null && currentUniqueTargetIndex < uniqueDeliveryTasks.size()) {
+                    List<Map.Entry<Integer, NavigationNode>> finishedTasks = uniqueDeliveryTasks
+                            .get(currentUniqueTargetIndex);
+                    for (Map.Entry<Integer, NavigationNode> task : finishedTasks) {
+                        pairings.remove(task.getKey());
                     }
+                    Log.d(TAG, "【数据更新】已移除当前站点所有层级的配对关系");
                 }
 
                 // 判断是否还有下一站
-                if (currentTaskIndex < deliveryTasks.size() - 1) {
+                if (currentUniqueTargetIndex < targetNodes.size() - 1) {
                     Log.d(TAG, "【导航控制】还有下一站，前往下一站");
                     navigationService.pilotNext(new IResultCallback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
                             Log.d(TAG, "【导航控制】前往下一点成功");
-                            runOnUiThread(() -> tvStatus.setText("送物中"));
+                            runOnUiThread(() -> tvStatus.setText("配送中"));
                         }
 
                         @Override
@@ -590,7 +671,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 } else {
                     Log.d(TAG, "【导航控制】最后一站完成，检查是否需要返回原点");
                     // 标记配送任务完成
-                    currentTaskIndex = deliveryTasks.size();
+                    currentUniqueTargetIndex = targetNodes.size();
 
                     // 检查是否有原点数据
                     if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
