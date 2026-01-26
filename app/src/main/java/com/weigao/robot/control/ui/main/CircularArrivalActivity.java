@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -17,7 +18,7 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
-
+// 循环配送的到达点位暂停页面
 public class CircularArrivalActivity extends AppCompatActivity {
     private static final String TAG = "CircularArrivalActivity";
 
@@ -27,6 +28,12 @@ public class CircularArrivalActivity extends AppCompatActivity {
 
     private IDoorService doorService;
     private Button btnOpenDoor;
+
+    private static final long COUNTDOWN_TIME_MS = 30000; // 30 seconds
+    private TextView tvArrivalMessage;
+    private android.os.CountDownTimer countDownTimer;
+    private boolean isLastPoint = false;
+    private Button btnContinue;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -38,39 +45,90 @@ public class CircularArrivalActivity extends AppCompatActivity {
             doorService.registerCallback(doorCallback);
         }
 
+        isLastPoint = getIntent().getBooleanExtra("is_last_point", false);
+
         initViews();
         updateDoorButtonState();
+        startCountdown();
     }
 
     private void initViews() {
         btnOpenDoor = findViewById(R.id.btn_open_door);
         Button btnReturnHome = findViewById(R.id.btn_return_home);
-        Button btnContinue = findViewById(R.id.btn_continue);
+        btnContinue = findViewById(R.id.btn_continue);
         Button btnFullReturn = findViewById(R.id.btn_full_return);
+        tvArrivalMessage = findViewById(R.id.tv_arrival_message);
 
         btnOpenDoor.setOnClickListener(v -> toggleDoor());
 
         btnReturnHome.setOnClickListener(v -> {
-            // General return home (Manual abort)
             setResult(RESULT_RETURN_ORIGIN);
             finish();
         });
 
-        btnContinue.setOnClickListener(v -> {
-            // Check door status before leaving? Usually better to auto-close.
-            // For now, assume user closes or we auto-close on navigate.
-            closeDoorAndFinish(RESULT_CONTINUE);
-        });
+        if (isLastPoint) {
+            btnContinue.setEnabled(false);
+            btnContinue.setAlpha(0.5f);
+            btnContinue.setText("已是终点");
+        }
+        
+        btnContinue.setOnClickListener(v -> closeDoorAndFinish(RESULT_CONTINUE));
 
-        btnFullReturn.setOnClickListener(v -> {
-            // "Full, return to origin"
-            closeDoorAndFinish(RESULT_RETURN_ORIGIN);
-        });
+        btnFullReturn.setOnClickListener(v -> closeDoorAndFinish(RESULT_RETURN_ORIGIN));
+    }
+
+    private void startCountdown() {
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
+        countDownTimer = new android.os.CountDownTimer(COUNTDOWN_TIME_MS, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                updateMessage(millisUntilFinished / 1000);
+            }
+
+            @Override
+            public void onFinish() {
+                handleTimeout();
+            }
+        };
+        countDownTimer.start();
+    }
+
+    private void updateMessage(long secondsLeft) {
+        String baseMsg = "请尽快把货物放入机器人中";
+        String extra = isLastPoint ? "\n(无人操作将自动返航: " + secondsLeft + "s)" : "\n(无人操作将继续下一站: " + secondsLeft + "s)";
+        tvArrivalMessage.setText(baseMsg + extra);
+    }
+
+    private void handleTimeout() {
+        if (isLastPoint) {
+            // Auto return
+            Toast.makeText(this, "倒计时结束，自动返航", Toast.LENGTH_SHORT).show();
+            // closeDoorAndFinish(RESULT_RETURN_ORIGIN); // Or just finish with result?
+            // The prompt said: "倒计时结束相当按下已装满返航到原点"
+             closeDoorAndFinish(RESULT_RETURN_ORIGIN);
+        } else {
+            // Auto continue
+            Toast.makeText(this, "倒计时结束，前往下一站", Toast.LENGTH_SHORT).show();
+            closeDoorAndFinish(RESULT_CONTINUE);
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        if (ev.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+            // Reset timer on user interaction
+            startCountdown();
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     private void toggleDoor() {
         if (doorService == null) return;
         btnOpenDoor.setEnabled(false);
+        // Reset timer as this is an action
+        startCountdown();
         
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
@@ -135,6 +193,8 @@ public class CircularArrivalActivity extends AppCompatActivity {
     }
 
     private void closeDoorAndFinish(int resultCode) {
+        if (countDownTimer != null) countDownTimer.cancel();
+        
         if (doorService != null) {
             // Attempt to close door automatically before continuing
             Toast.makeText(this, "正在关闭舱门...", Toast.LENGTH_SHORT).show();
@@ -151,11 +211,11 @@ public class CircularArrivalActivity extends AppCompatActivity {
                 public void onError(ApiError error) {
                     runOnUiThread(() -> {
                         Toast.makeText(CircularArrivalActivity.this, "关门失败，请手动关闭", Toast.LENGTH_SHORT).show();
-                        // If auto-close fails, do we prevent navigation? 
-                        // Let's allow proceed but warn user, or force them to retry.
-                        // For safety, maybe just finish anyway or stay? 
-                        // Let's finish for now, assuming implementation might not have sensors.
-                        // Ideally: stay and make user close.
+                        // For safety, finish anyway? Or allow user to retry?
+                        // If logic requires closing doors for safety, we might get stuck here.
+                        // But let's proceed to finish for flow continuity as requested.
+                         setResult(resultCode);
+                         finish();
                     });
                 }
             });
@@ -168,7 +228,11 @@ public class CircularArrivalActivity extends AppCompatActivity {
     private final IDoorCallback doorCallback = new IDoorCallback() {
         @Override
         public void onDoorStateChanged(int doorId, int state) {
-            runOnUiThread(() -> updateDoorButtonState());
+            runOnUiThread(() -> {
+                updateDoorButtonState();
+                // Door state change is also an interaction
+                startCountdown();
+            });
         }
         @Override public void onDoorTypeChanged(DoorType type) {}
         @Override public void onDoorTypeSettingResult(boolean success) {}
@@ -178,6 +242,9 @@ public class CircularArrivalActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
         if (doorService != null) {
             doorService.unregisterCallback(doorCallback);
         }

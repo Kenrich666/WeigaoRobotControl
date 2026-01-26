@@ -3,7 +3,7 @@ package com.weigao.robot.control.manager;
 import android.content.Context;
 import android.util.Log;
 
-import com.weigao.robot.control.model.DeliveryRecord;
+import com.weigao.robot.control.model.CircularDeliveryRecord;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -27,7 +27,7 @@ public class DeliveryHistoryManager {
 
     private static DeliveryHistoryManager instance;
     private Context context;
-    private List<DeliveryRecord> historyList;
+    private List<CircularDeliveryRecord> historyList;
 
     private DeliveryHistoryManager(Context context) {
         this.context = context.getApplicationContext();
@@ -42,7 +42,7 @@ public class DeliveryHistoryManager {
         return instance;
     }
 
-    public void addRecord(DeliveryRecord record) {
+    public void addRecord(CircularDeliveryRecord record) {
         historyList.add(0, record); // Add to top
         if (historyList.size() > MAX_HISTORY_SIZE) {
             historyList.remove(historyList.size() - 1);
@@ -50,7 +50,7 @@ public class DeliveryHistoryManager {
         saveHistory();
     }
 
-    public List<DeliveryRecord> getHistory() {
+    public List<CircularDeliveryRecord> getHistory() {
         return new ArrayList<>(historyList);
     }
 
@@ -63,7 +63,7 @@ public class DeliveryHistoryManager {
         File file = new File(dir, HISTORY_FILE);
 
         JSONArray array = new JSONArray();
-        for (DeliveryRecord record : historyList) {
+        for (CircularDeliveryRecord record : historyList) {
             array.put(record.toJson());
         }
         
@@ -89,7 +89,7 @@ public class DeliveryHistoryManager {
             historyList.clear();
             for (int i = 0; i < array.length(); i++) {
                 JSONObject obj = array.getJSONObject(i);
-                historyList.add(DeliveryRecord.fromJson(obj));
+                historyList.add(CircularDeliveryRecord.fromJson(obj));
             }
         } catch (IOException | JSONException e) {
             Log.e(TAG, "Failed to load history from file", e);

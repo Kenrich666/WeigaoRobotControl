@@ -33,7 +33,7 @@ import com.weigao.robot.control.service.ServiceManager;
 // 5. IChargerService.startAutoCharge(IResultCallback<Void>): 下发自动回充指令
 // 6. IChargerService.startManualCharge(IResultCallback<Void>): 下发手动充电指令
 // 7. IChargerService.stopCharge(IResultCallback<Void>): 下发停止充电指令
-//
+
 // 涉及的 Model：
 // - ChargerInfo: 包含 power (电量百分比), isCharging (是否正在充电) 等状态信息
 /**
@@ -116,9 +116,13 @@ public class ChargerSettingsFragment extends Fragment {
 
         @Override
         public void onChargerError(int errorCode) {
+            String errorDesc = SdkErrorCode.getErrorDescription(errorCode);
             if (getActivity() != null) {
                 getActivity().runOnUiThread(() -> {
-                    Toast.makeText(getContext(), "充电服务异常: " + errorCode, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "充电服务异常: " + errorDesc, Toast.LENGTH_SHORT).show();
+                    tvChargingStatus.setText("异常: " + errorDesc);
+                    tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                    tvChargingStatus.setVisibility(View.VISIBLE);
                 });
             }
         }
@@ -172,9 +176,13 @@ public class ChargerSettingsFragment extends Fragment {
                     @Override
                     public void onSuccess(Void result) {
                         if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> 
-                                Toast.makeText(getContext(), "开始自动回充任务", Toast.LENGTH_SHORT).show()
-                            );
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getContext(), "开始自动回充任务", Toast.LENGTH_SHORT).show();
+                                // 更新状态显示
+                                tvChargingStatus.setText("正在前往充电桩...");
+                                tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark));
+                                tvChargingStatus.setVisibility(View.VISIBLE);
+                            });
                         }
                     }
 
@@ -204,9 +212,13 @@ public class ChargerSettingsFragment extends Fragment {
                     @Override
                     public void onSuccess(Void result) {
                         if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> 
-                                Toast.makeText(getContext(), "开始手动充电匹配", Toast.LENGTH_SHORT).show()
-                            );
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getContext(), "开始手动充电匹配", Toast.LENGTH_SHORT).show();
+                                // 更新状态显示
+                                tvChargingStatus.setText("正在匹配充电桩...");
+                                tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark));
+                                tvChargingStatus.setVisibility(View.VISIBLE);
+                            });
                         }
                     }
 
@@ -230,9 +242,13 @@ public class ChargerSettingsFragment extends Fragment {
                     @Override
                     public void onSuccess(Void result) {
                         if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> 
-                                Toast.makeText(getContext(), "已停止充电", Toast.LENGTH_SHORT).show()
-                            );
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getContext(), "已停止充电", Toast.LENGTH_SHORT).show();
+                                // 更新状态显示
+                                tvChargingStatus.setText("充电已停止");
+                                tvChargingStatus.setTextColor(getResources().getColor(android.R.color.darker_gray));
+                                tvChargingStatus.setVisibility(View.VISIBLE);
+                            });
                         }
                     }
 
