@@ -97,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
                     REQUEST_CODE_PERMISSIONS);
         } else {
              Log.i(TAG, "Permissions already granted.");
+             initRobotSDK();
         }
     }
 
@@ -115,10 +116,41 @@ public class MainActivity extends AppCompatActivity {
 
             if (allGranted && grantResults.length > 0) {
                Log.i(TAG, "Permissions granted.");
+               initRobotSDK();
             } else {
                 Log.e(TAG, "Permission denied. Some permissions were not granted.");
                 // 可以添加弹窗提示用户手动开启权限
             }
         }
+    }
+
+    private void initRobotSDK() {
+        com.weigao.robot.control.app.WeigaoApplication app = com.weigao.robot.control.app.WeigaoApplication.getInstance();
+        
+        app.setSdkInitListener(new com.weigao.robot.control.app.WeigaoApplication.SdkInitListener() {
+            @Override
+            public void onSdkInitSuccess() {
+                runOnUiThread(() -> {
+                     Log.i(TAG, "SDK初始化成功，弹出定位窗口");
+                     Intent intent = new Intent(MainActivity.this, PositioningActivity.class);
+                     startActivity(intent);
+                });
+            }
+
+            @Override
+            public void onSdkInitError(int errorCode) {
+                runOnUiThread(() -> {
+                    android.widget.Toast.makeText(MainActivity.this, "SDK初始化失败: " + errorCode, android.widget.Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+
+        app.initializeSdk();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        com.weigao.robot.control.app.WeigaoApplication.getInstance().setSdkInitListener(null);
     }
 }

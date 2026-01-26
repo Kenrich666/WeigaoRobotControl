@@ -60,7 +60,7 @@
                     <!-- Battery Icon Center -->
                     <LinearLayout
                         android:layout_width="100dp"
-                        android:layout_height="100dp"
+                        android:layout_height="wrap_content"
                         android:layout_centerInParent="true"
                         android:background="@android:drawable/dialog_holo_light_frame"
                         android:backgroundTint="#FFFFFF"

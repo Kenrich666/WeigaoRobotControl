@@ -251,4 +251,47 @@ public final class SdkErrorCode {
                 return "未知错误 (" + code + ")";
         }
     }
+
+    /**
+     * 获取充电事件描述
+     *
+     * @param event 事件码
+     * @return 事件描述
+     */
+    public static String getEventDescription(int event) {
+        switch (event) {
+            case CHARGER_EVENT_ARRIVE_PILE:
+                return "到达充电桩";
+            case CHARGER_EVENT_MATCH_FAILED:
+                return "匹配充电桩失败";
+            case CHARGER_EVENT_MATCH_TIMEOUT:
+                return "匹配充电桩超时";
+            case CHARGER_EVENT_NO_TAG_TIMEOUT:
+                return "未检测到标签超时";
+            case CHARGER_EVENT_NO_LASER_TIMEOUT:
+                return "未检测到激光超时";
+            case CHARGER_EVENT_NO_STM32_TIMEOUT:
+                return "底层通信超时";
+            case CHARGER_EVENT_CHARGING_TIMEOUT:
+                return "进入充电状态超时";
+            case CHARGER_EVENT_NO_5V:
+                return "未检测到5V电压";
+            case CHARGER_EVENT_NO_CURRENT_TIMEOUT:
+                return "未检测到电流超时";
+            case CHARGER_EVENT_UNEXPECTED_DISCONNECT:
+                return "充电意外断开";
+            case CHARGER_EVENT_CHARGING:
+                return "正在充电";
+            case CHARGER_EVENT_GIVE_UP:
+                return "放弃充电(超过最大次数)";
+            case CHARGER_EVENT_RETRY_GO_PILE:
+                return "重试：前往充电桩";
+            case CHARGER_EVENT_RETRY_ARRIVE_PILE:
+                return "重试：到达充电桩";
+            case CHARGER_EVENT_EXIT:
+                return "退出充电";
+            default:
+                return ""; // 未知事件不显示或显示Code
+        }
+    }
 }

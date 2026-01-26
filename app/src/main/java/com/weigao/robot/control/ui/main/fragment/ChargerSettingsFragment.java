@@ -21,6 +21,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IChargerCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.callback.SdkErrorCode;
 import com.weigao.robot.control.model.ChargerInfo;
 import com.weigao.robot.control.service.IChargerService;
 import com.weigao.robot.control.service.ServiceManager;
@@ -71,7 +72,7 @@ public class ChargerSettingsFragment extends Fragment {
         // 设置按钮点击监听器
         setupListeners();
         // 初始假数据更新，真实数据将在 onResume (IChargerCallback) 中刷新
-        updateBatteryUI(0, false);
+        updateBatteryUI(null);
         
         return view;
     }
@@ -102,7 +103,7 @@ public class ChargerSettingsFragment extends Fragment {
             if (getActivity() != null) {
                 getActivity().runOnUiThread(() -> {
                     if (chargerInfo != null) {
-                        updateBatteryUI(chargerInfo.getPower(), chargerInfo.isCharging());
+                        updateBatteryUI(chargerInfo);
                     }
                 });
             }
@@ -134,7 +135,7 @@ public class ChargerSettingsFragment extends Fragment {
             public void onSuccess(ChargerInfo result) {
                 if (getActivity() != null && result != null) {
                     getActivity().runOnUiThread(() -> {
-                        updateBatteryUI(result.getPower(), result.isCharging());
+                        updateBatteryUI(result);
                     });
                 }
             }
@@ -254,10 +255,13 @@ public class ChargerSettingsFragment extends Fragment {
 
     /**
      * 更新电池 UI 显示：包括百分比、进度条颜色、充电状态按钮等
-     * @param batteryLevel 当前电量 (0-100)
-     * @param isCharging 是否正在充电
+     * @param info 充电信息对象
      */
-    private void updateBatteryUI(int batteryLevel, boolean isCharging) {
+    private void updateBatteryUI(ChargerInfo info) {
+        int batteryLevel = info != null ? info.getPower() : 0;
+        boolean isCharging = info != null ? info.isCharging() : false;
+        int event = info != null ? info.getEvent() : 0;
+
         currentBatteryLevel = batteryLevel;
         batteryPercentage.setText(batteryLevel + "%");
         
@@ -280,13 +284,12 @@ public class ChargerSettingsFragment extends Fragment {
         batteryIcon.setColorFilter(color);
         batteryProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(color));
 
-
-
         if (isCharging) {
             // 充电中禁用“自动回充”和“手动充电”按钮
             chargeNowButton.setEnabled(false);
             chargeNowButton.setText("充电中");
             manualChargeButton.setEnabled(false);
+            
             tvChargingStatus.setText("正在充电");
             tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_green_light));
             tvChargingStatus.setVisibility(View.VISIBLE);
@@ -295,8 +298,21 @@ public class ChargerSettingsFragment extends Fragment {
             chargeNowButton.setText("自动回充 (Auto)");
             manualChargeButton.setEnabled(true);
             
-            tvChargingStatus.setText("未充电");
-            tvChargingStatus.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            // 显示详细状态或未充电
+            String statusText = SdkErrorCode.getEventDescription(event);
+            if (statusText.isEmpty()) {
+                statusText = "未充电";
+            }
+            tvChargingStatus.setText(statusText);
+            
+            // 如果是正在导航或匹配中，显示为黄色或特定颜色
+            if (event == SdkErrorCode.CHARGER_EVENT_ARRIVE_PILE || 
+                event == SdkErrorCode.CHARGER_EVENT_RETRY_GO_PILE ||
+                event == SdkErrorCode.CHARGER_EVENT_RETRY_ARRIVE_PILE) {
+                 tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark));
+            } else {
+                 tvChargingStatus.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            }
             tvChargingStatus.setVisibility(View.VISIBLE);
         }
     }

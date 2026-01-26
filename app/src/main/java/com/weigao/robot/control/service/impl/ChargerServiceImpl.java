@@ -76,14 +76,15 @@ public class ChargerServiceImpl implements IChargerService {
             Log.d(TAG, "onChargerInfoChanged: event=" + event + ", power=" +
                     (sdkInfo != null ? sdkInfo.getPower() : "null"));
 
+            // 判断充电状态
+            isCharging = isChargingEvent(event);
+
             // 更新充电信息
             if (sdkInfo != null) {
                 chargerInfo.setPower(sdkInfo.getPower());
                 chargerInfo.setEvent(sdkInfo.getEvent());
             }
-
-            // 判断充电状态
-            isCharging = isChargingEvent(event);
+            chargerInfo.setCharging(isCharging);
 
             // 通知回调
             notifyChargerInfoChanged(event, chargerInfo);
