@@ -11,6 +11,13 @@ import com.weigao.robot.control.service.ISecurityService;
 // 假设您有这样一个接口，如果还没定义，请使用 ServiceManager 方式并做好判空
 import com.weigao.robot.control.service.ServiceManager;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+
 /**
  * 安全锁定服务实现类
  * <p>
@@ -21,45 +28,105 @@ public class SecurityServiceImpl implements ISecurityService {
 
     private static final String TAG = "SecurityServiceImpl";
     private static final String PREFS_NAME = "security_prefs";
-    private static final String KEY_PASSWORD = "security_password";
-    private static final String KEY_PASSWORD_SET = "security_password_set"; // 标记是否已设置过密码
-    private static final String KEY_ENABLED = "security_enabled";
-    private static final String KEY_LOCKED_STATE = "security_is_locked";
+    
+    // File Persistence
+    private static final String CONFIG_DIR = "WeigaoRobot/config";
+    private static final String CONFIG_FILE = "security_config.json";
+
     private static final String DEFAULT_PASSWORD = "123456";
 
     private final Context context;
-    private final SharedPreferences prefs;
 
-    /**
-     * 安全锁定功能是否启用
-     */
-    private boolean securityLockEnabled;
-
-    /**
-     * 当前是否处于锁定状态
-     */
+    // In-memory state
+    private boolean securityLockEnabled = true;
     private boolean isLocked = false;
+    private String currentPassword = DEFAULT_PASSWORD;
+    private boolean isPasswordSet = false;
 
     public SecurityServiceImpl(Context context) {
         this.context = context.getApplicationContext();
-        this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-
-        this.securityLockEnabled = prefs.getBoolean(KEY_ENABLED, true);
-        // [修复] 从 SP 读取锁定状态，防止重启后失效
-        this.isLocked = prefs.getBoolean(KEY_LOCKED_STATE, false);
-
+        
+        // Load config from file (external storage)
+        // If file doesn't exist, it will attempt to migrate from legacy SharedPreferences
+        loadConfig();
+        
         Log.d(TAG, "SecurityServiceImpl 已创建");
+    }
+
+    private void loadConfig() {
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(), CONFIG_DIR);
+        File file = new File(dir, CONFIG_FILE);
+
+        if (file.exists()) {
+            // Case 1: File exists, load normally
+            try {
+                StringBuilder sb = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                }
+                JSONObject obj = new JSONObject(sb.toString());
+                this.securityLockEnabled = obj.optBoolean("enabled", true);
+                this.isLocked = obj.optBoolean("locked", false);
+                this.currentPassword = obj.optString("password", DEFAULT_PASSWORD);
+                this.isPasswordSet = obj.optBoolean("passwordSet", false);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to load security config from file", e);
+            }
+        } else {
+            // Case 2: File missing, try migration from legacy SharedPreferences
+            migrateFromLegacyPrefs();
+            // Create the file immediately
+            saveConfig();
+        }
+    }
+
+    /**
+     * One-time migration: Read old SP data if file doesn't exist
+     */
+    private void migrateFromLegacyPrefs() {
+        SharedPreferences sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        this.securityLockEnabled = sp.getBoolean("security_enabled", true);
+        this.isLocked = sp.getBoolean("security_is_locked", false);
+        this.currentPassword = sp.getString("security_password", DEFAULT_PASSWORD);
+        this.isPasswordSet = sp.getBoolean("security_password_set", false);
+        Log.i(TAG, "Migrated legacy settings to file storage");
+    }
+
+    private void saveConfig() {
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(), CONFIG_DIR);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        File file = new File(dir, CONFIG_FILE);
+
+        try {
+            JSONObject obj = new JSONObject();
+            obj.put("enabled", securityLockEnabled);
+            obj.put("locked", isLocked);
+            obj.put("password", currentPassword);
+            obj.put("passwordSet", isPasswordSet);
+            
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write(obj.toString());
+            }
+            // No redundant write to SharedPreferences
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to save security config", e);
+        }
     }
 
     @Override
     public void setSecurityLockEnabled(boolean enabled, IResultCallback<Void> callback) {
         Log.d(TAG, "setSecurityLockEnabled: " + enabled);
         this.securityLockEnabled = enabled;
-        prefs.edit().putBoolean(KEY_ENABLED, enabled).apply();
         // 如果禁用了安全锁，是否应该自动解锁？视业务而定
         if (!enabled && isLocked) {
-            setLockedState(false);
+            this.isLocked = false;
         }
+        saveConfig();
         notifySuccess(callback);
     }
 
@@ -80,8 +147,8 @@ public class SecurityServiceImpl implements ISecurityService {
     @Override
     public void verifyPassword(String password, IResultCallback<Boolean> callback) {
         Log.d(TAG, "verifyPassword");
-        String savedPassword = prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD);
-        boolean isValid = savedPassword.equals(password);
+        // Verify against in-memory state (whch is synced with file)
+        boolean isValid = currentPassword.equals(password);
         if (callback != null) {
             callback.onSuccess(isValid);
         }
@@ -90,15 +157,17 @@ public class SecurityServiceImpl implements ISecurityService {
     @Override
     public void setPassword(String oldPassword, String newPassword, IResultCallback<Void> callback) {
         Log.d(TAG, "setPassword");
-        boolean isFirstTime = !prefs.getBoolean(KEY_PASSWORD_SET, false);
-        String savedPassword = prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD);
-
-        // 首次设置密码时 oldPassword 可为空，后续必须验证旧密码
-        if (isFirstTime || savedPassword.equals(oldPassword)) {
-            prefs.edit()
-                    .putString(KEY_PASSWORD, newPassword)
-                    .putBoolean(KEY_PASSWORD_SET, true)
-                    .apply();
+        
+        // Check old password
+        // If not set yet, allow optional old password or specific logic
+        boolean isCorrect = isPasswordSet ? currentPassword.equals(oldPassword) : true;
+        // Or if user provided oldPassword match, it's fine too. 
+        // Logic from before: if (isFirstTime || savedPassword.equals(oldPassword))
+        
+        if (!isPasswordSet || currentPassword.equals(oldPassword)) {
+            this.currentPassword = newPassword;
+            this.isPasswordSet = true;
+            saveConfig();
             notifySuccess(callback);
         } else {
             notifyError(callback, -1, "旧密码不正确");
@@ -108,15 +177,13 @@ public class SecurityServiceImpl implements ISecurityService {
     // 封装状态保存逻辑
     private void setLockedState(boolean locked) {
         this.isLocked = locked;
-        prefs.edit().putBoolean(KEY_LOCKED_STATE, locked).apply();
+        saveConfig();
     }
 
     @Override
     public void unlockDoor(int doorId, String password, IResultCallback<Void> callback) {
         Log.d(TAG, "unlockDoor: doorId=" + doorId);
-        String savedPassword = prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD);
-
-        if (savedPassword.equals(password)) {
+        if (currentPassword.equals(password)) {
             setLockedState(false);
             // 调用 DoorService 打开指定舱门
             try {
@@ -157,9 +224,7 @@ public class SecurityServiceImpl implements ISecurityService {
     @Override
     public void unlock(String password, IResultCallback<Void> callback) {
         Log.d(TAG, "unlock");
-        String savedPassword = prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD);
-
-        if (savedPassword.equals(password)) {
+        if (currentPassword.equals(password)) {
             setLockedState(false); // [修复] 使用带持久化的方法
             notifySuccess(callback);
         } else {
