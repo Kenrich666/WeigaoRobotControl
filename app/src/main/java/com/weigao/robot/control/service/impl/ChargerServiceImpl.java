@@ -10,6 +10,7 @@ import com.keenon.sdk.component.charger.common.Charger;
 import com.weigao.robot.control.callback.IChargerCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.SdkErrorCode;
 import com.weigao.robot.control.model.ChargerInfo;
 import com.weigao.robot.control.service.IChargerService;
 
@@ -270,8 +271,8 @@ public class ChargerServiceImpl implements IChargerService {
      */
     private boolean isChargingEvent(int event) {
         // 根据 SDK 充电事件判断
-        // 具体事件码需参考 SDK 文档
-        return event >= 1 && event <= 3;
+        // 参考 SdkErrorCode.CHARGER_EVENT_CHARGING (40011)
+        return event == SdkErrorCode.CHARGER_EVENT_CHARGING;
     }
 
     private void notifySuccess(IResultCallback<Void> callback) {

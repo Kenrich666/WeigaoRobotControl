@@ -124,7 +124,6 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         StringBuilder layersText = new StringBuilder();
         for (Integer layer : targetLayers) {
             layersText.append("L").append(layer).append(" ");
-            
             // 高亮显示的层级
             highlightLayer(layer);
         }

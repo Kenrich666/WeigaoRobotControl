@@ -96,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
                     },
                     REQUEST_CODE_PERMISSIONS);
         } else {
-            initRobotSDK();
+             Log.i(TAG, "Permissions already granted.");
         }
     }
 
@@ -114,16 +114,11 @@ public class MainActivity extends AppCompatActivity {
             }
 
             if (allGranted && grantResults.length > 0) {
-                initRobotSDK();
+               Log.i(TAG, "Permissions granted.");
             } else {
                 Log.e(TAG, "Permission denied. Some permissions were not granted.");
                 // 可以添加弹窗提示用户手动开启权限
             }
         }
-    }
-
-    private void initRobotSDK() {
-        // 使用 WeigaoApplication 进行统一初始化（包含配置参数）
-        com.weigao.robot.control.app.WeigaoApplication.getInstance().initializeSdk();
     }
 }

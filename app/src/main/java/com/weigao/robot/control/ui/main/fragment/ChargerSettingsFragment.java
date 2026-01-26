@@ -51,6 +51,7 @@ public class ChargerSettingsFragment extends Fragment {
     private Button stopChargeButton;
     private ProgressBar batteryProgress;
     private ProgressBar batteryProgressBackground;
+    private TextView tvChargingStatus;
 
     private IChargerService chargerService;
 
@@ -158,6 +159,7 @@ public class ChargerSettingsFragment extends Fragment {
         manualChargeButton = view.findViewById(R.id.manualChargeButton);
         stopChargeButton = view.findViewById(R.id.stopChargeButton);
         helpText = view.findViewById(R.id.helpText);
+        tvChargingStatus = view.findViewById(R.id.tvChargingStatus);
     }
 
     private void setupListeners() {
@@ -285,10 +287,17 @@ public class ChargerSettingsFragment extends Fragment {
             chargeNowButton.setEnabled(false);
             chargeNowButton.setText("充电中");
             manualChargeButton.setEnabled(false);
+            tvChargingStatus.setText("正在充电");
+            tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_green_light));
+            tvChargingStatus.setVisibility(View.VISIBLE);
         } else {
             chargeNowButton.setEnabled(true);
             chargeNowButton.setText("自动回充 (Auto)");
             manualChargeButton.setEnabled(true);
+            
+            tvChargingStatus.setText("未充电");
+            tvChargingStatus.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            tvChargingStatus.setVisibility(View.VISIBLE);
         }
     }
 

@@ -52,6 +52,9 @@ public class WeigaoApplication extends Application {
         super.onCreate();
         instance = this;
         Log.i(TAG, "WeigaoApplication onCreate");
+        
+        // [新增] 注册全局急停监听
+        com.weigao.robot.control.manager.GlobalScramManager.getInstance().init(this);
 
         // 移除 onCreate 中的初始化，改为由 MainActivity 请求权限后调用
         // initializeSdk();
@@ -82,6 +85,14 @@ public class WeigaoApplication extends Application {
      * </p>
      */
     public void initializeSdk() {
+        if (sdkInitialized) {
+            Log.w(TAG, "SDK 已经初始化，跳过重复初始化");
+            if (sdkInitListener != null) {
+                sdkInitListener.onSdkInitSuccess();
+            }
+            return;
+        }
+
         Log.i(TAG, "开始初始化 Peanut SDK...");
 
         try {
@@ -128,6 +139,9 @@ public class WeigaoApplication extends Application {
 
                 // 初始化服务管理器
                 ServiceManager.getInstance().initialize(getApplicationContext());
+
+                // [新增] 初始化并连接全局急停管理器
+                com.weigao.robot.control.manager.GlobalScramManager.getInstance().connectService();
 
                 // 启动 PeanutRuntime (参考 SampleApp)
                 PeanutRuntime.getInstance().start(new PeanutRuntime.Listener() {
