@@ -20,7 +20,7 @@ import java.util.List;
 public class PasswordActivity extends AppCompatActivity implements View.OnClickListener {
 
     private StringBuilder currentPassword = new StringBuilder();
-    private int maxPasswordLength = 4; // Default 4
+    private int maxPasswordLength = 6; // Default 6
     private static final String DEFAULT_PASSWORD = "1234"; // Placeholder
 
     private TextView tvTitle;
@@ -124,41 +124,59 @@ public class PasswordActivity extends AppCompatActivity implements View.OnClickL
     }
 
     private void initPasswordSettings() {
-        // Ensure standard 4-digit length
-        maxPasswordLength = 4;
+        // Ensure standard 6-digit length to match SecurityService default
+        maxPasswordLength = 6;
         updateDotsVisibility();
     }
 
     private void verifyPassword() {
         String input = currentPassword.toString();
-        android.content.SharedPreferences prefs = getSharedPreferences("app_config", MODE_PRIVATE);
-        String savedPassword = prefs.getString("access_password", DEFAULT_PASSWORD);
         
-        // If no password saved, default to "1234"
-        if (savedPassword == null || savedPassword.isEmpty()) {
-            savedPassword = DEFAULT_PASSWORD;
-        }
-        
-        boolean isValid = input.equals(savedPassword);
+        com.weigao.robot.control.service.ISecurityService securityService = 
+                com.weigao.robot.control.service.ServiceManager.getInstance().getSecurityService();
 
-        if (isValid) {
-            Toast.makeText(this, "密码正确", Toast.LENGTH_SHORT).show();
-            
-            // Check for target intent to launch
-            Intent targetIntent = (Intent) getIntent().getParcelableExtra("target_intent");
-            if (targetIntent != null) {
-                startActivity(targetIntent);
-            }
-            
-            setResult(RESULT_OK);
-            finish();
+        if (securityService != null) {
+            securityService.verifyPassword(input, new com.weigao.robot.control.callback.IResultCallback<Boolean>() {
+                @Override
+                public void onSuccess(Boolean isValid) {
+                    runOnUiThread(() -> {
+                        if (isValid) {
+                            Toast.makeText(PasswordActivity.this, "密码正确", Toast.LENGTH_SHORT).show();
+                            
+                            // Check for target intent to launch
+                            Intent targetIntent = (Intent) getIntent().getParcelableExtra("target_intent");
+                            if (targetIntent != null) {
+                                startActivity(targetIntent);
+                            }
+                            
+                            setResult(RESULT_OK);
+                            finish();
+                        } else {
+                            handlePasswordError();
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(com.weigao.robot.control.callback.ApiError error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(PasswordActivity.this, "验证出错: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        handlePasswordError();
+                    });
+                }
+            });
         } else {
-            Toast.makeText(this, "密码错误", Toast.LENGTH_SHORT).show();
-            // Clear input after a short delay
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                currentPassword.setLength(0);
-                updateDots();
-            }, 500);
+             // Fallback if service is not available (though it should be)
+             Toast.makeText(this, "服务不可用", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void handlePasswordError() {
+        Toast.makeText(PasswordActivity.this, "密码错误", Toast.LENGTH_SHORT).show();
+        // Clear input after a short delay
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            currentPassword.setLength(0);
+            updateDots();
+        }, 500);
     }
 }

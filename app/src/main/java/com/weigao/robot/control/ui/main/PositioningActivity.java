@@ -24,12 +24,39 @@ public class PositioningActivity extends AppCompatActivity {
     }
 
     private void checkPositioning() {
-        // TODO: 定位逻辑占位符
+        // 获取状态展示控件
+        android.widget.TextView tvStatus = findViewById(R.id.tv_status);
+        if (tvStatus != null) {
+            tvStatus.setText("正在进行开机定位...");
+        }
 
+        // 获取机器人状态服务
+        com.weigao.robot.control.service.IRobotStateService service = 
+                com.weigao.robot.control.service.ServiceManager.getInstance().getRobotStateService();
+        
+        if (service != null) {
+            service.performLocalization(new com.weigao.robot.control.callback.IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void data) {
+                    runOnUiThread(() -> {
+                        if (tvStatus != null) {
+                            tvStatus.setText("定位成功");
+                        }
+                        android.widget.Toast.makeText(PositioningActivity.this, "定位成功", android.widget.Toast.LENGTH_SHORT).show();
+                        navigateToMain();
+                    });
+                }
 
-
-        // 定位成功后跳转主页面（模拟延迟2s）
-        new Handler(Looper.getMainLooper()).postDelayed(this::navigateToMain, 2000);
+                @Override
+                public void onError(com.weigao.robot.control.callback.ApiError error) {
+                    runOnUiThread(() -> {
+                        if (tvStatus != null) {
+                            tvStatus.setText("定位失败: " + error.getMsg());
+                        }
+                    });
+                }
+            });
+        }
     }
 
     private void navigateToMain() {
