@@ -85,13 +85,20 @@ public class BasicSettingsFragment extends Fragment {
             }
         });
 
-        SeekBar seekBar = view.findViewById(R.id.seekbar_led_brightness);
-        TextView brightnessValue = view.findViewById(R.id.tv_brightness_value);
+        SeekBar seekBar = view.findViewById(R.id.seekbar_circular_speed);
+        TextView speedValue = view.findViewById(R.id.tv_speed_value);
+
+        int currentSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getDeliverySpeed();
+        seekBar.setProgress(currentSpeed);
+        speedValue.setText(String.format("%d cm/s", currentSpeed));
 
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                brightnessValue.setText(String.format("%d%%", progress));
+                // Ensure value is at least min if necessary, though min attribute handles it in API 26+
+                // If min attribute is not supported by target SDK, handle it here. Assuming API 26+ or valid min.
+                if (progress < 10) progress = 10; 
+                speedValue.setText(String.format("%d cm/s", progress));
             }
 
             @Override
@@ -101,10 +108,38 @@ public class BasicSettingsFragment extends Fragment {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-
+                int progress = seekBar.getProgress();
+                if (progress < 10) progress = 10;
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().setDeliverySpeed(progress);
             }
         });
 
+        // Return Speed Slider
+        SeekBar returnSeekBar = view.findViewById(R.id.seekbar_return_speed);
+        TextView returnSpeedValue = view.findViewById(R.id.tv_return_speed_value);
+
+        int currentReturnSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed();
+        returnSeekBar.setProgress(currentReturnSpeed);
+        returnSpeedValue.setText(String.format("%d cm/s", currentReturnSpeed));
+
+        returnSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 10) progress = 10;
+                returnSpeedValue.setText(String.format("%d cm/s", progress));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) { }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int progress = seekBar.getProgress();
+                if (progress < 10) progress = 10;
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().setReturnSpeed(progress);
+            }
+        });
+        
         return view;
     }
 }

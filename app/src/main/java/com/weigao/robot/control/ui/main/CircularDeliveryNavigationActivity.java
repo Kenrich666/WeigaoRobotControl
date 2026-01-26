@@ -174,7 +174,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                navigationService.setSpeed(30, new IResultCallback<Void>() {
+                int speed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getDeliverySpeed();
+                navigationService.setSpeed(speed, new IResultCallback<Void>() {
                      @Override public void onSuccess(Void result) {
                          navigationService.prepare(new IResultCallback<Void>() {
                              @Override public void onSuccess(Void result) {} // Will accept onRoutePrepared
