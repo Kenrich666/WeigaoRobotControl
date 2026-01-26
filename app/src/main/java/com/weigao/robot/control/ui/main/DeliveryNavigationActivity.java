@@ -200,8 +200,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         Log.d(TAG, "【导航控制】开始导航，目标点数量: " + targetNodes.size());
         isNavigating = true;
 
-        // 设置导航目标点（使用 setTargetNodes 传递完整的 NavigationNode 列表）
-        navigationService.setTargetNodes(targetNodes, new IResultCallback<Void>() {
+        // 提取目标ID列表
+        List<Integer> targetIds = new ArrayList<>();
+        for (NavigationNode node : targetNodes) {
+            targetIds.add(node.getId());
+        }
+
+        // 设置导航目标点（使用 setTargets 传递 ID 列表）
+        navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】设置目标点成功");

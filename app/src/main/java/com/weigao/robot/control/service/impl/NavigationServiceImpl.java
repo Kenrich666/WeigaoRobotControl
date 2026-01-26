@@ -42,10 +42,10 @@ public class NavigationServiceImpl implements INavigationService {
     private int currentPosition = 0;
 
     /** 导航速度（cm/s） */
-    private int speed = 30;
+    private int speed = 40;
 
     /** 路线策略 */
-    private int routePolicy = ROUTE_POLICY_ADAPTIVE;
+    private int routePolicy = POLICY_ADAPTIVE;
 
     /** 阻挡超时（ms） */
     private int blockingTimeout = 30000;
@@ -154,6 +154,8 @@ public class NavigationServiceImpl implements INavigationService {
                         .setListener(mNavigationListener)
                         .setBlockingTimeOut(blockingTimeout)
                         .setRoutePolicy(routePolicy)
+                        .enableDefaultArrival(true)
+                        // .setArrivalControl(true, 1.0f, 5000, 10000)
                         .enableAutoRepeat(autoRepeat);
 
                 if (repeatCount > 0) {
@@ -191,11 +193,6 @@ public class NavigationServiceImpl implements INavigationService {
                 }
             }
 
-            // 委托给 setTargets(List<Integer>) 处理 SDK 调用
-            // 注意：我们不需要传递回调给 setTargets，因为我们要自己处理成功/失败
-            // 但为了简化，直接调用 setTargets 逻辑的复用部分
-
-            // 这里为了避免递归调用的回调混乱，我们直接执行 setTargets 的核心逻辑
             Integer[] targetIdArray = targetIds.toArray(new Integer[0]);
 
             if (peanutNavigation != null) {
@@ -208,6 +205,7 @@ public class NavigationServiceImpl implements INavigationService {
                         .setListener(mNavigationListener)
                         .setBlockingTimeOut(blockingTimeout)
                         .setRoutePolicy(routePolicy)
+                        .enableDefaultArrival(true)
                         .enableAutoRepeat(autoRepeat);
 
                 if (repeatCount > 0) {
@@ -579,40 +577,14 @@ public class NavigationServiceImpl implements INavigationService {
         if (routeNode == null) {
             return null;
         }
+
+        // 防御性初始化，防止 SDK 内部空指针
+        initNavigationInfo(routeNode);
+
         NavigationNode node = new NavigationNode();
         node.setId(routeNode.getId());
         node.setName(routeNode.getName());
         node.setRouteNode(routeNode);
-
-        // RouteNode 的坐标信息在 Location 对象中
-
-        // 根据 SDK 文档，Location 包含 x, y, phi 字段
-        try {
-            // 尝试通过反射或直接访问 Location
-            Object location = routeNode.getLocation();
-            if (location != null) {
-                // Location 有 getX(), getY(), getPhi() 方法
-                java.lang.reflect.Method getX = location.getClass().getMethod("getX");
-                java.lang.reflect.Method getY = location.getClass().getMethod("getY");
-                java.lang.reflect.Method getPhi = location.getClass().getMethod("getPhi");
-
-                Object xVal = getX.invoke(location);
-                Object yVal = getY.invoke(location);
-                Object phiVal = getPhi.invoke(location);
-
-                if (xVal instanceof Float) {
-                    node.setX((Float) xVal);
-                }
-                if (yVal instanceof Float) {
-                    node.setY((Float) yVal);
-                }
-                if (phiVal instanceof Float) {
-                    node.setPhi((Float) phiVal);
-                }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "获取 RouteNode 位置信息失败", e);
-        }
         return node;
     }
 
@@ -622,10 +594,14 @@ public class NavigationServiceImpl implements INavigationService {
     private void initNavigationInfo(RouteNode routeNode) {
         try {
             if (routeNode != null && routeNode.getNavigationInfo() != null) {
-                routeNode.getNavigationInfo().setTotalDistance(0f);
-                routeNode.getNavigationInfo().setRemainDistance(0f);
-                routeNode.getNavigationInfo().setTotalTime(0f);
-                routeNode.getNavigationInfo().setRemainTime(0f);
+                // [关键修复] 设置为最大值而不是 0，防止 SDK 误判为已到达目的地
+                // SDK 规划路线成功后会自动更新这些值
+                // [关键修复] 设置为 99999f (非 0 且非 MAX_VALUE)，防止 SDK 误判为已到达或溢出
+                // SDK 规划路线成功后会自动更新这些值
+                routeNode.getNavigationInfo().setTotalDistance(99999f);
+                routeNode.getNavigationInfo().setRemainDistance(99999f);
+                routeNode.getNavigationInfo().setTotalTime(99999f);
+                routeNode.getNavigationInfo().setRemainTime(99999f);
             }
         } catch (Exception e) {
             Log.w(TAG, "initNavigationInfo 失败", e);

@@ -17,10 +17,10 @@ public interface INavigationService {
     // ==================== 路线规划策略 ====================
 
     /** 路线规划策略：自适应（根据地图自动选择最优路径） */
-    int ROUTE_POLICY_ADAPTIVE = 0;
+    int POLICY_ADAPTIVE = 1;
 
     /** 路线规划策略：固定路径 */
-    int ROUTE_POLICY_FIXED = 1;
+    int POLICY_FIXED = 2;
 
     // ==================== 手动导航方向 ====================
 
@@ -116,7 +116,7 @@ public interface INavigationService {
     /**
      * 设置路线规划策略
      *
-     * @param policy   策略，参见 {@link #ROUTE_POLICY_ADAPTIVE} 等常量
+     * @param policy   策略，参见 {@link #POLICY_ADAPTIVE} 等常量
      * @param callback 结果回调
      */
     void setRoutePolicy(int policy, IResultCallback<Void> callback);
