@@ -65,6 +65,8 @@ public class AppSettingsManager {
     private void loadSettings() {
         File file = new File(Environment.getExternalStorageDirectory(), SETTINGS_DIR + "/" + SETTINGS_FILE);
         if (!file.exists()) {
+            // [New Install Handling] Create default settings file
+            saveSettings();
             return;
         }
 
