@@ -165,6 +165,9 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
                 if (scramDialog.isShowing()) {
                     scramDialog.dismiss();
                 }
+            } catch (IllegalArgumentException e) {
+                // 忽略 View not attached 异常，防止 crash
+                Log.w(TAG, "关闭对话框时 View 已不依附 WindowManager (可能 Activity 已销毁)");
             } catch (Exception e) {
                 Log.e(TAG, "关闭对话框失败", e);
             } finally {
@@ -203,7 +206,9 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
 
     @Override
     public void onActivityPaused(Activity activity) {
-        // 不需要置空，保持引用直到下一个 Resume 或销毁
+        // Activity 暂停/切换时关闭对话框，防止 WindowLeaked
+        // 当下一个 Activity Resume 时，如果急停仍未解除，会再次弹出
+        dismissScramDialog();
     }
 
     @Override
