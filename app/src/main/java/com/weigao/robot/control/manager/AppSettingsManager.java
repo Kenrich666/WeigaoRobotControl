@@ -68,6 +68,19 @@ public class AppSettingsManager {
         saveSettings();
     }
 
+
+    /**
+     * Reload settings from file. Useful after permissions are granted.
+     * If file does not exist (new install), it will be created with default values.
+     */
+    public void reloadSettings() {
+        loadSettings();
+        File file = new File(Environment.getExternalStorageDirectory(), SETTINGS_DIR + "/" + SETTINGS_FILE);
+        if (!file.exists()) {
+            saveSettings();
+        }
+    }
+
     private void loadSettings() {
         try {
             File file = new File(Environment.getExternalStorageDirectory(), SETTINGS_DIR + "/" + SETTINGS_FILE);
@@ -87,9 +100,12 @@ public class AppSettingsManager {
                     this.isFullScreen = json.optBoolean(KEY_FULLSCREEN, false);
                 }
             }
-        } catch (Exception e) {
-            // Permission denied usually throws FileNotFoundException (EACCES)
-            Log.e(TAG, "Failed to load app settings (likely due to permissions): " + e.getMessage());
+        } catch (IOException | JSONException e) {
+            if (e.getMessage() != null && (e.getMessage().contains("EACCES") || e.getMessage().contains("Permission denied"))) {
+                Log.w(TAG, "Permissions missing - unable to load app settings, using defaults.");
+            } else {
+                Log.e(TAG, "Failed to load app settings", e);
+            }
         }
     }
 

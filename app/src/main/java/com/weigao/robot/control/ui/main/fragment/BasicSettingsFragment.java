@@ -31,6 +31,10 @@ import com.weigao.robot.control.R;
 
 // 配送速度 (delivery_speed): 默认值为 50 (cm/s)
 // 返航速度 (return_speed): 默认值为 50 (cm/s)
+
+// 全屏设置 AppSettingsManager：已添加逻辑，当检测到本地配置文件（/sdcard/WeigaoRobot/settings/app_settings.json）不存在时，立即将代码中的默认配置（非全屏）写入本地文件。
+// 密码设置 SecurityServiceImpl 检查，如果不修改默认逻辑，它在文件不存在时会尝试从 SharedPreferences 迁移
+// （若是新机则读取代码默认值），并立即调用 saveConfig() 将这些默认值（如密码 123456）写入本地文件 (/sdcard/WeigaoRobot/config/security_config.json)。
 public class BasicSettingsFragment extends Fragment {
 
     private DrawerLayout drawerLayout;

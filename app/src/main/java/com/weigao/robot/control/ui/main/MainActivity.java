@@ -115,8 +115,15 @@ public class MainActivity extends AppCompatActivity {
             }
 
             if (allGranted && grantResults.length > 0) {
-                Log.i(TAG, "Permissions granted.");
-                initRobotSDK();
+               Log.i(TAG, "Permissions granted.");
+
+               
+               // Reload settings after permission grant to ensure user preferences are loaded
+               com.weigao.robot.control.manager.AppSettingsManager.getInstance().reloadSettings();
+               com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().reloadSettings();
+               com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().reloadSettings();
+
+               initRobotSDK();
             } else {
                 Log.e(TAG, "Permission denied. Some permissions were not granted.");
                 // 可以添加弹窗提示用户手动开启权限
@@ -150,11 +157,8 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onSdkInitError(int errorCode) {
-                runOnUiThread(() -> {
-                    android.widget.Toast
-                            .makeText(MainActivity.this, "SDK初始化失败: " + errorCode, android.widget.Toast.LENGTH_LONG)
-                            .show();
-                });
+                // User requested to remove the Toast for SDK initialization failure
+                Log.e(TAG, "SDK初始化失败: " + errorCode);
             }
         });
 
