@@ -164,7 +164,8 @@ public class DeliveryActivity extends AppCompatActivity {
 
         findViewById(R.id.return_button).setOnClickListener(v -> {
             Intent intent = new Intent(this, ReturnActivity.class);
-            intent.putExtra("return_speed", com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed());
+            intent.putExtra("return_speed",
+                    com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed());
             startActivity(intent);
         });
 
@@ -174,63 +175,33 @@ public class DeliveryActivity extends AppCompatActivity {
                 return;
             }
 
-            if (doorService == null) {
-                startDelivery();
-                return;
-            }
-
-            // 禁用按钮，避免重复点击
+            // 禁用按钮
             v.setEnabled(false);
 
-            // 检查舱门状态
-            doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
-                @Override
-                public void onSuccess(Boolean allClosed) {
-                    runOnUiThread(() -> {
-                        if (allClosed) {
-                            // 已关闭，直接开始
-                            startDelivery();
+            if (robotStateService != null) {
+                Toast.makeText(this, "正在检查定位状态...", Toast.LENGTH_SHORT).show();
+                robotStateService.performLocalization(new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        runOnUiThread(() -> {
+                            // 定位成功，继续执行舱门检查
+                            checkDoorsAndStart(v);
+                        });
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        runOnUiThread(() -> {
                             v.setEnabled(true);
-                        } else {
-                            // 未关闭，先关门
-                            Toast.makeText(DeliveryActivity.this, "检测到舱门未关，正在关闭...", Toast.LENGTH_SHORT).show();
-                            doorService.closeAllDoors(new IResultCallback<Void>() {
-                                @Override
-                                public void onSuccess(Void result) {
-                                    runOnUiThread(() -> {
-                                        Toast.makeText(DeliveryActivity.this, "舱门已关闭，5秒后开始配送...", Toast.LENGTH_SHORT)
-                                                .show();
-
-                                        // 增加5秒等待时间
-                                        new Handler().postDelayed(() -> {
-                                            startDelivery();
-                                            v.setEnabled(true);
-                                        }, 5000);
-                                    });
-                                }
-
-                                @Override
-                                public void onError(ApiError error) {
-                                    runOnUiThread(() -> {
-                                        Toast.makeText(DeliveryActivity.this, "自动关门失败: " + error.getMessage(),
-                                                Toast.LENGTH_SHORT).show();
-                                        v.setEnabled(true);
-                                    });
-                                }
-                            });
-                        }
-                    });
-                }
-
-                @Override
-                public void onError(ApiError error) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(DeliveryActivity.this, "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT)
-                                .show();
-                        v.setEnabled(true);
-                    });
-                }
-            });
+                            // 定位失败，跳转提示页
+                            Intent intent = new Intent(DeliveryActivity.this, PositioningFailedActivity.class);
+                            startActivity(intent);
+                        });
+                    }
+                });
+            } else {
+                checkDoorsAndStart(v);
+            }
         });
 
         // --- 2. 层选择与“删除”逻辑 ---
@@ -639,6 +610,69 @@ public class DeliveryActivity extends AppCompatActivity {
         intent.putExtra("pairings", pairings);
         // 使用 startActivityForResult 以便在任务完成后接收通知
         startActivityForResult(intent, 1002);
+    }
+
+    private void checkDoorsAndStart(View v) {
+        if (doorService == null) {
+            startDelivery();
+            if (v != null)
+                v.setEnabled(true);
+            return;
+        }
+
+        // 检查舱门状态
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                runOnUiThread(() -> {
+                    if (allClosed) {
+                        // 已关闭，直接开始
+                        startDelivery();
+                        if (v != null)
+                            v.setEnabled(true);
+                    } else {
+                        // 未关闭，先关门
+                        Toast.makeText(DeliveryActivity.this, "检测到舱门未关，正在关闭...", Toast.LENGTH_SHORT).show();
+                        doorService.closeAllDoors(new IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(DeliveryActivity.this, "舱门已关闭，5秒后开始配送...", Toast.LENGTH_SHORT)
+                                            .show();
+
+                                    // 增加5秒等待时间
+                                    new Handler().postDelayed(() -> {
+                                        startDelivery();
+                                        if (v != null)
+                                            v.setEnabled(true);
+                                    }, 5000);
+                                });
+                            }
+
+                            @Override
+                            public void onError(ApiError error) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(DeliveryActivity.this, "自动关门失败: " + error.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                    if (v != null)
+                                        v.setEnabled(true);
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(DeliveryActivity.this, "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT)
+                            .show();
+                    if (v != null)
+                        v.setEnabled(true);
+                });
+            }
+        });
     }
 
     @Override

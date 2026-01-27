@@ -12,25 +12,24 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
-
 /**
  * Manager for Global App settings persistence.
  * Stores settings in a JSON file on external storage to survive reinstall.
-普通物品配送历史记录 (ItemDeliveryManager)
-路径: /sdcard/WeigaoRobot/history/item_delivery_history.json
-
-循环配送历史记录 (CircularDeliveryHistoryManager)
-路径: /sdcard/WeigaoRobot/history/delivery_history.json
-
-密码及安全配置 (SecurityServiceImpl)
-路径: /sdcard/WeigaoRobot/config/security_config.json
-
-循环配送路线设置 (CircularDeliveryActivity)
-路径: /sdcard/WeigaoRobot/routes/circular_routes.json
-
-应用全局设置（如全屏开关）
-路径: /sdcard/WeigaoRobot/settings/app_settings.json
-
+ * 普通物品配送历史记录 (ItemDeliveryManager)
+ * 路径: /sdcard/WeigaoRobot/history/item_delivery_history.json
+ * 
+ * 循环配送历史记录 (CircularDeliveryHistoryManager)
+ * 路径: /sdcard/WeigaoRobot/history/delivery_history.json
+ * 
+ * 密码及安全配置 (SecurityServiceImpl)
+ * 路径: /sdcard/WeigaoRobot/config/security_config.json
+ * 
+ * 循环配送路线设置 (CircularDeliveryActivity)
+ * 路径: /sdcard/WeigaoRobot/routes/circular_routes.json
+ * 
+ * 应用全局设置（如全屏开关）
+ * 路径: /sdcard/WeigaoRobot/settings/app_settings.json
+ * 
  */
 public class AppSettingsManager {
     private static final String TAG = "AppSettingsMgr";
@@ -43,7 +42,14 @@ public class AppSettingsManager {
     private boolean isFullScreen = false;
 
     private AppSettingsManager() {
-        loadSettings();
+        // Delayed loading? Or just handle exception in loadSettings.
+        // If constructed before permission, loadSettings fails but that is OK.
+        // It will just default to false for fullscreen.
+        try {
+            loadSettings();
+        } catch (Exception e) {
+            Log.e(TAG, "Init load failed: " + e.getMessage());
+        }
     }
 
     public static synchronized AppSettingsManager getInstance() {
@@ -63,24 +69,27 @@ public class AppSettingsManager {
     }
 
     private void loadSettings() {
-        File file = new File(Environment.getExternalStorageDirectory(), SETTINGS_DIR + "/" + SETTINGS_FILE);
-        if (!file.exists()) {
-            return;
-        }
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
+        try {
+            File file = new File(Environment.getExternalStorageDirectory(), SETTINGS_DIR + "/" + SETTINGS_FILE);
+            if (!file.exists()) {
+                return;
             }
 
-            if (sb.length() > 0) {
-                JSONObject json = new JSONObject(sb.toString());
-                this.isFullScreen = json.optBoolean(KEY_FULLSCREEN, false);
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+
+                if (sb.length() > 0) {
+                    JSONObject json = new JSONObject(sb.toString());
+                    this.isFullScreen = json.optBoolean(KEY_FULLSCREEN, false);
+                }
             }
-        } catch (IOException | JSONException e) {
-            Log.e(TAG, "Failed to load app settings", e);
+        } catch (Exception e) {
+            // Permission denied usually throws FileNotFoundException (EACCES)
+            Log.e(TAG, "Failed to load app settings (likely due to permissions): " + e.getMessage());
         }
     }
 

@@ -65,6 +65,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 导航服务
      */
     private INavigationService navigationService;
+    private com.weigao.robot.control.service.IAudioService audioService; // Audio Service
 
     /**
      * 当前导航的目标点列表
@@ -88,6 +89,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
         // 获取导航服务
         navigationService = ServiceManager.getInstance().getNavigationService();
+        audioService = ServiceManager.getInstance().getAudioService(); // Init Audio
         if (navigationService == null) {
             Log.e(TAG, "【错误】无法获取导航服务");
             Toast.makeText(this, "导航服务未初始化", Toast.LENGTH_SHORT).show();
@@ -279,11 +281,16 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】设置目标点成功");
+                // 播放背景音乐
+                playBackgroundMusic();
+                // 播报语音
+                speak("开始配送任务");
+
                 // 设置导航速度
-                int speed = isReturning 
+                int speed = isReturning
                         ? com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed()
                         : com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getDeliverySpeed();
-                
+
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
@@ -293,7 +300,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                             @Override
                             public void onSuccess(Void result) {
                                 Log.d(TAG, "【导航控制】准备路线成功");
-                                // 路线准备完成后会在 onRoutePrepared 回调中自动开始导航
                             }
 
                             @Override
@@ -335,6 +341,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】暂停成功");
+                pauseBackgroundMusic();
+                speak("已暂停配送");
             }
 
             @Override
@@ -352,6 +360,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private void resumeNavigation() {
         // 重置标志位，因为恢复或跳转都会重新进入运行状态
         hasRunningStateReceived = false;
+
+        // 恢复背景音乐
+        resumeBackgroundMusic();
+        speak("继续配送");
 
         if (waitingForNext) {
             Log.d(TAG, "【导航控制】恢复导航：处于等待跳转状态，立即前往下一目标");
@@ -381,7 +393,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 public void onError(ApiError error) {
                     Log.e(TAG, "【导航控制】恢复失败: " + error.getMessage());
                 }
-
             });
         }
     }
@@ -395,6 +406,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】停止成功");
+                stopBackgroundMusic();
+                speak("停止配送");
             }
 
             @Override
@@ -507,6 +520,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     if (isReturning && !tvStatus.getText().toString().equals("返航中") && !isMissionFinished) {
                         tvStatus.setText("返航中");
                     }
+                    if (schedule > 0 && schedule % 5 == 0) { // 防止过于频繁
+                        // speak("配送中，请避让"); 也许太吵了
+                    }
                     break;
 
                 case Navigation.STATE_DESTINATION:
@@ -514,6 +530,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     if (hasRunningStateReceived) {
                         Log.d(TAG, "【导航回调】已到达目标点");
                         Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
+
+                        pauseBackgroundMusic();
+                        speak("已到达目的地");
+
                         handleArrival();
                         // 重置标志，防止重复触发，且等待下一段运行
                         hasRunningStateReceived = false;
@@ -526,11 +546,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 case Navigation.STATE_BLOCKED:
                     Log.w(TAG, "【导航回调】遇到障碍物，正在避障");
                     Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
+                    speak("遇到障碍物，正在避障");
                     break;
 
                 case Navigation.STATE_BLOCKING:
                     Log.w(TAG, "【导航回调】阻挡超时");
                     Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
+                    speak("长时间被阻挡，请检查路径");
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),
@@ -541,6 +563,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 case Navigation.STATE_ERROR:
                     Log.e(TAG, "【导航回调】导航错误");
                     Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
+                    speak("导航出现错误");
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),
@@ -655,6 +678,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             navigationService.unregisterCallback(this);
             Log.d(TAG, "【导航服务】已注销回调监听器");
         }
+        stopBackgroundMusic();
     }
 
     @Override
@@ -721,6 +745,49 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 Log.d(TAG, "【ConfirmReceipt】返回非OK，可能取消或异常");
                 // 视需求处理，暂时保持等待或恢复
             }
+        }
+    }
+
+    // ==================== Audio Helper Methods ====================
+
+    private void playBackgroundMusic() {
+        if (audioService != null) {
+            audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
+                @Override
+                public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
+                    if (config != null && !android.text.TextUtils.isEmpty(config.getDeliveryMusicPath())) {
+                        audioService.playBackgroundMusic(config.getDeliveryMusicPath(), true, null);
+                    }
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                }
+            });
+        }
+    }
+
+    private void stopBackgroundMusic() {
+        if (audioService != null) {
+            audioService.stopBackgroundMusic(null);
+        }
+    }
+
+    private void pauseBackgroundMusic() {
+        if (audioService != null) {
+            audioService.pauseBackgroundMusic(null);
+        }
+    }
+
+    private void resumeBackgroundMusic() {
+        if (audioService != null) {
+            audioService.resumeBackgroundMusic(null);
+        }
+    }
+
+    private void speak(String text) {
+        if (audioService != null) {
+            audioService.speak(text, null);
         }
     }
 }

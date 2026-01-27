@@ -46,6 +46,7 @@
         <activity android:name=".ui.auth.PasswordActivity" />
         <activity android:name=".ui.main.ItemDeliveryHistoryActivity" />
         <activity android:name=".ui.main.CircularDeliveryHistoryActivity" />
+        <activity android:name=".ui.main.PositioningFailedActivity" />
     </application>
 
 </manifest>

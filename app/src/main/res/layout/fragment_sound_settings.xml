@@ -101,7 +101,7 @@
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <!-- 配送音乐路径 -->
+        <!-- 配送音乐选择 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -111,22 +111,29 @@
             android:paddingBottom="8dp">
 
             <TextView
-                android:layout_width="120dp"
+                android:layout_width="100dp"
                 android:layout_height="wrap_content"
-                android:text="配送音乐路径"
+                android:text="配送音乐"
                 android:textSize="16sp" />
 
-            <EditText
-                android:id="@+id/et_delivery_music_path"
+            <Spinner
+                android:id="@+id/spinner_delivery_music"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="请输入路径"
-                android:textSize="14sp"
-                android:inputType="text" />
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/btn_select_delivery_music"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="选择"
+                android:textSize="12sp"
+                android:backgroundTint="#4A90E2"
+                android:textColor="@android:color/white"
+                android:layout_marginStart="8dp" />
         </LinearLayout>
 
-        <!-- 循环音乐路径 -->
+        <!-- 循环音乐选择 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -136,19 +143,26 @@
             android:paddingBottom="8dp">
 
             <TextView
-                android:layout_width="120dp"
+                android:layout_width="100dp"
                 android:layout_height="wrap_content"
-                android:text="循环音乐路径"
+                android:text="循环音乐"
                 android:textSize="16sp" />
 
-            <EditText
-                android:id="@+id/et_loop_music_path"
+            <Spinner
+                android:id="@+id/spinner_loop_music"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="请输入路径"
-                android:textSize="14sp"
-                android:inputType="text" />
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/btn_select_loop_music"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="选择"
+                android:textSize="12sp"
+                android:backgroundTint="#4A90E2"
+                android:textColor="@android:color/white"
+                android:layout_marginStart="8dp" />
         </LinearLayout>
 
         <View
@@ -214,6 +228,108 @@
                 android:hint="请输入频率数值"
                 android:textSize="14sp"
                 android:inputType="number" />
+        </LinearLayout>
+        
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#E0E0E0" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="功能开关"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+            
+        <Switch
+            android:id="@+id/switch_bg_music"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="背景音乐开关"
+            android:textSize="16sp" />
+            
+        <Switch
+            android:id="@+id/switch_voice_announcement"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="语音播报开关"
+            android:textSize="16sp" />
+
+        <!-- 播放控制区域 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="测试与控制"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                
+                <Button
+                    android:id="@+id/btn_play_delivery_music"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="试听配送音乐"
+                    android:layout_marginEnd="4dp" />
+                
+                <Button
+                    android:id="@+id/btn_stop_delivery_music"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="停止"
+                    android:layout_marginStart="4dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <Button
+                    android:id="@+id/btn_play_loop_music"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="试听循环音乐"
+                    android:layout_marginEnd="4dp" />
+
+                <Button
+                    android:id="@+id/btn_stop_loop_music"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="停止"
+                    android:layout_marginStart="4dp" />
+            </LinearLayout>
+
+             <Button
+                android:id="@+id/btn_test_speak"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="测试语音播报" />
         </LinearLayout>
 
         <TextView

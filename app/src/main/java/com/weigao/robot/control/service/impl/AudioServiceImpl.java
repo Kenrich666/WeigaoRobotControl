@@ -1,211 +1,494 @@
 package com.weigao.robot.control.service.impl;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.net.Uri;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import android.text.TextUtils;
 import android.util.Log;
 
-import com.keenon.sdk.external.PeanutSDK;
-//import com.keenon.sdk.component.audio.AudioComponent;
-//import com.keenon.sdk.component.audio.callback.OnAudioListener;
-
+import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.AudioConfig;
 import com.weigao.robot.control.service.IAudioService;
+import com.google.gson.Gson;
+// Actually context.getSharedPreferences is better for simple KV.
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Locale;
 
 /**
- * 音频服务实现类
+ * 音频服务实现类 (基于 Android 原生 API)
  * <p>
- * 注意: SDK 中的 AudioComponent 主要用于麦克风相关功能，与音量控制和音乐配置无关。
- * 按照 SDK 开发文档编写的代码仍报错（AudioComponent/OnAudioListener 无法解析），
- * 因此暂时注释相关功能部分。音量控制和音乐配置使用本地存储方式。
+ * 集成 MediaPlayer 实现背景音乐播放。
+ * 集成 TextToSpeech 实现语音播报。
+ * 支持配置持久化。
  * </p>
  */
 public class AudioServiceImpl implements IAudioService {
 
     private static final String TAG = "AudioServiceImpl";
+    private static final String PREFS_NAME = "audio_settings";
+    private static final String KEY_AUDIO_CONFIG = "audio_config_json";
 
     private final Context context;
-
-    /** 当前音频配置 */
+    private final AudioManager audioManager;
     private AudioConfig audioConfig;
+    private final SharedPreferences prefs;
+    private final Gson gson;
 
-    /**
-     * Peanut SDK 音频组件
-     * <p>
-     * 注意: SDK 中 AudioComponent 相关 API 无法解析，暂时注释。
-     * 如果后续 SDK 版本支持，可取消注释。
-     * </p>
-     */
-    // private AudioComponent audioComponent;
-
-    /** 音频组件是否已初始化 */
-    private boolean audioInitialized = false;
+    // Components
+    private MediaPlayer mediaPlayer;
+    private TextToSpeech mTTS;
+    private boolean isTtsReady = false;
 
     public AudioServiceImpl(Context context) {
         this.context = context.getApplicationContext();
-        this.audioConfig = new AudioConfig();
-        Log.d(TAG, "AudioServiceImpl 已创建");
-        // initAudioComponent(); // 暂时禁用 SDK 音频组件初始化
+        this.audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        this.gson = new Gson();
+
+        // 1. 初始化配置 (从本地读取)
+        loadConfigFromPrefs();
+
+        // 2. 初始化 TTS
+        initTTS();
+
+        // 3. 应用音量
+        applySystemVolume();
+
+        Log.d(TAG, "AudioServiceImpl (Android Native + Gson) created");
     }
 
-    /**
-     * 初始化音频组件
-     * <p>
-     * 注意: SDK 中 AudioComponent/OnAudioListener 相关 API 无法解析。
-     * 根据 SDK 文档，此部分为麦克风相关功能，与音量控制和音乐配置无关。
-     * 暂时注释此功能。
-     * </p>
-     */
-    /*
-     * private void initAudioComponent() {
-     * try {
-     * audioComponent = PeanutSDK.getInstance().audio();
-     * if (audioComponent != null) {
-     * audioComponent.initAudio(new OnAudioListener() {
-     * 
-     * @Override
-     * public void onSuccess() {
-     * Log.d(TAG, "AudioComponent 初始化成功");
-     * audioInitialized = true;
-     * }
-     * 
-     * @Override
-     * public void onError(int errorCode) {
-     * Log.e(TAG, "AudioComponent 初始化失败: " + errorCode);
-     * audioInitialized = false;
-     * }
-     * 
-     * @Override
-     * public void onAudioData(byte[] bytes, int len) {
-     * // 音频数据回调
-     * }
-     * 
-     * @Override
-     * public void onHeartbeat(int state) {
-     * // 心跳回调
-     * }
-     * });
-     * }
-     * } catch (Exception e) {
-     * Log.e(TAG, "AudioComponent 初始化异常", e);
-     * }
-     * }
-     */
+    private void loadConfigFromPrefs() {
+        String json = prefs.getString(KEY_AUDIO_CONFIG, "");
+        if (!TextUtils.isEmpty(json)) {
+            try {
+                audioConfig = gson.fromJson(json, AudioConfig.class);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to parse AudioConfig json", e);
+                // Fallback to default
+                audioConfig = new AudioConfig();
+                initDefaultConfig();
+            }
+        } else {
+            // First time logic
+            audioConfig = new AudioConfig();
+            initDefaultConfig();
+        }
+    }
+
+    private void saveConfigToPrefs() {
+        try {
+            String json = gson.toJson(audioConfig);
+            prefs.edit().putString(KEY_AUDIO_CONFIG, json).apply();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to save AudioConfig json", e);
+        }
+    }
+
+    private void initDefaultConfig() {
+        if (audioManager != null) {
+            int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+            int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+            int volPercent = (int) ((currentVolume / (float) maxVolume) * 100);
+
+            audioConfig.setVoiceVolume(volPercent);
+            audioConfig.setDeliveryVolume(volPercent);
+        } else {
+            audioConfig.setVoiceVolume(50);
+            audioConfig.setDeliveryVolume(50);
+        }
+        audioConfig.setAnnouncementFrequency(30);
+        audioConfig.setLoopAnnouncementFrequency(30);
+    }
+
+    private void initTTS() {
+        try {
+            mTTS = new TextToSpeech(context, status -> {
+                if (status == TextToSpeech.SUCCESS) {
+                    if (mTTS == null)
+                        return;
+                    int result = mTTS.setLanguage(Locale.CHINESE);
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e(TAG, "TTS Language not supported");
+                        // 尝试使用美式英语作为备用？或者提示用户下载
+                        // mTTS.setLanguage(Locale.US);
+                    } else {
+                        isTtsReady = true;
+                        Log.d(TAG, "TTS Initialized successfully");
+                    }
+
+                    mTTS.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override
+                        public void onStart(String utteranceId) {
+                            Log.d(TAG, "TTS Start: " + utteranceId);
+                        }
+
+                        @Override
+                        public void onDone(String utteranceId) {
+                            Log.d(TAG, "TTS Done: " + utteranceId);
+                        }
+
+                        @Override
+                        public void onError(String utteranceId) {
+                            Log.e(TAG, "TTS Error: " + utteranceId);
+                        }
+                    });
+                } else {
+                    Log.e(TAG, "TTS Init failed with status: " + status);
+                    // Init failed, maybe temporary.
+                    // Retry once after a delay if first time failure?
+                    // For now just log.
+                    isTtsReady = false;
+                    // 可选：尝试重试逻辑
+                    if (status == -1) { // -1 is often bind failure
+                        // Maybe try again in 2 seconds?
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            Log.d(TAG, "Retrying TTS init...");
+                            // Prevent infinite recursion loops if it keeps failing by not calling
+                            // recursively directly effectively
+                            // or just let user trigger action again.
+                            // Simple retry:
+                            // initTTS(); // Risk of loop
+                        }, 2000);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "TTS Constructor failed", e);
+        }
+    }
+
+    private void applySystemVolume() {
+        if (audioManager != null) {
+            // We mainly use STREAM_MUSIC. Both Voice and Music settings will affect this
+            // Logic: take the larger of the two as the system master volume?
+            // Or just use Music Volume for stream music.
+            // Simplified: Use Music Volume (DeliveryVolume) for STREAM_MUSIC
+            int vol = audioConfig.getDeliveryVolume();
+            int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+            int index = (int) (max * (vol / 100.0f));
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, index, 0);
+        }
+    }
 
     // ==================== 音乐设置 ====================
 
     @Override
     public void setDeliveryMusic(String musicPath, IResultCallback<Void> callback) {
-        Log.d(TAG, "setDeliveryMusic: " + musicPath);
         audioConfig.setDeliveryMusicPath(musicPath);
+        saveConfigToPrefs();
         notifySuccess(callback);
     }
 
     @Override
     public void setLoopMusic(String musicPath, IResultCallback<Void> callback) {
-        Log.d(TAG, "setLoopMusic: " + musicPath);
         audioConfig.setLoopMusicPath(musicPath);
+        saveConfigToPrefs();
         notifySuccess(callback);
+    }
+
+    @Override
+    public void setBackgroundMusicEnabled(boolean enabled, IResultCallback<Void> callback) {
+        audioConfig.setBackgroundMusicEnabled(enabled);
+        saveConfigToPrefs();
+
+        if (!enabled) {
+            stopBackgroundMusic(null);
+        }
+        notifySuccess(callback);
+    }
+
+    @Override
+    public void setVoiceAnnouncementEnabled(boolean enabled, IResultCallback<Void> callback) {
+        audioConfig.setVoiceAnnouncementEnabled(enabled);
+        saveConfigToPrefs();
+
+        if (!enabled) {
+            stopSpeak(null);
+        }
+        notifySuccess(callback);
+    }
+
+    // ==================== 播放控制 ====================
+
+    @Override
+    public void playBackgroundMusic(String musicPath, boolean loop, IResultCallback<Void> callback) {
+        if (!audioConfig.isBackgroundMusicEnabled()) {
+            Log.d(TAG, "背景音乐开关已关闭，忽略播放请求");
+            // Opt: notify success or specific error? Success implies "request handled"
+            notifySuccess(callback);
+            return;
+        }
+
+        Log.d(TAG, "playBackgroundMusic: " + musicPath);
+        if (TextUtils.isEmpty(musicPath)) {
+            notifyError(callback, -1, "音乐路径为空");
+            return;
+        }
+
+        try {
+            if (mediaPlayer != null) {
+                mediaPlayer.release();
+                mediaPlayer = null;
+            }
+
+            mediaPlayer = new MediaPlayer();
+
+            // Handle raw assets or file path
+            // For simplicity, assuming absolute file path first
+            File file = new File(musicPath);
+            Log.d(TAG, "Preparing to play: " + musicPath + ", Exists: " + file.exists() + ", Size: " + file.length());
+
+            if (file.exists()) {
+                mediaPlayer.setDataSource(musicPath); // This might throw
+            } else {
+                Log.e(TAG, "Music file not found: " + musicPath);
+                notifyError(callback, -2, "音乐文件不存在: " + musicPath);
+                return;
+            }
+
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mediaPlayer.setLooping(loop);
+
+            int deliveryVol = audioConfig.getDeliveryVolume();
+            float vol = deliveryVol / 100.0f;
+            Log.d(TAG, "Setting MediaPlayer volume: " + vol + " (Config: " + deliveryVol + ")");
+            mediaPlayer.setVolume(vol, vol);
+
+            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                Log.e(TAG, "MediaPlayer Error: what=" + what + ", extra=" + extra);
+                return false;
+            });
+
+            mediaPlayer.setOnPreparedListener(mp -> {
+                Log.d(TAG, "MediaPlayer prepared, starting...");
+                mp.start();
+                if (mp.isPlaying()) {
+                    Log.d(TAG, "MediaPlayer started successfully");
+                } else {
+                    Log.e(TAG, "MediaPlayer.start() called but isPlaying() is false");
+                }
+            });
+
+            Log.d(TAG, "Calling prepareAsync...");
+            mediaPlayer.prepareAsync(); // Use Async to avoid UI block and catch errors in listener
+            // Note: callback success is returned immediately, but actual playback starts
+            // later.
+            // Ideally we should wait for prepare, but existing interface is
+            // synchronous-like result.
+            notifySuccess(callback);
+
+        } catch (IOException e) {
+            Log.e(TAG, "播放音乐IO异常", e);
+            notifyError(callback, -3, "IO异常: " + e.getMessage());
+        } catch (Exception e) {
+            Log.e(TAG, "播放音乐异常", e);
+            notifyError(callback, -4, e.getMessage());
+        }
+    }
+
+    @Override
+    public void stopBackgroundMusic(IResultCallback<Void> callback) {
+        try {
+            if (mediaPlayer != null) {
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                }
+                mediaPlayer.reset(); // or release? better verify lifecycle.
+                // We keep instance or release? let's keep it null for clean state.
+                mediaPlayer.release();
+                mediaPlayer = null;
+            }
+            notifySuccess(callback);
+        } catch (Exception e) {
+            notifyError(callback, -1, e.getMessage());
+        }
+    }
+
+    @Override
+    public void pauseBackgroundMusic(IResultCallback<Void> callback) {
+        try {
+            if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+                mediaPlayer.pause();
+            }
+            notifySuccess(callback);
+        } catch (Exception e) {
+            notifyError(callback, -1, e.getMessage());
+        }
+    }
+
+    @Override
+    public void resumeBackgroundMusic(IResultCallback<Void> callback) {
+        try {
+            if (mediaPlayer != null && !mediaPlayer.isPlaying()) {
+                mediaPlayer.start();
+            }
+            notifySuccess(callback);
+        } catch (Exception e) {
+            notifyError(callback, -1, e.getMessage());
+        }
     }
 
     // ==================== 音量设置 ====================
 
     @Override
     public void setVoiceVolume(int volume, IResultCallback<Void> callback) {
-        Log.d(TAG, "setVoiceVolume: " + volume);
-        audioConfig.setVoiceVolume(clampVolume(volume));
+        int val = clampVolume(volume);
+        audioConfig.setVoiceVolume(val);
+        saveConfigToPrefs();
+        // 如果需要专门控制 TTS 音量， TextToSpeech 在 Android O+ 支持 setVolume(bundle) 但比较复杂
+        // 通常 TTS 跟随系统 STREAM_MUSIC。
+        // 这里我们不做 System Volume 的变更，因为 Voice Volume 往往指 TTS 的 gain
+        // 但为了简单，可以在 speak 时传入 params
         notifySuccess(callback);
     }
 
     @Override
     public void setDeliveryVolume(int volume, IResultCallback<Void> callback) {
-        Log.d(TAG, "setDeliveryVolume: " + volume);
-        audioConfig.setDeliveryVolume(clampVolume(volume));
+        int val = clampVolume(volume);
+        audioConfig.setDeliveryVolume(val);
+        saveConfigToPrefs();
+        applySystemVolume(); // Apply to system master volume
+
+        // Update running player if exists
+        if (mediaPlayer != null) {
+            float v = val / 100.0f;
+            mediaPlayer.setVolume(v, v);
+        }
         notifySuccess(callback);
     }
 
     @Override
     public void getVoiceVolume(IResultCallback<Integer> callback) {
-        if (callback != null) {
+        if (callback != null)
             callback.onSuccess(audioConfig.getVoiceVolume());
-        }
     }
 
     @Override
     public void getDeliveryVolume(IResultCallback<Integer> callback) {
-        if (callback != null) {
+        if (callback != null)
             callback.onSuccess(audioConfig.getDeliveryVolume());
+    }
+
+    // ==================== 语音播报 ====================
+
+    @Override
+    public void speak(String text, IResultCallback<Void> callback) {
+        if (!audioConfig.isVoiceAnnouncementEnabled()) {
+            Log.d(TAG, "语音播报开关已关闭，忽略播报请求");
+            notifySuccess(callback);
+            return;
         }
+
+        if (!isTtsReady || mTTS == null) {
+            // Attempt re-init or fail?
+            notifyError(callback, -1, "TTS服务未就绪");
+            return;
+        }
+
+        try {
+            // Use KEY_PARAM_VOLUME if we want to differentiate from system volume
+            // value is 0.0 to 1.0
+            float ttsVol = audioConfig.getVoiceVolume() / 100.0f;
+            android.os.Bundle params = new android.os.Bundle();
+            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVol);
+
+            // QUEUE_ADD allows daisy chaining, QUEUE_FLUSH interrupts
+            // Default to FLUSH for immediate response
+            int code = mTTS.speak(text, TextToSpeech.QUEUE_FLUSH, params, "ID_" + System.currentTimeMillis());
+
+            if (code == TextToSpeech.SUCCESS) {
+                notifySuccess(callback);
+            } else {
+                notifyError(callback, -2, "TTS Error Code: " + code);
+            }
+        } catch (Exception e) {
+            notifyError(callback, -3, e.getMessage());
+        }
+    }
+
+    @Override
+    public void stopSpeak(IResultCallback<Void> callback) {
+        if (mTTS != null) {
+            mTTS.stop();
+        }
+        notifySuccess(callback);
+    }
+
+    @Override
+    public void isSpeaking(IResultCallback<Boolean> callback) {
+        boolean speaking = (mTTS != null && mTTS.isSpeaking());
+        if (callback != null)
+            callback.onSuccess(speaking);
     }
 
     // ==================== 播报频率设置 ====================
 
     @Override
     public void setAnnouncementFrequency(int frequency, IResultCallback<Void> callback) {
-        Log.d(TAG, "setAnnouncementFrequency: " + frequency);
         audioConfig.setAnnouncementFrequency(frequency);
+        saveConfigToPrefs();
         notifySuccess(callback);
     }
 
     @Override
     public void setLoopAnnouncementFrequency(int frequency, IResultCallback<Void> callback) {
-        Log.d(TAG, "setLoopAnnouncementFrequency: " + frequency);
         audioConfig.setLoopAnnouncementFrequency(frequency);
+        saveConfigToPrefs();
         notifySuccess(callback);
     }
 
     @Override
     public void getAnnouncementFrequency(IResultCallback<Integer> callback) {
-        if (callback != null) {
+        if (callback != null)
             callback.onSuccess(audioConfig.getAnnouncementFrequency());
-        }
     }
 
     @Override
     public void getLoopAnnouncementFrequency(IResultCallback<Integer> callback) {
-        if (callback != null) {
+        if (callback != null)
             callback.onSuccess(audioConfig.getLoopAnnouncementFrequency());
-        }
     }
 
     // ==================== 配置管理 ====================
 
     @Override
     public void getAudioConfig(IResultCallback<AudioConfig> callback) {
-        if (callback != null) {
+        if (callback != null)
             callback.onSuccess(audioConfig);
-        }
     }
 
     @Override
     public void updateAudioConfig(AudioConfig config, IResultCallback<Void> callback) {
-        Log.d(TAG, "updateAudioConfig");
         if (config != null) {
             this.audioConfig = config;
+            saveConfigToPrefs();
+            // Apply volumes immediately
+            setDeliveryVolume(config.getDeliveryVolume(), null);
             notifySuccess(callback);
         } else {
-            notifyError(callback, -1, "配置不能为空");
+            notifyError(callback, -1, "Config is null");
         }
     }
 
-    /**
-     * 释放资源
-     * <p>
-     * 注意: audioComponent 相关代码已注释，此处也相应注释。
-     * </p>
-     */
+    @Override
     public void release() {
-        Log.d(TAG, "释放 AudioService 资源");
-        /*
-         * if (audioComponent != null && audioInitialized) {
-         * try {
-         * audioComponent.audioStop();
-         * Log.d(TAG, "AudioComponent 已停止");
-         * } catch (Exception e) {
-         * Log.e(TAG, "释放 AudioComponent 异常", e);
-         * }
-         * }
-         */
-        audioInitialized = false;
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+        if (mTTS != null) {
+            mTTS.stop();
+            mTTS.shutdown();
+            mTTS = null;
+        }
+        Log.d(TAG, "AudioService Released");
     }
 
     // ==================== 辅助方法 ====================
@@ -222,7 +505,7 @@ public class AudioServiceImpl implements IAudioService {
 
     private void notifyError(IResultCallback<?> callback, int code, String message) {
         if (callback != null) {
-            callback.onError(new com.weigao.robot.control.callback.ApiError(code, message));
+            callback.onError(new ApiError(code, message));
         }
     }
 }
