@@ -56,9 +56,7 @@ public class WeigaoApplication extends Application {
         // [新增] 注册全局急停监听
         com.weigao.robot.control.manager.GlobalScramManager.getInstance().init(this);
 
-        // [新增] 初始化设置管理器，确保开机时默认配置文件被写入本地
-        com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance();
-        com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance();
+
         
         // 全局处理全屏设置
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {

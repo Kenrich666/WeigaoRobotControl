@@ -226,7 +226,34 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void proceedToNextNode() {
-        // Pilot Next
+        // 先关门
+        com.weigao.robot.control.service.IDoorService doorService = ServiceManager.getInstance().getDoorService();
+        if (doorService != null) {
+            // true 表示关闭所有舱门
+            doorService.closeDoor(-1, new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    // 门关好后，再执行前往下一站
+                    runOnUiThread(() -> {
+                        startPilotNext();
+                    });
+                }
+                @Override
+                public void onError(ApiError error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(CircularDeliveryNavigationActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        // 即使关门失败，也尝试继续导航？或者让用户决定？这里选择继续尝试导航
+                         startPilotNext();
+                    });
+                }
+            });
+        } else {
+            // 服务不可用直接走
+            startPilotNext();
+        }
+    }
+
+    private void startPilotNext() {
         navigationService.pilotNext(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
@@ -239,8 +266,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             }
             @Override
             public void onError(ApiError error) {
-                // If it fails (e.g. no more nodes), we might be done
-                 runOnUiThread(() -> Toast.makeText(CircularDeliveryNavigationActivity.this, "无法前往下一站: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(CircularDeliveryNavigationActivity.this, "无法前往下一站: " + error.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }

@@ -116,6 +116,13 @@ public class MainActivity extends AppCompatActivity {
 
             if (allGranted && grantResults.length > 0) {
                Log.i(TAG, "Permissions granted.");
+
+               
+               // Reload settings after permission grant to ensure user preferences are loaded
+               com.weigao.robot.control.manager.AppSettingsManager.getInstance().reloadSettings();
+               com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().reloadSettings();
+               com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().reloadSettings();
+
                initRobotSDK();
             } else {
                 Log.e(TAG, "Permission denied. Some permissions were not granted.");
