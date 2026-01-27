@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#FFFFFF"
+    android:padding="32dp">
+
+    <ImageView
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@android:drawable/ic_dialog_alert"
+        android:layout_marginBottom="32dp"
+        android:contentDescription="Warning Icon"
+        app:tint="#FF5722" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="定位失败"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="请将机器人推回充电桩重新尝试定位"
+        android:textSize="24sp"
+        android:textColor="#666666"
+        android:layout_marginBottom="48dp"
+        android:gravity="center" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_retry"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:text="重试"
+            android:textSize="20sp"
+            android:background="@drawable/rounded_button_selected"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="32dp" />
+
+        <Button
+            android:id="@+id/btn_back"
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:text="取消"
+            android:textSize="20sp"
+            android:background="@drawable/rounded_button"
+            android:textColor="#333333" />
+    </LinearLayout>
+
+</LinearLayout>

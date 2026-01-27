@@ -44,6 +44,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     private INavigationService navigationService;
     private boolean isNavigating = false;
     private boolean isPaused = false;
+    private com.weigao.robot.control.service.IAudioService audioService;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -69,6 +70,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
     private void initService() {
         navigationService = ServiceManager.getInstance().getNavigationService();
+        audioService = ServiceManager.getInstance().getAudioService();
         if (navigationService != null) {
             navigationService.registerCallback(this);
         } else {
@@ -138,10 +140,16 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                // 播报
+                if (audioService != null) {
+                    audioService.speak("开始返航", null);
+                }
+
                 // 2. 设置速度
                 int speed = getIntent().getIntExtra("return_speed", -1);
                 if (speed == -1) {
-                    speed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed();
+                    speed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                            .getReturnSpeed();
                 }
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
@@ -270,12 +278,18 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             switch (state) {
                 // 判断到达
                 case Navigation.STATE_DESTINATION:
+                    if (audioService != null) {
+                        audioService.speak("已回到充电桩或原点", null);
+                    }
                     Toast.makeText(this, "已回到目标点", Toast.LENGTH_SHORT).show();
                     finish();
                     break;
                 case Navigation.STATE_BLOCKED:
                 case Navigation.STATE_COLLISION:
                     Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
+                    if (audioService != null) {
+                        audioService.speak("遇到障碍物", null);
+                    }
                     break;
             }
         });

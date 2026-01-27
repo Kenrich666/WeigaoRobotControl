@@ -62,7 +62,26 @@ public class AudioConfig implements Serializable {
         return loopAnnouncementFrequency;
     }
 
+    private boolean isBackgroundMusicEnabled = true; // Default true
+    private boolean isVoiceAnnouncementEnabled = true; // Default true
+
     public void setLoopAnnouncementFrequency(int loopAnnouncementFrequency) {
         this.loopAnnouncementFrequency = loopAnnouncementFrequency;
+    }
+
+    public boolean isBackgroundMusicEnabled() {
+        return isBackgroundMusicEnabled;
+    }
+
+    public void setBackgroundMusicEnabled(boolean backgroundMusicEnabled) {
+        isBackgroundMusicEnabled = backgroundMusicEnabled;
+    }
+
+    public boolean isVoiceAnnouncementEnabled() {
+        return isVoiceAnnouncementEnabled;
+    }
+
+    public void setVoiceAnnouncementEnabled(boolean voiceAnnouncementEnabled) {
+        isVoiceAnnouncementEnabled = voiceAnnouncementEnabled;
     }
 }

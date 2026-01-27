@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent targetIntent = new Intent(MainActivity.this, DeliveryActivity.class);
                 targetIntent.putExtra("delivery_type", "物品配送");
-                
+
                 Intent passwordIntent = new Intent(MainActivity.this, PasswordActivity.class);
                 passwordIntent.putExtra("target_intent", targetIntent);
                 startActivity(passwordIntent);
@@ -87,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
                         Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
             ActivityCompat.requestPermissions(this,
-                    new String[]{
+                    new String[] {
                             Manifest.permission.READ_EXTERNAL_STORAGE,
                             Manifest.permission.WRITE_EXTERNAL_STORAGE,
                             Manifest.permission.READ_PHONE_STATE,
@@ -96,14 +96,14 @@ public class MainActivity extends AppCompatActivity {
                     },
                     REQUEST_CODE_PERMISSIONS);
         } else {
-             Log.i(TAG, "Permissions already granted.");
-             initRobotSDK();
+            Log.i(TAG, "Permissions already granted.");
+            initRobotSDK();
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
+            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             boolean allGranted = true;
@@ -115,8 +115,8 @@ public class MainActivity extends AppCompatActivity {
             }
 
             if (allGranted && grantResults.length > 0) {
-               Log.i(TAG, "Permissions granted.");
-               initRobotSDK();
+                Log.i(TAG, "Permissions granted.");
+                initRobotSDK();
             } else {
                 Log.e(TAG, "Permission denied. Some permissions were not granted.");
                 // 可以添加弹窗提示用户手动开启权限
@@ -125,22 +125,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initRobotSDK() {
-        com.weigao.robot.control.app.WeigaoApplication app = com.weigao.robot.control.app.WeigaoApplication.getInstance();
-        
+        // 权限已获取，初始化设置管理器
+        com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance();
+        com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance();
+        // 尝试初始化 App 设置（如果之前失败）
+        try {
+            com.weigao.robot.control.manager.AppSettingsManager.getInstance();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to init AppSettingsManager", e);
+        }
+
+        com.weigao.robot.control.app.WeigaoApplication app = com.weigao.robot.control.app.WeigaoApplication
+                .getInstance();
+
         app.setSdkInitListener(new com.weigao.robot.control.app.WeigaoApplication.SdkInitListener() {
             @Override
             public void onSdkInitSuccess() {
                 runOnUiThread(() -> {
-                     Log.i(TAG, "SDK初始化成功，弹出定位窗口");
-                     Intent intent = new Intent(MainActivity.this, PositioningActivity.class);
-                     startActivity(intent);
+                    Log.i(TAG, "SDK初始化成功，弹出定位窗口");
+                    Intent intent = new Intent(MainActivity.this, PositioningActivity.class);
+                    startActivity(intent);
                 });
             }
 
             @Override
             public void onSdkInitError(int errorCode) {
                 runOnUiThread(() -> {
-                    android.widget.Toast.makeText(MainActivity.this, "SDK初始化失败: " + errorCode, android.widget.Toast.LENGTH_LONG).show();
+                    android.widget.Toast
+                            .makeText(MainActivity.this, "SDK初始化失败: " + errorCode, android.widget.Toast.LENGTH_LONG)
+                            .show();
                 });
             }
         });

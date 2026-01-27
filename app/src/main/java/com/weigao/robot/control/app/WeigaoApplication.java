@@ -52,36 +52,47 @@ public class WeigaoApplication extends Application {
         super.onCreate();
         instance = this;
         Log.i(TAG, "WeigaoApplication onCreate");
-        
+
         // [新增] 注册全局急停监听
         com.weigao.robot.control.manager.GlobalScramManager.getInstance().init(this);
 
         // [新增] 初始化设置管理器，确保开机时默认配置文件被写入本地
-        com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance();
-        com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance();
-        
+        // 移至权限获取后初始化
+        // com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance();
+        // com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance();
+
         // 全局处理全屏设置
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(android.app.Activity activity, android.os.Bundle savedInstanceState) {
                 applyGlobalSettings(activity);
             }
+
             @Override
             public void onActivityStarted(android.app.Activity activity) {
                 applyGlobalSettings(activity);
             }
+
             @Override
             public void onActivityResumed(android.app.Activity activity) {
                 applyGlobalSettings(activity);
             }
+
             @Override
-            public void onActivityPaused(android.app.Activity activity) {}
+            public void onActivityPaused(android.app.Activity activity) {
+            }
+
             @Override
-            public void onActivityStopped(android.app.Activity activity) {}
+            public void onActivityStopped(android.app.Activity activity) {
+            }
+
             @Override
-            public void onActivitySaveInstanceState(android.app.Activity activity, android.os.Bundle outState) {}
+            public void onActivitySaveInstanceState(android.app.Activity activity, android.os.Bundle outState) {
+            }
+
             @Override
-            public void onActivityDestroyed(android.app.Activity activity) {}
+            public void onActivityDestroyed(android.app.Activity activity) {
+            }
         });
 
         // 移除 onCreate 中的初始化，改为由 MainActivity 请求权限后调用
@@ -90,17 +101,23 @@ public class WeigaoApplication extends Application {
 
     private void applyGlobalSettings(android.app.Activity activity) {
         // Use AppSettingsManager for persistent storage
-        boolean isFullscreen = com.weigao.robot.control.manager.AppSettingsManager.getInstance().isFullScreen();
+        boolean isFullscreen = false;
+        try {
+            isFullscreen = com.weigao.robot.control.manager.AppSettingsManager.getInstance().isFullScreen();
+        } catch (Exception e) {
+            // Permission denied or other error
+        }
+
         if (isFullscreen) {
             activity.getWindow().getDecorView().setSystemUiVisibility(
                     android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+                            | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         } else {
-             activity.getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            activity.getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         }
     }
 

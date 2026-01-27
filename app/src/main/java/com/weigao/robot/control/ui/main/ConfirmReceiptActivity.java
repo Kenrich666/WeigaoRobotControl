@@ -19,8 +19,10 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
+
 import android.content.Intent;
 import android.os.CountDownTimer;
+
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 
 import java.util.ArrayList;
@@ -28,7 +30,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import androidx.appcompat.app.AlertDialog;
+
 import com.weigao.robot.control.model.ItemDeliveryRecord;
 
 /**
@@ -45,7 +49,6 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     private TextView tvArrivalDuration;
     private TextView layerL1, layerL2, layerL3;
     private Button btnOpenCabin;
-    private AlertDialog durationDialog;
 
     // 舱门服务
     private IDoorService doorService;
@@ -292,7 +295,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
     /**
      * 尝试关闭舱门并离开
-     * 
+     *
      * @param isManual 是否是手动触发
      */
     private void attemptCloseAndLeave(boolean isManual) {
@@ -382,9 +385,6 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        if (durationDialog != null && durationDialog.isShowing()) {
-            durationDialog.dismiss();
-        }
         if (departureTimer != null) {
             departureTimer.cancel();
             departureTimer = null;
@@ -426,7 +426,6 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                     if (record != null) {
                         tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
                         tvArrivalDuration.setVisibility(View.VISIBLE);
-                        showDurationDialog(record.getFormattedDuration());
                     }
 
                     // 防止连击，延迟3秒启用确认收货按钮
@@ -454,20 +453,4 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         });
     }
 
-    private void showDurationDialog(String duration) {
-        if (isFinishing())
-            return;
-
-        // 如果已经有显示的对话框，先关闭
-        if (durationDialog != null && durationDialog.isShowing()) {
-            durationDialog.dismiss();
-        }
-
-        durationDialog = new AlertDialog.Builder(this)
-                .setTitle("配送记录")
-                .setMessage("本次配送到达时长: " + duration)
-                .setPositiveButton("确定", null)
-                .setCancelable(false)
-                .show();
-    }
 }

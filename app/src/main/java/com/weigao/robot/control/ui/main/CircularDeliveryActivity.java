@@ -51,6 +51,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+
 // 循环配送的
 /**
  * 循环配送 vs 普通配送 模式对比
@@ -60,10 +61,14 @@ import java.util.List;
  *
  * | 功能模块 | 文件名 | 功能描述 |
  * | :--- | :--- | :--- |
- * | **入口/配置** | {@link CircularDeliveryActivity} | **主页面**。负责展示和管理“循环路线”列表。用户在此新建/编辑路线（设置途经点、循环次数），检查舱门状态，并启动循环任务。 |
- * | **导航中** | {@link CircularDeliveryNavigationActivity} | **导航控制中心**。负责执行循环逻辑（按设定的循环次数重复跑点）。显示当前第几轮、第几个点位，处理暂停/继续/结束导航的逻辑。 |
- * | **到达处理** | {@link CircularArrivalActivity} | **到达站点页面**。到达某个点位后弹出。包含一个30秒倒计时（倒计时结束自动前往下一站或返航）。提供“开门”、“继续下一站”、“结束返航”等操作。 |
- * | **历史记录** | {@link CircularDeliveryHistoryActivity} | **历史记录页面**。展示循环配送的过往记录，包括路线名称、完成的循环次数、状态（完成/取消）和耗时。 |
+ * | **入口/配置** | {@link CircularDeliveryActivity} |
+ * **主页面**。负责展示和管理“循环路线”列表。用户在此新建/编辑路线（设置途经点、循环次数），检查舱门状态，并启动循环任务。 |
+ * | **导航中** | {@link CircularDeliveryNavigationActivity} |
+ * **导航控制中心**。负责执行循环逻辑（按设定的循环次数重复跑点）。显示当前第几轮、第几个点位，处理暂停/继续/结束导航的逻辑。 |
+ * | **到达处理** | {@link CircularArrivalActivity} |
+ * **到达站点页面**。到达某个点位后弹出。包含一个30秒倒计时（倒计时结束自动前往下一站或返航）。提供“开门”、“继续下一站”、“结束返航”等操作。 |
+ * | **历史记录** | {@link CircularDeliveryHistoryActivity} |
+ * **历史记录页面**。展示循环配送的过往记录，包括路线名称、完成的循环次数、状态（完成/取消）和耗时。 |
  *
  * ---
  *
@@ -72,11 +77,18 @@ import java.util.List;
  *
  * | 功能模块 | 文件名 | 功能描述 |
  * | :--- | :--- | :--- |
- * | **入口/配置** | {@link DeliveryActivity} | **主页面**。负责舱门（层级）与点位的配对（例如L1层送到A点）。检查舱门状态，处理多层配对逻辑，启动配送任务。 |
- * | **导航中** | {@link DeliveryNavigationActivity} | **导航控制中心**。负责处理配对好的任务列表。它会优化路径（合并相同目的地的任务），按顺序导航到目标点，并在途中显示配送状态。 |
- * | **到达处理** | {@link ConfirmReceiptActivity} | **取货确认页面**。到达目标点后弹出。**核心区别**：这里需要验证**密码**才能开门取货。界面会高亮显示当前需要取货的层级（L1/L2/L3），并有“确认收货”流程。 |
- * | **到达处理** | {@link ConfirmReceiptActivity} | **取货确认页面**。到达目标点后弹出。**核心区别**：这里需要验证**密码**才能开门取货。界面会高亮显示当前需要取货的层级（L1/L2/L3），并有“确认收货”流程。 |
- * | **历史记录** | {@link ItemDeliveryHistoryActivity} | **历史记录页面**。展示单次物品配送的详细记录，精确到每个点位的到达时间、耗时以及任务ID。 |
+ * | **入口/配置** | {@link DeliveryActivity} |
+ * **主页面**。负责舱门（层级）与点位的配对（例如L1层送到A点）。检查舱门状态，处理多层配对逻辑，启动配送任务。 |
+ * | **导航中** | {@link DeliveryNavigationActivity} |
+ * **导航控制中心**。负责处理配对好的任务列表。它会优化路径（合并相同目的地的任务），按顺序导航到目标点，并在途中显示配送状态。 |
+ * | **到达处理** | {@link ConfirmReceiptActivity} |
+ * **取货确认页面**。到达目标点后弹出。**核心区别**：这里需要验证**密码**才能开门取货。界面会高亮显示当前需要取货的层级（L1/L2/L3），并有“确认收货”流程。
+ * |
+ * | **到达处理** | {@link ConfirmReceiptActivity} |
+ * **取货确认页面**。到达目标点后弹出。**核心区别**：这里需要验证**密码**才能开门取货。界面会高亮显示当前需要取货的层级（L1/L2/L3），并有“确认收货”流程。
+ * |
+ * | **历史记录** | {@link ItemDeliveryHistoryActivity} |
+ * **历史记录页面**。展示单次物品配送的详细记录，精确到每个点位的到达时间、耗时以及任务ID。 |
  *
  * ---
  *
@@ -84,8 +96,12 @@ import java.util.List;
  *
  * | 模式 | 管理器类名 | 记录类名 | 用途 |
  * | :--- | :--- | :--- | :--- |
- * | **循环配送** | {@link com.weigao.robot.control.manager.CircularDeliveryHistoryManager} | {@link CircularDeliveryRecord} | 负责保存、读取和清空循环配送的历史记录。记录字段包括：任务名、循环数、耗时、状态等。 |
- * | **普通配送** | {@link com.weigao.robot.control.manager.ItemDeliveryManager} | {@link com.weigao.robot.control.model.ItemDeliveryRecord} | 负责记录单次配送的点位到达情况。记录字段包括：任务ID、点位名、到达时间、耗时、具体状态（成功/超时/失败）等。 |
+ * | **循环配送** |
+ * {@link com.weigao.robot.control.manager.CircularDeliveryHistoryManager} |
+ * {@link CircularDeliveryRecord} | 负责保存、读取和清空循环配送的历史记录。记录字段包括：任务名、循环数、耗时、状态等。 |
+ * | **普通配送** | {@link com.weigao.robot.control.manager.ItemDeliveryManager} |
+ * {@link com.weigao.robot.control.model.ItemDeliveryRecord} |
+ * 负责记录单次配送的点位到达情况。记录字段包括：任务ID、点位名、到达时间、耗时、具体状态（成功/超时/失败）等。 |
  */
 public class CircularDeliveryActivity extends AppCompatActivity {
     private static final String TAG = "CircularDeliveryAct";
@@ -116,17 +132,18 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         findViewById(R.id.back_button).setOnClickListener(v -> finish());
         findViewById(R.id.return_sc_button).setOnClickListener(v -> {
             Intent intent = new Intent(this, ReturnActivity.class);
-            intent.putExtra("return_speed", com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
+            intent.putExtra("return_speed",
+                    com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
             startActivity(intent);
         });
 
         openDoorButton = findViewById(R.id.open_door_button);
         setupDoorButton();
-        
+
         // History Button
         // History Button
         findViewById(R.id.history_button).setOnClickListener(v -> {
-             startActivity(new Intent(this, CircularDeliveryHistoryActivity.class));
+            startActivity(new Intent(this, CircularDeliveryHistoryActivity.class));
         });
 
         // 2. Routes List
@@ -159,7 +176,8 @@ public class CircularDeliveryActivity extends AppCompatActivity {
     }
 
     private void setupDoorButton() {
-        if (doorService == null) return;
+        if (doorService == null)
+            return;
         updateDoorButtonState();
         openDoorButton.setOnClickListener(v -> {
             openDoorButton.setEnabled(false);
@@ -172,14 +190,17 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                                 @Override
                                 public void onSuccess(Void result) {
                                     runOnUiThread(() -> {
-                                        Toast.makeText(CircularDeliveryActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(CircularDeliveryActivity.this, "舱门已打开", Toast.LENGTH_SHORT)
+                                                .show();
                                         updateDoorButtonState();
                                     });
                                 }
+
                                 @Override
                                 public void onError(ApiError error) {
                                     runOnUiThread(() -> {
-                                        Toast.makeText(CircularDeliveryActivity.this, "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(CircularDeliveryActivity.this, "开门失败: " + error.getMessage(),
+                                                Toast.LENGTH_SHORT).show();
                                         openDoorButton.setEnabled(true);
                                     });
                                 }
@@ -189,14 +210,17 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                                 @Override
                                 public void onSuccess(Void result) {
                                     runOnUiThread(() -> {
-                                        Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT)
+                                                .show();
                                         updateDoorButtonState();
                                     });
                                 }
+
                                 @Override
                                 public void onError(ApiError error) {
                                     runOnUiThread(() -> {
-                                        Toast.makeText(CircularDeliveryActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(CircularDeliveryActivity.this, "关门失败: " + error.getMessage(),
+                                                Toast.LENGTH_SHORT).show();
                                         openDoorButton.setEnabled(true);
                                     });
                                 }
@@ -204,6 +228,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                         }
                     });
                 }
+
                 @Override
                 public void onError(ApiError error) {
                     runOnUiThread(() -> openDoorButton.setEnabled(true));
@@ -213,7 +238,8 @@ public class CircularDeliveryActivity extends AppCompatActivity {
     }
 
     private void updateDoorButtonState() {
-        if (doorService == null) return;
+        if (doorService == null)
+            return;
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
@@ -222,13 +248,16 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                     new Handler().postDelayed(() -> openDoorButton.setEnabled(true), 2000);
                 });
             }
+
             @Override
-            public void onError(ApiError error) { }
+            public void onError(ApiError error) {
+            }
         });
     }
 
     private void loadMapNodes() {
-        if (robotStateService == null) return;
+        if (robotStateService == null)
+            return;
         robotStateService.getDestinationList(new IResultCallback<String>() {
             @Override
             public void onSuccess(String result) {
@@ -237,15 +266,15 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                         availableNodes.clear();
                         JSONObject resultObj = new JSONObject(result);
                         JSONArray jsonArray = resultObj.optJSONArray("data");
-                        
+
                         // Clear static origin points to avoid duplicates or stale data
                         DeliveryActivity.originPoints.clear();
-                        
+
                         if (jsonArray != null) {
                             for (int i = 0; i < jsonArray.length(); i++) {
                                 JSONObject obj = jsonArray.getJSONObject(i);
                                 String type = obj.optString("type");
-                                
+
                                 NavigationNode node = new NavigationNode();
                                 node.setId(obj.optInt("id"));
                                 node.setName(obj.optString("name"));
@@ -255,13 +284,13 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                                     availableNodes.add(node);
                                 } else if ("origin".equals(type)) {
                                     // Ensure we have origin points for return navigation
-                                    if (!DeliveryActivity.originPoints.contains(node)) { 
-                                         // Simple duplicate check or just clear before loading?
-                                         // Since we append, maybe better to clear before loop?
-                                         // But this is inside a loop inside a thread.
-                                         // Let's just add it. DeliveryActivity clears it before load.
-                                         // We should ideally clear it before this loop starts.
-                                         DeliveryActivity.originPoints.add(node);
+                                    if (!DeliveryActivity.originPoints.contains(node)) {
+                                        // Simple duplicate check or just clear before loading?
+                                        // Since we append, maybe better to clear before loop?
+                                        // But this is inside a loop inside a thread.
+                                        // Let's just add it. DeliveryActivity clears it before load.
+                                        // We should ideally clear it before this loop starts.
+                                        DeliveryActivity.originPoints.add(node);
                                     }
                                 }
                             }
@@ -271,6 +300,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                     }
                 }).start();
             }
+
             @Override
             public void onError(ApiError error) {
                 Log.e(TAG, "Failed to load nodes: " + error.getMessage());
@@ -295,7 +325,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                 JSONObject obj = new JSONObject();
                 obj.put("name", route.getName());
                 obj.put("loop", route.getLoopCount());
-                
+
                 JSONArray nodesArr = new JSONArray();
                 for (NavigationNode node : route.getNodes()) {
                     JSONObject n = new JSONObject();
@@ -307,11 +337,11 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                 obj.put("nodes", nodesArr);
                 array.put(obj);
             }
-            
+
             try (java.io.FileWriter writer = new java.io.FileWriter(file)) {
                 writer.write(array.toString());
             }
-            
+
         } catch (Exception e) { // Catch JSONException or IOException
             Log.e(TAG, "Error saving routes to file", e);
         }
@@ -319,7 +349,8 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
     private void loadRoutesFromPrefs() {
         File file = new File(android.os.Environment.getExternalStorageDirectory(), ROUTES_DIR + "/" + ROUTES_FILE);
-        if (!file.exists()) return;
+        if (!file.exists())
+            return;
 
         try {
             StringBuilder sb = new StringBuilder();
@@ -337,7 +368,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                 String name = obj.getString("name");
                 int loop = obj.getInt("loop");
                 JSONArray nodesArr = obj.getJSONArray("nodes");
-                
+
                 List<NavigationNode> nodes = new ArrayList<>();
                 for (int j = 0; j < nodesArr.length(); j++) {
                     JSONObject n = nodesArr.getJSONObject(j);
@@ -348,10 +379,11 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                 }
                 savedRoutes.add(new CircularRoute(name, nodes, loop));
             }
-            if (routeAdapter != null) routeAdapter.notifyDataSetChanged();
-            
+            if (routeAdapter != null)
+                routeAdapter.notifyDataSetChanged();
+
         } catch (Exception e) {
-             Log.e(TAG, "Error loading routes from file", e);
+            Log.e(TAG, "Error loading routes from file", e);
         }
     }
 
@@ -361,8 +393,38 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             return;
         }
 
+        Button startNavBtn = findViewById(R.id.start_navigation_button);
+        if (startNavBtn != null)
+            startNavBtn.setEnabled(false);
+
+        if (robotStateService != null) {
+            Toast.makeText(this, "正在检查定位状态...", Toast.LENGTH_SHORT).show();
+            robotStateService.performLocalization(new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    runOnUiThread(() -> checkDoorsAndProceed(startNavBtn));
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    runOnUiThread(() -> {
+                        if (startNavBtn != null)
+                            startNavBtn.setEnabled(true);
+                        Intent intent = new Intent(CircularDeliveryActivity.this, PositioningFailedActivity.class);
+                        startActivity(intent);
+                    });
+                }
+            });
+        } else {
+            checkDoorsAndProceed(startNavBtn);
+        }
+    }
+
+    private void checkDoorsAndProceed(View btn) {
         if (doorService == null) {
             proceedToNavigation();
+            if (btn != null)
+                btn.setEnabled(true);
             return;
         }
 
@@ -373,6 +435,8 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (allClosed) {
                         proceedToNavigation();
+                        if (btn != null)
+                            btn.setEnabled(true);
                     } else {
                         Toast.makeText(CircularDeliveryActivity.this, "舱门未关，正在自动关闭...", Toast.LENGTH_SHORT).show();
                         doorService.closeAllDoors(new IResultCallback<Void>() {
@@ -381,21 +445,35 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                                 runOnUiThread(() -> {
                                     Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
                                     // Update button state just in case
-                                    updateDoorButtonState(); 
+                                    updateDoorButtonState();
                                     proceedToNavigation();
+                                    if (btn != null)
+                                        btn.setEnabled(true);
                                 });
                             }
+
                             @Override
                             public void onError(ApiError error) {
-                                runOnUiThread(() -> Toast.makeText(CircularDeliveryActivity.this, "关门失败，请手动关闭: " + error.getMessage(), Toast.LENGTH_LONG).show());
+                                runOnUiThread(() -> {
+                                    Toast.makeText(CircularDeliveryActivity.this, "关门失败，请手动关闭: " + error.getMessage(),
+                                            Toast.LENGTH_LONG).show();
+                                    if (btn != null)
+                                        btn.setEnabled(true);
+                                });
                             }
                         });
                     }
                 });
             }
+
             @Override
             public void onError(ApiError error) {
-                runOnUiThread(() -> Toast.makeText(CircularDeliveryActivity.this, "检查舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    Toast.makeText(CircularDeliveryActivity.this, "检查舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT)
+                            .show();
+                    if (btn != null)
+                        btn.setEnabled(true);
+                });
             }
         });
     }
@@ -404,10 +482,10 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         Intent intent = new Intent(this, CircularDeliveryNavigationActivity.class);
         intent.putExtra("route_name", selectedRoute.getName());
         intent.putExtra("loop_count", selectedRoute.getLoopCount());
-        
+
         ArrayList<NavigationNode> nodes = (ArrayList<NavigationNode>) selectedRoute.getNodes();
         intent.putExtra("route_nodes", nodes);
-        
+
         startActivity(intent);
     }
 
@@ -439,8 +517,9 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             tvDialogTitle.setText("编辑路线");
             etRouteName.setText(routeToEdit.getName());
             etLoopCount.setText(String.valueOf(routeToEdit.getLoopCount()));
-            
-            // Match existing nodes with available nodes by ID to ensure equality checks work
+
+            // Match existing nodes with available nodes by ID to ensure equality checks
+            // work
             for (NavigationNode node : routeToEdit.getNodes()) {
                 for (NavigationNode avail : availableNodes) {
                     if (avail.getId() == node.getId()) {
@@ -455,7 +534,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             etRouteName.setText("");
             etLoopCount.setText("1");
         }
-        
+
         if (nodeSelectorAdapter != null) {
             nodeSelectorAdapter.notifyDataSetChanged();
         }
@@ -464,17 +543,19 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
     private void initOverlay() {
         createRouteOverlay = findViewById(R.id.create_route_overlay);
-        
+
         etRouteName = createRouteOverlay.findViewById(R.id.et_route_name);
         etLoopCount = createRouteOverlay.findViewById(R.id.et_loop_count);
-        // Assuming the TextView for title is the first one or give it an ID. 
-        // In previous replace it didn't have ID. Let's try to find it dynamically or assume standard layout.
+        // Assuming the TextView for title is the first one or give it an ID.
+        // In previous replace it didn't have ID. Let's try to find it dynamically or
+        // assume standard layout.
         // Wait, looking at xml in thought, the title TextView didn't have an ID.
         // I'll grab it by child index? LinearLayout is 0th child of FrameLayout?
-        // LinearLayout ll = (LinearLayout) ((FrameLayout)createRouteOverlay).getChildAt(0);
-        // tvDialogTitle = (TextView) ll.getChildAt(0); 
-        
-        LinearLayout ll = (LinearLayout) ((android.widget.FrameLayout)createRouteOverlay).getChildAt(0);
+        // LinearLayout ll = (LinearLayout)
+        // ((FrameLayout)createRouteOverlay).getChildAt(0);
+        // tvDialogTitle = (TextView) ll.getChildAt(0);
+
+        LinearLayout ll = (LinearLayout) ((android.widget.FrameLayout) createRouteOverlay).getChildAt(0);
         tvDialogTitle = (TextView) ll.getChildAt(0);
 
         RecyclerView rvNodes = createRouteOverlay.findViewById(R.id.rv_node_selection);
@@ -517,7 +598,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         }
 
         CircularRoute newRoute = new CircularRoute(name, new ArrayList<>(dialogSelectedNodes), loop);
-        
+
         if (editingRouteIndex >= 0 && editingRouteIndex < savedRoutes.size()) {
             // Update
             savedRoutes.set(editingRouteIndex, newRoute);
@@ -527,13 +608,11 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             savedRoutes.add(newRoute);
             Toast.makeText(this, "路线已创建", Toast.LENGTH_SHORT).show();
         }
-        
+
         saveRoutesToPrefs();
         routeAdapter.notifyDataSetChanged();
         closeOverlay();
     }
-
-
 
     interface OnRouteClickListener {
         void onClick(CircularRoute route);
@@ -554,9 +633,9 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             android.widget.LinearLayout root = new android.widget.LinearLayout(parent.getContext());
             int h80dp = (int) (80 * parent.getResources().getDisplayMetrics().density);
             int m8dp = (int) (8 * parent.getResources().getDisplayMetrics().density);
-            
+
             android.widget.LinearLayout.LayoutParams params = new android.widget.LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, h80dp);
+                    ViewGroup.LayoutParams.MATCH_PARENT, h80dp);
             params.setMargins(m8dp, m8dp, m8dp, m8dp);
             root.setLayoutParams(params);
             root.setOrientation(android.widget.LinearLayout.HORIZONTAL);
@@ -578,45 +657,47 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             CircularRoute route = list.get(position);
             holder.text.setText(route.getName());
-            
+
             boolean isSelected = (selectedRoute == route);
-            holder.itemView.setBackgroundResource(isSelected ? R.drawable.rounded_button_selected : R.drawable.rounded_button);
-            
+            holder.itemView
+                    .setBackgroundResource(isSelected ? R.drawable.rounded_button_selected : R.drawable.rounded_button);
+
             holder.itemView.setOnClickListener(v -> listener.onClick(route));
-            
+
             // Updated Long Click for Edit/Delete
             holder.itemView.setOnLongClickListener(v -> {
-                String[] options = {"编辑", "删除"};
+                String[] options = { "编辑", "删除" };
                 new AlertDialog.Builder(CircularDeliveryActivity.this)
-                    .setTitle("操作: " + route.getName())
-                    .setItems(options, (dialog, which) -> {
-                        if (which == 0) {
-                            // Edit
-                            openRouteEditor(route, position);
-                        } else {
-                            // Delete
-                            confirmDelete(route, position);
-                        }
-                    })
-                    .show();
-                 return true;
+                        .setTitle("操作: " + route.getName())
+                        .setItems(options, (dialog, which) -> {
+                            if (which == 0) {
+                                // Edit
+                                openRouteEditor(route, position);
+                            } else {
+                                // Delete
+                                confirmDelete(route, position);
+                            }
+                        })
+                        .show();
+                return true;
             });
         }
-        
+
         private void confirmDelete(CircularRoute route, int position) {
-             new AlertDialog.Builder(CircularDeliveryActivity.this)
-                .setTitle("删除路线")
-                .setMessage("确定要删除路线 " + route.getName() + " 吗？")
-                .setPositiveButton("确定", (d, w) -> {
-                    if (position < list.size()) {
-                        list.remove(position);
-                        if (selectedRoute == route) selectedRoute = null;
-                        saveRoutesToPrefs();
-                        notifyDataSetChanged();
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+            new AlertDialog.Builder(CircularDeliveryActivity.this)
+                    .setTitle("删除路线")
+                    .setMessage("确定要删除路线 " + route.getName() + " 吗？")
+                    .setPositiveButton("确定", (d, w) -> {
+                        if (position < list.size()) {
+                            list.remove(position);
+                            if (selectedRoute == route)
+                                selectedRoute = null;
+                            saveRoutesToPrefs();
+                            notifyDataSetChanged();
+                        }
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
         }
 
         @Override
@@ -626,9 +707,10 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView text;
-            ViewHolder(View v, TextView tv) { 
-                super(v); 
-                text = tv; 
+
+            ViewHolder(View v, TextView tv) {
+                super(v);
+                text = tv;
             }
         }
     }
@@ -647,21 +729,21 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             // Programmatically create item_node_selection.xml equivalent
             // XML was: TextView (rounded_button)
-            
+
             TextView tv = new TextView(parent.getContext());
             int h50dp = (int) (50 * parent.getResources().getDisplayMetrics().density);
             int m4dp = (int) (4 * parent.getResources().getDisplayMetrics().density);
-            
+
             ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, h50dp);
+                    ViewGroup.LayoutParams.MATCH_PARENT, h50dp);
             params.setMargins(m4dp, m4dp, m4dp, m4dp);
             tv.setLayoutParams(params);
-            
+
             tv.setGravity(android.view.Gravity.CENTER);
             tv.setTextColor(Color.BLACK);
             tv.setTextSize(16);
             tv.setBackgroundResource(R.drawable.rounded_button);
-            
+
             return new ViewHolder(tv);
         }
 
@@ -669,10 +751,11 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             NavigationNode node = allNodes.get(position);
             holder.text.setText(node.getName());
-            
+
             boolean isSelected = selectedNodes.contains(node);
-            holder.text.setBackgroundResource(isSelected ? R.drawable.rounded_button_selected : R.drawable.rounded_button);
-            
+            holder.text
+                    .setBackgroundResource(isSelected ? R.drawable.rounded_button_selected : R.drawable.rounded_button);
+
             holder.itemView.setOnClickListener(v -> {
                 if (isSelected) {
                     selectedNodes.remove(node);
@@ -690,7 +773,11 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView text;
-            ViewHolder(View v) { super(v); text = (TextView)v; }
+
+            ViewHolder(View v) {
+                super(v);
+                text = (TextView) v;
+            }
         }
     }
 
@@ -699,13 +786,19 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         public void onDoorStateChanged(int doorId, int state) {
             runOnUiThread(() -> updateDoorButtonState());
         }
+
         @Override
-        public void onDoorTypeChanged(DoorType type) {}
+        public void onDoorTypeChanged(DoorType type) {
+        }
+
         @Override
-        public void onDoorTypeSettingResult(boolean success) {}
+        public void onDoorTypeSettingResult(boolean success) {
+        }
+
         @Override
         public void onDoorError(int doorId, int errorCode) {
-             runOnUiThread(() -> Toast.makeText(CircularDeliveryActivity.this, "舱门错误: " + errorCode, Toast.LENGTH_SHORT).show());
+            runOnUiThread(() -> Toast.makeText(CircularDeliveryActivity.this, "舱门错误: " + errorCode, Toast.LENGTH_SHORT)
+                    .show());
         }
     };
 
@@ -717,4 +810,3 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         }
     }
 }
-
