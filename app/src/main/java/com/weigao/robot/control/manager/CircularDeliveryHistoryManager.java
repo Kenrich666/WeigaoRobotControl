@@ -17,27 +17,27 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DeliveryHistoryManager {
-    private static final String TAG = "DeliveryHistoryManager";
+public class CircularDeliveryHistoryManager {
+    private static final String TAG = "CircularDeliveryHistoryManager";
     private static final String HISTORY_DIR = "WeigaoRobot/history";
     private static final String HISTORY_FILE = "delivery_history.json";
     
     // Limits the history to avoid overflow, e.g., last 100 records
     private static final int MAX_HISTORY_SIZE = 100; 
 
-    private static DeliveryHistoryManager instance;
+    private static CircularDeliveryHistoryManager instance;
     private Context context;
     private List<CircularDeliveryRecord> historyList;
 
-    private DeliveryHistoryManager(Context context) {
+    private CircularDeliveryHistoryManager(Context context) {
         this.context = context.getApplicationContext();
         this.historyList = new ArrayList<>();
         loadHistory();
     }
 
-    public static synchronized DeliveryHistoryManager getInstance(Context context) {
+    public static synchronized CircularDeliveryHistoryManager getInstance(Context context) {
         if (instance == null) {
-            instance = new DeliveryHistoryManager(context);
+            instance = new CircularDeliveryHistoryManager(context);
         }
         return instance;
     }
@@ -94,5 +94,10 @@ public class DeliveryHistoryManager {
         } catch (IOException | JSONException e) {
             Log.e(TAG, "Failed to load history from file", e);
         }
+    }
+
+    public void clearHistory() {
+        historyList.clear();
+        saveHistory();
     }
 }

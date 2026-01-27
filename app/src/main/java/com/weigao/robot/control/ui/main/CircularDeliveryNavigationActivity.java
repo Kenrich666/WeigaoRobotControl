@@ -19,7 +19,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
-import com.weigao.robot.control.manager.DeliveryHistoryManager;
+import com.weigao.robot.control.manager.CircularDeliveryHistoryManager;
 import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
@@ -247,9 +247,10 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private void stopNavigation() {
         navigationService.stop(null);
         isNavigating = false;
-        if (currentRecord != null && currentRecord.getDurationSeconds() == 0) { // Not completed yet
+        // Only mark as CANCELLED if it hasn't been completed yet
+        if (currentRecord != null && currentRecord.getDurationSeconds() == 0 && !"COMPLETED".equals(currentRecord.getStatus())) {
              currentRecord.complete("CANCELLED");
-             DeliveryHistoryManager.getInstance(this).addRecord(currentRecord);
+             CircularDeliveryHistoryManager.getInstance(this).addRecord(currentRecord);
              currentRecord = null;
         }
     }
@@ -333,15 +334,18 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean isReturning = false;
 
     private void handleArrival() {
+        // isReturning logic is handled by jumping to ReturnActivity
+        /*
         if (isReturning) {
             Toast.makeText(this, "已返回出餐口，任务结束", Toast.LENGTH_LONG).show();
             if (currentRecord != null) {
                 currentRecord.complete("COMPLETED");
-                DeliveryHistoryManager.getInstance(this).addRecord(currentRecord);
+                CircularDeliveryHistoryManager.getInstance(this).addRecord(currentRecord);
             }
             finish();
             return;
         }
+        */
 
         isWaitingAtNode = true;
         
@@ -364,14 +368,16 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     proceedToNextNode();
                 }
             } else if (resultCode == CircularArrivalActivity.RESULT_RETURN_ORIGIN) {
-                // Jump to ReturnActivity as requested
-                Toast.makeText(this, "任务结束，开始返航", Toast.LENGTH_SHORT).show();
-                // We should stop current navigation first? 
-                // ReturnActivity will take over. 
-                // But we should probably finish this activity.
-                Intent returnIntent = new Intent(this, ReturnActivity.class);
-                startActivity(returnIntent);
-                finish();
+                // If this was the last point, it's a successful completion
+                if (currentTaskIndex >= targetNodes.size() - 1) {
+                    returnToOrigin();
+                } else {
+                    // Jump to ReturnActivity as requested (Aborted/Early return)
+                    Toast.makeText(this, "任务终止，开始返航", Toast.LENGTH_SHORT).show();
+                    Intent returnIntent = new Intent(this, ReturnActivity.class);
+                    startActivity(returnIntent);
+                    finish();
+                }
             } else {
                 // Cancelled or just back
             }
@@ -379,6 +385,14 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void returnToOrigin() {
+        // Mark as COMPLETED before switching to ReturnActivity
+        if (currentRecord != null) {
+            currentRecord.complete("COMPLETED");
+            CircularDeliveryHistoryManager.getInstance(this).addRecord(currentRecord);
+            // Nullify to prevent onDestroy from marking it as cancelled
+            currentRecord = null;
+        }
+
         // Use ReturnActivity for consistent return logic
         Toast.makeText(this, "循环结束，开始返航", Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this, ReturnActivity.class);

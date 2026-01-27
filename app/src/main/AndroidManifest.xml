@@ -45,6 +45,7 @@
         <activity android:name=".ui.main.ConfirmReceiptActivity" />
         <activity android:name=".ui.auth.PasswordActivity" />
         <activity android:name=".ui.main.ItemDeliveryHistoryActivity" />
+        <activity android:name=".ui.main.CircularDeliveryHistoryActivity" />
     </application>
 
 </manifest>
