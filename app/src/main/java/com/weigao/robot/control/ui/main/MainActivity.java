@@ -146,9 +146,8 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onSdkInitError(int errorCode) {
-                runOnUiThread(() -> {
-                    android.widget.Toast.makeText(MainActivity.this, "SDK初始化失败: " + errorCode, android.widget.Toast.LENGTH_LONG).show();
-                });
+                // User requested to remove the Toast for SDK initialization failure
+                Log.e(TAG, "SDK初始化失败: " + errorCode);
             }
         });
 
