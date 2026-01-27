@@ -17,7 +17,20 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 
 import com.weigao.robot.control.R;
+// 如果是新机（首次运行）： APP 启动时会检查本地存储是否存在配置文件。如果不存在（!file.exists()），会立即调用 
+// saveSettings()
+// ，将代码中定义的默认值（例如 50 cm/s）写入到本地 JSON 文件中。
+// 如果是重启 APP（或再次运行）： APP 启动时会发现本地文件已经存在，就会直接读取文件中的数值，从而保留用户之前修改过的设置。
+// 在这两个设置管理器文件中，定义的四个速度的默认值都是 50 cm/s：
 
+// 1. 普通配送 (ItemDeliverySettingsManager.java):
+
+// 配送速度 (delivery_speed): 默认值为 50 (cm/s)
+// 返航速度 (return_speed): 默认值为 50 (cm/s)
+// 2. 循环配送 (CircularDeliverySettingsManager.java):
+
+// 配送速度 (delivery_speed): 默认值为 50 (cm/s)
+// 返航速度 (return_speed): 默认值为 50 (cm/s)
 public class BasicSettingsFragment extends Fragment {
 
     private DrawerLayout drawerLayout;
@@ -84,6 +97,56 @@ public class BasicSettingsFragment extends Fragment {
                 Toast.makeText(getContext(), "安全服务不可用", Toast.LENGTH_SHORT).show();
             }
         });
+        
+        // --- 1. 普通配送速度设置 ---
+        SeekBar itemSpeedSeekBar = view.findViewById(R.id.seekbar_item_delivery_speed);
+        TextView itemSpeedValue = view.findViewById(R.id.tv_item_delivery_speed_value);
+        
+        int currentItemSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getDeliverySpeed();
+        itemSpeedSeekBar.setProgress(currentItemSpeed);
+        itemSpeedValue.setText(String.format("%d cm/s", currentItemSpeed));
+        
+        itemSpeedSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 10) progress = 10;
+                itemSpeedValue.setText(String.format("%d cm/s", progress));
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int progress = seekBar.getProgress();
+                if (progress < 10) progress = 10;
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setDeliverySpeed(progress);
+            }
+        });
+
+        // 普通配送返航速度
+        SeekBar itemReturnSeekBar = view.findViewById(R.id.seekbar_item_return_speed);
+        TextView itemReturnSpeedValue = view.findViewById(R.id.tv_item_return_speed_value);
+
+        int currentItemReturnSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed();
+        itemReturnSeekBar.setProgress(currentItemReturnSpeed);
+        itemReturnSpeedValue.setText(String.format("%d cm/s", currentItemReturnSpeed));
+
+        itemReturnSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 10) progress = 10;
+                itemReturnSpeedValue.setText(String.format("%d cm/s", progress));
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int progress = seekBar.getProgress();
+                if (progress < 10) progress = 10;
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setReturnSpeed(progress);
+            }
+        });
+
+        // --- 2. 循环配送速度设置 ---
 
         SeekBar seekBar = view.findViewById(R.id.seekbar_circular_speed);
         TextView speedValue = view.findViewById(R.id.tv_speed_value);
@@ -140,6 +203,34 @@ public class BasicSettingsFragment extends Fragment {
             }
         });
         
+        // Fullscreen Switch
+        android.widget.Switch switchFullscreen = view.findViewById(R.id.switch_fullscreen);
+        // Use AppSettingsManager instead of SharedPreferences
+        com.weigao.robot.control.manager.AppSettingsManager settingsManager = com.weigao.robot.control.manager.AppSettingsManager.getInstance();
+        boolean isFullscreen = settingsManager.isFullScreen();
+        switchFullscreen.setChecked(isFullscreen);
+
+        switchFullscreen.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            settingsManager.setFullScreen(isChecked);
+            applyFullScreen(isChecked);
+        });
+        
         return view;
+    }
+
+    private void applyFullScreen(boolean enable) {
+        if (getActivity() == null) return;
+        android.view.Window window = getActivity().getWindow();
+        if (enable) {
+            window.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        } else {
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        }
     }
 }

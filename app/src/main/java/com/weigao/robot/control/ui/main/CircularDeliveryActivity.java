@@ -43,7 +43,6 @@ import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
-import com.weigao.robot.control.manager.DeliveryHistoryManager;
 import com.weigao.robot.control.model.CircularDeliveryRecord;
 
 import org.json.JSONArray;
@@ -52,7 +51,42 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-// 循环配送的正在导航页面
+// 循环配送的
+/**
+ * 循环配送 vs 普通配送 模式对比
+ *
+ * ### 1. 循环配送模式 (Circular Delivery)
+ * 主要用于机器人在固定的路线上进行多点循环配送（例如自助取餐、巡航等）。
+ *
+ * | 功能模块 | 文件名 | 功能描述 |
+ * | :--- | :--- | :--- |
+ * | **入口/配置** | {@link CircularDeliveryActivity} | **主页面**。负责展示和管理“循环路线”列表。用户在此新建/编辑路线（设置途经点、循环次数），检查舱门状态，并启动循环任务。 |
+ * | **导航中** | {@link CircularDeliveryNavigationActivity} | **导航控制中心**。负责执行循环逻辑（按设定的循环次数重复跑点）。显示当前第几轮、第几个点位，处理暂停/继续/结束导航的逻辑。 |
+ * | **到达处理** | {@link CircularArrivalActivity} | **到达站点页面**。到达某个点位后弹出。包含一个30秒倒计时（倒计时结束自动前往下一站或返航）。提供“开门”、“继续下一站”、“结束返航”等操作。 |
+ * | **历史记录** | {@link CircularDeliveryHistoryActivity} | **历史记录页面**。展示循环配送的过往记录，包括路线名称、完成的循环次数、状态（完成/取消）和耗时。 |
+ *
+ * ---
+ *
+ * ### 2. 普通配送模式 (Item Delivery)
+ * 主要用于点对点、多点配送物品（例如送餐给特定桌号），流程更严格（如取货需密码）。
+ *
+ * | 功能模块 | 文件名 | 功能描述 |
+ * | :--- | :--- | :--- |
+ * | **入口/配置** | {@link DeliveryActivity} | **主页面**。负责舱门（层级）与点位的配对（例如L1层送到A点）。检查舱门状态，处理多层配对逻辑，启动配送任务。 |
+ * | **导航中** | {@link DeliveryNavigationActivity} | **导航控制中心**。负责处理配对好的任务列表。它会优化路径（合并相同目的地的任务），按顺序导航到目标点，并在途中显示配送状态。 |
+ * | **到达处理** | {@link ConfirmReceiptActivity} | **取货确认页面**。到达目标点后弹出。**核心区别**：这里需要验证**密码**才能开门取货。界面会高亮显示当前需要取货的层级（L1/L2/L3），并有“确认收货”流程。 |
+ * | **到达处理** | {@link ConfirmReceiptActivity} | **取货确认页面**。到达目标点后弹出。**核心区别**：这里需要验证**密码**才能开门取货。界面会高亮显示当前需要取货的层级（L1/L2/L3），并有“确认收货”流程。 |
+ * | **历史记录** | {@link ItemDeliveryHistoryActivity} | **历史记录页面**。展示单次物品配送的详细记录，精确到每个点位的到达时间、耗时以及任务ID。 |
+ *
+ * ---
+ *
+ * ### 3. 数据管理 (Data Management)
+ *
+ * | 模式 | 管理器类名 | 记录类名 | 用途 |
+ * | :--- | :--- | :--- | :--- |
+ * | **循环配送** | {@link com.weigao.robot.control.manager.CircularDeliveryHistoryManager} | {@link CircularDeliveryRecord} | 负责保存、读取和清空循环配送的历史记录。记录字段包括：任务名、循环数、耗时、状态等。 |
+ * | **普通配送** | {@link com.weigao.robot.control.manager.ItemDeliveryManager} | {@link com.weigao.robot.control.model.ItemDeliveryRecord} | 负责记录单次配送的点位到达情况。记录字段包括：任务ID、点位名、到达时间、耗时、具体状态（成功/超时/失败）等。 |
+ */
 public class CircularDeliveryActivity extends AppCompatActivity {
     private static final String TAG = "CircularDeliveryAct";
     private static final String PREFS_NAME = "CircularRoutesPrefs";
@@ -81,14 +115,19 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         // 1. Header Buttons
         findViewById(R.id.back_button).setOnClickListener(v -> finish());
         findViewById(R.id.return_sc_button).setOnClickListener(v -> {
-            startActivity(new Intent(this, ReturnActivity.class));
+            Intent intent = new Intent(this, ReturnActivity.class);
+            intent.putExtra("return_speed", com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
+            startActivity(intent);
         });
 
         openDoorButton = findViewById(R.id.open_door_button);
         setupDoorButton();
         
         // History Button
-        findViewById(R.id.history_button).setOnClickListener(v -> showHistoryOverlay());
+        // History Button
+        findViewById(R.id.history_button).setOnClickListener(v -> {
+             startActivity(new Intent(this, CircularDeliveryHistoryActivity.class));
+        });
 
         // 2. Routes List
         routesRecyclerView = findViewById(R.id.routes_recycler_view);
@@ -494,137 +533,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         closeOverlay();
     }
 
-    // --- History Overlay ---
-    private View historyOverlay;
-    private RecyclerView rvHistory;
-    private HistoryAdapter historyAdapter;
 
-    private void showHistoryOverlay() {
-        if (historyOverlay == null) {
-            initHistoryOverlay();
-        }
-        
-        if (historyOverlay == null || rvHistory == null) {
-            Toast.makeText(this, "无法加载界面资源，请尝试重新打开页面", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        List<CircularDeliveryRecord> history = null;
-        try {
-            history = DeliveryHistoryManager.getInstance(this).getHistory();
-        } catch (Exception e) {
-            Log.e(TAG, "Error loading history data", e);
-        }
-
-        if (history == null) {
-            history = new ArrayList<>();
-        }
-
-        if (historyAdapter == null) {
-            historyAdapter = new HistoryAdapter(history);
-            rvHistory.setAdapter(historyAdapter);
-        } else {
-            historyAdapter.updateList(history);
-        }
-        
-        historyOverlay.setVisibility(View.VISIBLE);
-    }
-
-    private void initHistoryOverlay() {
-        historyOverlay = findViewById(R.id.history_overlay);
-        if (historyOverlay == null) {
-            Log.e(TAG, "history_overlay view not found!");
-            return;
-        }
-
-        rvHistory = historyOverlay.findViewById(R.id.rv_history_list);
-        if (rvHistory == null) {
-            Log.e(TAG, "rv_history_list view not found!");
-            return;
-        }
-        rvHistory.setLayoutManager(new LinearLayoutManager(this));
-        
-        View closeBtn = historyOverlay.findViewById(R.id.btn_close_history);
-        if (closeBtn != null) {
-            closeBtn.setOnClickListener(v -> historyOverlay.setVisibility(View.GONE));
-        }
-    }
-    
-    // --- History Adapter ---
-    private class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
-        private List<CircularDeliveryRecord> data;
-        
-        public HistoryAdapter(List<CircularDeliveryRecord> data) {
-            this.data = data;
-        }
-
-        public void updateList(List<CircularDeliveryRecord> newData) {
-            this.data = newData;
-            notifyDataSetChanged();
-        }
-
-        @NonNull
-        @Override
-        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            android.widget.LinearLayout root = new android.widget.LinearLayout(parent.getContext());
-            root.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            root.setOrientation(android.widget.LinearLayout.VERTICAL);
-            int p = (int)(16 * parent.getResources().getDisplayMetrics().density);
-            root.setPadding(p, p, p, p);
-            
-            // Add separator / background if needed, but simple is fine for now
-            // Maybe a bottom border?
-            
-            TextView tvTitle = new TextView(parent.getContext());
-            tvTitle.setTextSize(18);
-            tvTitle.setTextColor(Color.BLACK);
-            tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-            root.addView(tvTitle);
-            
-            TextView tvSub = new TextView(parent.getContext());
-            tvSub.setTextSize(14);
-            tvSub.setTextColor(Color.GRAY);
-            tvSub.setPadding(0, (int)(4 * parent.getResources().getDisplayMetrics().density), 0, 0);
-            root.addView(tvSub);
-            
-            // Add divider line
-            View line = new View(parent.getContext());
-            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 1);
-            lp.topMargin = p;
-            line.setLayoutParams(lp);
-            line.setBackgroundColor(Color.LTGRAY);
-            root.addView(line);
-
-            return new ViewHolder(root, tvTitle, tvSub);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            CircularDeliveryRecord record = data.get(position);
-            String title = record.getRouteName() + " (循环: " + record.getLoopCount() + "次)";
-            String statusStr = record.getStatus() == null ? "进行中" : record.getStatus();
-            String durationStr = record.getDurationSeconds() > 0 ? record.getDurationSeconds() + "秒" : "";
-            
-            holder.tvTitle.setText(title);
-            holder.tvSub.setText(record.getFormattedStartTime() + " | " + statusStr + " " + durationStr);
-        }
-
-        @Override
-        public int getItemCount() {
-            return data.size();
-        }
-
-        class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvTitle, tvSub;
-            ViewHolder(View v, TextView t1, TextView t2) {
-                super(v);
-                tvTitle = t1;
-                tvSub = t2;
-            }
-        }
-    }
 
     interface OnRouteClickListener {
         void onClick(CircularRoute route);
