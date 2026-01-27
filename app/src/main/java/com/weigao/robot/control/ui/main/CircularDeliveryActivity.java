@@ -115,7 +115,9 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         // 1. Header Buttons
         findViewById(R.id.back_button).setOnClickListener(v -> finish());
         findViewById(R.id.return_sc_button).setOnClickListener(v -> {
-            startActivity(new Intent(this, ReturnActivity.class));
+            Intent intent = new Intent(this, ReturnActivity.class);
+            intent.putExtra("return_speed", com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
+            startActivity(intent);
         });
 
         openDoorButton = findViewById(R.id.open_door_button);

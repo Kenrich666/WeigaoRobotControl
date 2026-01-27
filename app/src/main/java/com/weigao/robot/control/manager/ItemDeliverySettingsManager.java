@@ -14,30 +14,30 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * Manager for Circular Delivery settings persistence.
+ * Manager for Item Delivery settings persistence.
  * Stores settings in a JSON file on external storage.
  */
-public class CircularDeliverySettingsManager {
-    private static final String TAG = "CircularSettingsMgr";
+public class ItemDeliverySettingsManager {
+    private static final String TAG = "ItemSettingsMgr";
     private static final String SETTINGS_DIR = "WeigaoRobot/settings";
-    private static final String SETTINGS_FILE = "circular_settings.json";
+    private static final String SETTINGS_FILE = "item_delivery_settings.json";
 
     private static final String KEY_SPEED = "delivery_speed";
     private static final String KEY_RETURN_SPEED = "return_speed";
     // Default speed in cm/s
     private static final int DEFAULT_SPEED = 50;
 
-    private static CircularDeliverySettingsManager instance;
+    private static ItemDeliverySettingsManager instance;
     private int deliverySpeed = DEFAULT_SPEED;
     private int returnSpeed = DEFAULT_SPEED;
 
-    private CircularDeliverySettingsManager() {
+    private ItemDeliverySettingsManager() {
         loadSettings();
     }
 
-    public static synchronized CircularDeliverySettingsManager getInstance() {
+    public static synchronized ItemDeliverySettingsManager getInstance() {
         if (instance == null) {
-            instance = new CircularDeliverySettingsManager();
+            instance = new ItemDeliverySettingsManager();
         }
         return instance;
     }
@@ -80,7 +80,7 @@ public class CircularDeliverySettingsManager {
                 this.returnSpeed = json.optInt(KEY_RETURN_SPEED, DEFAULT_SPEED);
             }
         } catch (IOException | JSONException e) {
-            Log.e(TAG, "Failed to load circular settings", e);
+            Log.e(TAG, "Failed to load item delivery settings", e);
         }
     }
 
@@ -100,7 +100,7 @@ public class CircularDeliverySettingsManager {
                 writer.write(json.toString());
             }
         } catch (JSONException | IOException e) {
-            Log.e(TAG, "Failed to save circular settings", e);
+            Log.e(TAG, "Failed to save item delivery settings", e);
         }
     }
 }

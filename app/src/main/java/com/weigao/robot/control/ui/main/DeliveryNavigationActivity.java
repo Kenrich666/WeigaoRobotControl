@@ -279,8 +279,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】设置目标点成功");
-                // 设置导航速度 (30 cm/s)
-                navigationService.setSpeed(30, new IResultCallback<Void>() {
+                // 设置导航速度
+                int speed = isReturning 
+                        ? com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed()
+                        : com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getDeliverySpeed();
+                
+                navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         Log.d(TAG, "【导航控制】设置速度成功");

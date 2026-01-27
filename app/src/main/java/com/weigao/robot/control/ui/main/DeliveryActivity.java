@@ -162,7 +162,11 @@ public class DeliveryActivity extends AppCompatActivity {
             });
         });
 
-        findViewById(R.id.return_button).setOnClickListener(v -> startActivity(new Intent(this, ReturnActivity.class)));
+        findViewById(R.id.return_button).setOnClickListener(v -> {
+            Intent intent = new Intent(this, ReturnActivity.class);
+            intent.putExtra("return_speed", com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed());
+            startActivity(intent);
+        });
 
         findViewById(R.id.start_delivery_button).setOnClickListener(v -> {
             if (pairings.isEmpty()) {

@@ -58,6 +58,9 @@ public class CircularArrivalActivity extends AppCompatActivity {
         btnContinue = findViewById(R.id.btn_continue);
         Button btnFullReturn = findViewById(R.id.btn_full_return);
         tvArrivalMessage = findViewById(R.id.tv_arrival_message);
+        Button btnBack = findViewById(R.id.btn_back);
+
+        btnBack.setOnClickListener(v -> closeDoorAndFinish(RESULT_CANCEL));
 
         btnOpenDoor.setOnClickListener(v -> toggleDoor());
 

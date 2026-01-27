@@ -20,6 +20,113 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 普通配送速度 Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="普通配送速度"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Item Delivery Speed Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- 配送速度 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="0dp"
+                        android:text="配送速度"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+
+                    <SeekBar
+                        android:id="@+id/seekbar_item_delivery_speed"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="120"
+                        android:min="10"
+                        android:progress="50"
+                        android:progressTint="#4A90E2"
+                        android:thumbTint="#4A90E2" />
+
+                    <TextView
+                        android:id="@+id/tv_item_delivery_speed_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="15dp"
+                        android:gravity="end"
+                        android:minWidth="60dp"
+                        android:text="50 cm/s"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <!-- 返航速度 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="0dp"
+                        android:text="返航速度"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+
+                    <SeekBar
+                        android:id="@+id/seekbar_item_return_speed"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="120"
+                        android:min="10"
+                        android:progress="50"
+                        android:progressTint="#4A90E2"
+                        android:thumbTint="#4A90E2" />
+
+                    <TextView
+                        android:id="@+id/tv_item_return_speed_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="15dp"
+                        android:gravity="end"
+                        android:minWidth="60dp"
+                        android:text="50 cm/s"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+            </androidx.cardview.widget.CardView>
+
             <!-- 循环配送速度 Section -->
             <TextView
                 android:layout_width="wrap_content"
@@ -252,6 +359,58 @@
 <!--                            app:tint="#999999"/>-->
 
 <!--                    </RelativeLayout>-->
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- 应用设置 Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="应用设置"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- App Settings Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 全屏开关 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="应用全屏"
+                            android:textColor="#333333"
+                            android:textSize="14sp"/>
+
+                        <Switch
+                            android:id="@+id/switch_fullscreen"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:thumbTint="#4A90E2"
+                            android:trackTint="#B0C4DE"/>
+
+                    </LinearLayout>
 
                 </LinearLayout>
 

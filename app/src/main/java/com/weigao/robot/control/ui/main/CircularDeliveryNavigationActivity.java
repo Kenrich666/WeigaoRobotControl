@@ -155,6 +155,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         btnReturnOrigin.setOnClickListener(v -> {
             stopNavigation();
             Intent intent = new Intent(this, ReturnActivity.class);
+            intent.putExtra("return_speed", com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
             startActivity(intent);
             finish();
         });
@@ -378,8 +379,11 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     startActivity(returnIntent);
                     finish();
                 }
-            } else {
-                // Cancelled or just back
+            } else if (resultCode == CircularArrivalActivity.RESULT_CANCEL || resultCode == RESULT_CANCELED) {
+                // Cancelled
+                Toast.makeText(this, "循环任务已取消", Toast.LENGTH_SHORT).show();
+                stopNavigation();
+                finish();
             }
         }
     }
@@ -396,6 +400,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         // Use ReturnActivity for consistent return logic
         Toast.makeText(this, "循环结束，开始返航", Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this, ReturnActivity.class);
+        intent.putExtra("return_speed", com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
         startActivity(intent);
         finish();
     }
