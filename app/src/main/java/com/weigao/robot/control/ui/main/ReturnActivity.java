@@ -139,7 +139,8 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public void onSuccess(Void result) {
                 // 2. 设置速度
-                navigationService.setSpeed(30, new IResultCallback<Void>() { // 默认30cm/s
+                int speed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed();
+                navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         // 3. 准备路径

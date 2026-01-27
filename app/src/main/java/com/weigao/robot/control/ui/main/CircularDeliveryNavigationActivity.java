@@ -20,7 +20,7 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.DeliveryHistoryManager;
-import com.weigao.robot.control.model.DeliveryRecord;
+import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
@@ -35,8 +35,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
     private static final String TAG = "CircularNavActivity";
 
-    private TextView tvStatus, currentTaskTextView, tvHint;
-    private Button btnPauseEnd, btnContinue;
+    private TextView tvStatus, currentTaskTextView, tvHint, tvLoopCount;
+    private android.widget.ProgressBar pbProgress;
+    private Button btnPauseEnd, btnContinue, btnReturnOrigin;
     private LinearLayout llPauseControls;
     private View rootLayout;
 
@@ -92,6 +93,10 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         setupGestureDetector();
         setupButtons();
         
+        if (targetNodes.size() > 0) {
+            pbProgress.setMax(targetNodes.size());
+        }
+        
         updateTaskText();
         startNavigation();
     }
@@ -100,10 +105,15 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         tvStatus = findViewById(R.id.tv_status);
         currentTaskTextView = findViewById(R.id.current_task_textview);
         tvHint = findViewById(R.id.tv_hint);
+        tvLoopCount = findViewById(R.id.tv_loop_count);
+        pbProgress = findViewById(R.id.pb_progress);
+
         llPauseControls = findViewById(R.id.ll_pause_controls);
         btnPauseEnd = findViewById(R.id.btn_pause_end);
         btnContinue = findViewById(R.id.btn_continue);
         rootLayout = findViewById(R.id.root_layout);
+        btnReturnOrigin = findViewById(R.id.btn_return_origin);
+        
         
         // Adjust button text for "Pause" state initially hidden
         llPauseControls.setVisibility(View.GONE);
@@ -133,7 +143,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         });
 
         // Continue button logic
-        btnContinue.setText("继续前往下一站");
+        btnContinue.setText("继续");
         btnContinue.setOnClickListener(v -> {
             if (isPaused) {
                 resumeNavigation();
@@ -141,12 +151,19 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 proceedToNextNode();
             }
         });
+        
+        btnReturnOrigin.setOnClickListener(v -> {
+            stopNavigation();
+            Intent intent = new Intent(this, ReturnActivity.class);
+            startActivity(intent);
+            finish();
+        });
     }
 
     private void startNavigation() {
         isNavigating = true;
         // Start Record
-        currentRecord = new DeliveryRecord(routeName, loopCount, System.currentTimeMillis());
+        currentRecord = new CircularDeliveryRecord(routeName, loopCount, System.currentTimeMillis());
         
         List<Integer> targetIds = new ArrayList<>();
         for (NavigationNode node : targetNodes) {
@@ -157,7 +174,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                navigationService.setSpeed(30, new IResultCallback<Void>() {
+                int speed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getDeliverySpeed();
+                navigationService.setSpeed(speed, new IResultCallback<Void>() {
                      @Override public void onSuccess(Void result) {
                          navigationService.prepare(new IResultCallback<Void>() {
                              @Override public void onSuccess(Void result) {} // Will accept onRoutePrepared
@@ -183,6 +201,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     isPaused = true;
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
+                    btnReturnOrigin.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
                 });
             }
@@ -195,9 +214,10 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
              @Override public void onSuccess(Void result) {
                  runOnUiThread(() -> {
                      isPaused = false;
-                     tvStatus.setText("导航中");
-                     llPauseControls.setVisibility(View.GONE);
-                     tvHint.setVisibility(View.VISIBLE);
+                      tvStatus.setText("导航中");
+                      llPauseControls.setVisibility(View.GONE);
+                      btnReturnOrigin.setVisibility(View.GONE);
+                      tvHint.setVisibility(View.VISIBLE);
                  });
              }
              @Override public void onError(ApiError error) {}
@@ -238,10 +258,27 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         runOnUiThread(() -> {
             if (currentTaskIndex < targetNodes.size()) {
                 NavigationNode node = targetNodes.get(currentTaskIndex);
-                currentTaskTextView.setText( String.format("正在前往: %s (%d/%d)\n路线: %s", 
-                    node.getName(), currentTaskIndex + 1, targetNodes.size(), routeName));
+                
+                int totalPoints = targetNodes.size();
+                int nodesPerLoop = totalPoints / (loopCount > 0 ? loopCount : 1);
+                if (nodesPerLoop == 0) nodesPerLoop = 1;
+                
+                // 1-based index calculation
+                int currentLoop = (currentTaskIndex / nodesPerLoop) + 1;
+                int nodeIndexInLoop = (currentTaskIndex % nodesPerLoop) + 1;
+                
+                tvLoopCount.setText(String.format("第 %d / %d 轮", currentLoop, loopCount));
+                
+                // Progress Bar
+                if (pbProgress != null) {
+                    pbProgress.setProgress(currentTaskIndex + 1);
+                }
+
+                currentTaskTextView.setText( String.format("正在前往: %s (第 %d/%d 个点位)", 
+                    node.getName(), nodeIndexInLoop, nodesPerLoop));
             } else {
                 currentTaskTextView.setText("导航结束");
+                if (pbProgress != null) pbProgress.setProgress(targetNodes.size());
             }
         });
     }
@@ -251,9 +288,28 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     @Override
     public void onStateChanged(int state, int schedule) {
         runOnUiThread(() -> {
-            if (state == com.keenon.sdk.component.navigation.common.Navigation.STATE_DESTINATION) {
-                // Arrived
-                handleArrival();
+            Log.d(TAG, "onStateChanged: state=" + state + ", schedule=" + schedule);
+            switch (state) {
+                case com.keenon.sdk.component.navigation.common.Navigation.STATE_DESTINATION:
+                    // Arrived
+                    handleArrival();
+                    break;
+                case 6: // STATE_BLOCKED
+                    tvStatus.setText("被阻挡");
+                    tvHint.setText("路径规划失败或被阻挡，请检查障碍物");
+                    tvHint.setTextColor(android.graphics.Color.RED);
+                    llPauseControls.setVisibility(View.VISIBLE);
+                    break;
+                case 2: // STATE_RUNNING
+                    tvStatus.setText("导航中");
+                    tvHint.setText("正在前往目的地...");
+                    tvHint.setTextColor(getResources().getColor(android.R.color.darker_gray));
+                    llPauseControls.setVisibility(View.GONE);
+                    btnReturnOrigin.setVisibility(View.GONE);
+                    tvHint.setVisibility(View.VISIBLE);
+                    break;
+                default:
+                    break;
             }
         });
     }
@@ -262,7 +318,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     
     // ...
 
-    private DeliveryRecord currentRecord;
+    private CircularDeliveryRecord currentRecord;
 
     private boolean isReturning = false;
 
@@ -278,9 +334,10 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         }
 
         isWaitingAtNode = true;
-        // NavigationNode currentNode = targetNodes.get(currentTaskIndex);
         
         Intent intent = new Intent(this, CircularArrivalActivity.class);
+        boolean isLastPoint = (currentTaskIndex >= targetNodes.size() - 1);
+        intent.putExtra("is_last_point", isLastPoint);
         startActivityForResult(intent, REQUEST_CODE_ARRIVAL);
     }
 
@@ -297,40 +354,26 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     proceedToNextNode();
                 }
             } else if (resultCode == CircularArrivalActivity.RESULT_RETURN_ORIGIN) {
-                // Abort and return origin
-                Toast.makeText(this, "中止任务，返回出餐口", Toast.LENGTH_SHORT).show();
-                returnToOrigin();
+                // Jump to ReturnActivity as requested
+                Toast.makeText(this, "任务结束，开始返航", Toast.LENGTH_SHORT).show();
+                // We should stop current navigation first? 
+                // ReturnActivity will take over. 
+                // But we should probably finish this activity.
+                Intent returnIntent = new Intent(this, ReturnActivity.class);
+                startActivity(returnIntent);
+                finish();
             } else {
-                // Cancelled
+                // Cancelled or just back
             }
         }
     }
 
     private void returnToOrigin() {
-        isReturning = true;
-        List<NavigationNode> origins = DeliveryActivity.originPoints;
-        if (origins != null && !origins.isEmpty()) {
-            NavigationNode origin = origins.get(0);
-            List<Integer> ids = new ArrayList<>();
-            ids.add(origin.getId());
-            
-            navigationService.setTargets(ids, new IResultCallback<Void>() {
-                @Override public void onSuccess(Void result) {
-                    navigationService.prepare(new IResultCallback<Void>() {
-                        @Override public void onSuccess(Void result) { } // onRoutePrepared will handle start
-                        @Override public void onError(ApiError error) {
-                            handleError("返航失败", error);
-                        }
-                    });
-                }
-                @Override public void onError(ApiError error) {
-                    handleError("无法设定返航点", error);
-                }
-            });
-        } else {
-            Toast.makeText(this, "未找到原点，无法自动返航", Toast.LENGTH_SHORT).show();
-            finish();
-        }
+        // Use ReturnActivity for consistent return logic
+        Toast.makeText(this, "循环结束，开始返航", Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(this, ReturnActivity.class);
+        startActivity(intent);
+        finish();
     }
 
     @Override

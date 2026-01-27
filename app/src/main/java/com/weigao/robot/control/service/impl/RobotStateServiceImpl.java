@@ -102,7 +102,26 @@ public class RobotStateServiceImpl implements IRobotStateService {
         @Override
         public void onHealth(Object content) {
             Log.d(TAG, "onHealth: " + content);
-            // 可以在此解析健康状态并更新 currentState
+            // Parse health status
+            try {
+                if (content != null) {
+                    org.json.JSONObject json = new org.json.JSONObject(content.toString());
+                    org.json.JSONArray data = json.optJSONArray("data");
+                    if (data != null && data.length() > 0) {
+                        for (int i = 0; i < data.length(); i++) {
+                            org.json.JSONObject item = data.getJSONObject(i);
+                            int code = item.optInt("code");
+                            String desc = item.optString("desc");
+                            if (code != 0) {
+                                Log.e(TAG, "Robot Health Error: code=" + code + ", desc=" + desc);
+                                // You could broadcast this error or update RobotState if needed
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error parsing onHealth content", e);
+            }
         }
 
         @Override

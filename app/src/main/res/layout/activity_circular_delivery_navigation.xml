@@ -8,6 +8,22 @@
     android:background="#F8F9FA"
     tools:context=".ui.main.CircularDeliveryNavigationActivity">
 
+    <Button
+        android:id="@+id/btn_return_origin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="24dp"
+        android:background="@drawable/rounded_button"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:text="返航"
+        android:textColor="#333333"
+        android:textSize="20sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <ImageView
         android:id="@+id/iv_robot"
         android:layout_width="263dp"
@@ -26,32 +42,59 @@
         android:layout_height="wrap_content"
         android:text="循环导航中"
         android:textColor="#444444"
-        android:textSize="80sp"
+        android:textSize="60sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/current_task_textview"
+        app:layout_constraintBottom_toTopOf="@+id/tv_loop_count"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/iv_robot"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed"/>
 
     <TextView
+        android:id="@+id/tv_loop_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="第 1 / 1 轮"
+        android:textColor="#333333"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/pb_progress"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/iv_robot"
+        app:layout_constraintTop_toBottomOf="@+id/tv_status" />
+
+    <ProgressBar
+        android:id="@+id/pb_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="400dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="16dp"
+        android:max="100"
+        android:progress="0"
+        app:layout_constraintBottom_toTopOf="@+id/current_task_textview"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/iv_robot"
+        app:layout_constraintTop_toBottomOf="@+id/tv_loop_count" />
+
+    <TextView
         android:id="@+id/current_task_textview"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:textColor="#555555"
-        android:textSize="20sp"
+        android:textSize="24sp"
         app:layout_constraintBottom_toTopOf="@+id/tv_hint"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/iv_robot"
-        app:layout_constraintTop_toBottomOf="@+id/tv_status"
-        tools:text="正在前往：点位 A (剩余 2 圈)" />
+        app:layout_constraintTop_toBottomOf="@+id/pb_progress"
+        tools:text="正在前往：点位 A" />
 
     <TextView
         android:id="@+id/tv_hint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="60dp"
+        android:layout_marginBottom="120dp"
         android:text="双击屏幕可以暂停"
         android:textColor="#999999"
         android:textSize="18sp"

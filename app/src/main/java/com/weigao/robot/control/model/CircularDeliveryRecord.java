@@ -7,7 +7,7 @@ import java.util.Locale;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class DeliveryRecord {
+public class CircularDeliveryRecord {
     private String routeName;
     private long startTime; // Unix timestamp in millis
     private long endTime;   // Unix timestamp in millis
@@ -15,7 +15,7 @@ public class DeliveryRecord {
     private int loopCount;
     private String status; // "COMPLETED", "CANCELLED", "ABORTED"
 
-    public DeliveryRecord(String routeName, int loopCount, long startTime) {
+    public CircularDeliveryRecord(String routeName, int loopCount, long startTime) {
         this.routeName = routeName;
         this.loopCount = loopCount;
         this.startTime = startTime;
@@ -63,9 +63,9 @@ public class DeliveryRecord {
         return obj;
     }
 
-    public static DeliveryRecord fromJson(JSONObject obj) {
+    public static CircularDeliveryRecord fromJson(JSONObject obj) {
         // Implementation for reading back if needed
-        DeliveryRecord record = new DeliveryRecord(
+        CircularDeliveryRecord record = new CircularDeliveryRecord(
             obj.optString("routeName"),
             obj.optInt("loopCount"),
             obj.optLong("startTime")

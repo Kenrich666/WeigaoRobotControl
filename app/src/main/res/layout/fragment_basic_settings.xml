@@ -20,52 +20,101 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 灯带亮度 Section -->
+            <!-- 循环配送速度 Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="灯带亮度"
+                android:text="循环配送速度"
                 android:textColor="#333333"
                 android:textSize="16sp"
                 android:layout_marginBottom="16dp"/>
 
-            <!-- Brightness Card -->
+            <!-- Speed Card -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- 配送速度 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="0dp"
-                    android:text="灯带亮度"
-                    android:textColor="#666666"
-                    android:textSize="14sp" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
 
-                <SeekBar
-                    android:id="@+id/seekbar_led_brightness"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:max="100"
-                    android:progress="55"
-                    android:progressTint="#4A90E2"
-                    android:thumbTint="#4A90E2" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="0dp"
+                        android:text="配送速度"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
 
-                <TextView
-                    android:id="@+id/tv_brightness_value"
-                    android:layout_width="wrap_content"
+                    <SeekBar
+                        android:id="@+id/seekbar_circular_speed"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="120"
+                        android:min="10"
+                        android:progress="50"
+                        android:progressTint="#4A90E2"
+                        android:thumbTint="#4A90E2" />
+
+                    <TextView
+                        android:id="@+id/tv_speed_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="15dp"
+                        android:gravity="end"
+                        android:minWidth="60dp"
+                        android:text="50 cm/s"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <!-- 返航速度 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginEnd="15dp"
-                    android:gravity="end"
-                    android:minWidth="40dp"
-                    android:text="55%"
-                    android:textColor="#666666"
-                    android:textSize="14sp" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="0dp"
+                        android:text="返航速度"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+
+                    <SeekBar
+                        android:id="@+id/seekbar_return_speed"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="120"
+                        android:min="10"
+                        android:progress="50"
+                        android:progressTint="#4A90E2"
+                        android:thumbTint="#4A90E2" />
+
+                    <TextView
+                        android:id="@+id/tv_return_speed_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="15dp"
+                        android:gravity="end"
+                        android:minWidth="60dp"
+                        android:text="50 cm/s"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+                </LinearLayout>
 
             </LinearLayout>
 

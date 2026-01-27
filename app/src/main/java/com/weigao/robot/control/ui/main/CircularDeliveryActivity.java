@@ -44,7 +44,7 @@ import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.manager.DeliveryHistoryManager;
-import com.weigao.robot.control.model.DeliveryRecord;
+import com.weigao.robot.control.model.CircularDeliveryRecord;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -52,7 +52,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-
+// 循环配送的正在导航页面
 public class CircularDeliveryActivity extends AppCompatActivity {
     private static final String TAG = "CircularDeliveryAct";
     private static final String PREFS_NAME = "CircularRoutesPrefs";
@@ -431,13 +431,6 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         // Assuming the TextView for title is the first one or give it an ID. 
         // In previous replace it didn't have ID. Let's try to find it dynamically or assume standard layout.
         // Wait, looking at xml in thought, the title TextView didn't have an ID.
-        // I will trust that I can traverse or just set text on a new ID if I add it, 
-        // BUT I can't easily add IDs to runtime generated view without replacing XML or finding by structure.
-        // The XML had: LinearLayout -> [TextView (Title), EditText, TextView, Recycler, ...]
-        // Let's traverse children or just ignore title change if hard (default "新建路线" is okay-ish but "编辑" is better).
-        // Let's rely on finding by traversals or just add ID in a separate step if needed.
-        // For now, let's look at the XML content again.
-        // Step 44 content: <TextView ... text="新建路线" ... />. No ID.
         // I'll grab it by child index? LinearLayout is 0th child of FrameLayout?
         // LinearLayout ll = (LinearLayout) ((FrameLayout)createRouteOverlay).getChildAt(0);
         // tvDialogTitle = (TextView) ll.getChildAt(0); 
@@ -511,7 +504,22 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             initHistoryOverlay();
         }
         
-        List<DeliveryRecord> history = DeliveryHistoryManager.getInstance(this).getHistory();
+        if (historyOverlay == null || rvHistory == null) {
+            Toast.makeText(this, "无法加载界面资源，请尝试重新打开页面", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        List<CircularDeliveryRecord> history = null;
+        try {
+            history = DeliveryHistoryManager.getInstance(this).getHistory();
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading history data", e);
+        }
+
+        if (history == null) {
+            history = new ArrayList<>();
+        }
+
         if (historyAdapter == null) {
             historyAdapter = new HistoryAdapter(history);
             rvHistory.setAdapter(historyAdapter);
@@ -524,22 +532,33 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
     private void initHistoryOverlay() {
         historyOverlay = findViewById(R.id.history_overlay);
+        if (historyOverlay == null) {
+            Log.e(TAG, "history_overlay view not found!");
+            return;
+        }
+
         rvHistory = historyOverlay.findViewById(R.id.rv_history_list);
+        if (rvHistory == null) {
+            Log.e(TAG, "rv_history_list view not found!");
+            return;
+        }
         rvHistory.setLayoutManager(new LinearLayoutManager(this));
         
-        historyOverlay.findViewById(R.id.btn_close_history).setOnClickListener(v -> 
-            historyOverlay.setVisibility(View.GONE));
+        View closeBtn = historyOverlay.findViewById(R.id.btn_close_history);
+        if (closeBtn != null) {
+            closeBtn.setOnClickListener(v -> historyOverlay.setVisibility(View.GONE));
+        }
     }
     
     // --- History Adapter ---
     private class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
-        private List<DeliveryRecord> data;
+        private List<CircularDeliveryRecord> data;
         
-        public HistoryAdapter(List<DeliveryRecord> data) {
+        public HistoryAdapter(List<CircularDeliveryRecord> data) {
             this.data = data;
         }
 
-        public void updateList(List<DeliveryRecord> newData) {
+        public void updateList(List<CircularDeliveryRecord> newData) {
             this.data = newData;
             notifyDataSetChanged();
         }
@@ -571,11 +590,11 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             
             // Add divider line
             View line = new View(parent.getContext());
-            line.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
-            line.setBackgroundColor(Color.LTGRAY);
-            android.widget.LinearLayout.LayoutParams lp = (android.widget.LinearLayout.LayoutParams) line.getLayoutParams();
+            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 1);
             lp.topMargin = p;
             line.setLayoutParams(lp);
+            line.setBackgroundColor(Color.LTGRAY);
             root.addView(line);
 
             return new ViewHolder(root, tvTitle, tvSub);
@@ -583,7 +602,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            DeliveryRecord record = data.get(position);
+            CircularDeliveryRecord record = data.get(position);
             String title = record.getRouteName() + " (循环: " + record.getLoopCount() + "次)";
             String statusStr = record.getStatus() == null ? "进行中" : record.getStatus();
             String durationStr = record.getDurationSeconds() > 0 ? record.getDurationSeconds() + "秒" : "";

@@ -56,6 +56,7 @@
              I'll style it manually to look like a message box.
          -->
          <TextView
+             android:id="@+id/tv_arrival_message"
              android:layout_width="match_parent"
              android:layout_height="match_parent"
              android:gravity="center"
