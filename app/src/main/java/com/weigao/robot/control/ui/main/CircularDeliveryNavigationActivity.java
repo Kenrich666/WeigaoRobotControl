@@ -290,9 +290,16 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         runOnUiThread(() -> {
             Log.d(TAG, "onStateChanged: state=" + state + ", schedule=" + schedule);
             switch (state) {
-                case com.keenon.sdk.component.navigation.common.Navigation.STATE_DESTINATION:
+                case Navigation.STATE_DESTINATION:
                     // Arrived
                     handleArrival();
+                    break;
+                case Navigation.STATE_PAUSED:
+                    isPaused = true;
+                    tvStatus.setText("已暂停");
+                    llPauseControls.setVisibility(View.VISIBLE);
+                    btnReturnOrigin.setVisibility(View.VISIBLE);
+                    tvHint.setVisibility(View.INVISIBLE);
                     break;
                 case 6: // STATE_BLOCKED
                     tvStatus.setText("被阻挡");
@@ -300,7 +307,10 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     tvHint.setTextColor(android.graphics.Color.RED);
                     llPauseControls.setVisibility(View.VISIBLE);
                     break;
-                case 2: // STATE_RUNNING
+                case Navigation.STATE_RUNNING:
+                    if (isPaused) {
+                        return;
+                    }
                     tvStatus.setText("导航中");
                     tvHint.setText("正在前往目的地...");
                     tvHint.setTextColor(getResources().getColor(android.R.color.darker_gray));
