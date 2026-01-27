@@ -24,6 +24,7 @@ import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.manager.ItemDeliveryManager;
 
 import com.keenon.sdk.component.navigation.route.RouteNode;
 
@@ -66,6 +67,9 @@ public class DeliveryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_delivery);
 
+        // 初始化 ItemDeliveryManager
+        ItemDeliveryManager.getInstance().init(this);
+
         // 获取舱门服务
         doorService = ServiceManager.getInstance().getDoorService();
         // 获取机器人状态服务
@@ -76,6 +80,10 @@ public class DeliveryActivity extends AppCompatActivity {
 
         // --- 1. 基础按钮 ---
         findViewById(R.id.back_button).setOnClickListener(v -> finish());
+
+        findViewById(R.id.history_button).setOnClickListener(v -> {
+            startActivity(new Intent(DeliveryActivity.this, ItemDeliveryHistoryActivity.class));
+        });
 
         openDoorButton = findViewById(R.id.open_door_button);
 
@@ -620,6 +628,9 @@ public class DeliveryActivity extends AppCompatActivity {
     }
 
     private void startDelivery() {
+        // 记录开始配送时间
+        ItemDeliveryManager.getInstance().startDelivery();
+
         Intent intent = new Intent(this, DeliveryNavigationActivity.class);
         intent.putExtra("pairings", pairings);
         // 使用 startActivityForResult 以便在任务完成后接收通知

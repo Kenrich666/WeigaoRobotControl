@@ -18,6 +18,8 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.ItemDeliveryManager;
+import com.weigao.robot.control.model.ItemDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
@@ -223,6 +225,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private void setupButtons() {
         btnPauseEnd.setOnClickListener(v -> {
             Log.d(TAG, "【用户操作】点击结束按钮");
+
+            // 如果配送任务尚未完成就被手动结束，记录为取消状态
+            if (!isMissionFinished && !isReturning && currentUniqueTargetIndex < targetNodes.size()) {
+                NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
+                ItemDeliveryManager.getInstance().recordPointArrival(currentNode.getName(),
+                        ItemDeliveryRecord.STATUS_CANCELLED);
+            }
+
             Intent returnIntent = new Intent();
             if (pairings != null) {
                 returnIntent.putExtra("remaining_pairings", pairings);
@@ -517,11 +527,21 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 case Navigation.STATE_BLOCKING:
                     Log.w(TAG, "【导航回调】阻挡超时");
                     Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
+                    if (currentUniqueTargetIndex < targetNodes.size()) {
+                        ItemDeliveryManager.getInstance().recordPointArrival(
+                                targetNodes.get(currentUniqueTargetIndex).getName(),
+                                ItemDeliveryRecord.STATUS_NAV_FAILED);
+                    }
                     break;
 
                 case Navigation.STATE_ERROR:
                     Log.e(TAG, "【导航回调】导航错误");
                     Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
+                    if (currentUniqueTargetIndex < targetNodes.size()) {
+                        ItemDeliveryManager.getInstance().recordPointArrival(
+                                targetNodes.get(currentUniqueTargetIndex).getName(),
+                                ItemDeliveryRecord.STATUS_NAV_FAILED);
+                    }
                     break;
             }
         });

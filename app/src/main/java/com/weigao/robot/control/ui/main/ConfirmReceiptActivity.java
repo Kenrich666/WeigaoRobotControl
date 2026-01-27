@@ -2,6 +2,7 @@ package com.weigao.robot.control.ui.main;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +18,7 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.manager.ItemDeliveryManager;
 import android.content.Intent;
 import android.os.CountDownTimer;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
@@ -26,6 +28,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import androidx.appcompat.app.AlertDialog;
+import com.weigao.robot.control.model.ItemDeliveryRecord;
 
 /**
  * 到达点位确认收货页面
@@ -38,8 +42,10 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     private TextView tvPointName;
     private TextView tvLayersList;
     private TextView tvCountdown;
+    private TextView tvArrivalDuration;
     private TextView layerL1, layerL2, layerL3;
     private Button btnOpenCabin;
+    private AlertDialog durationDialog;
 
     // 舱门服务
     private IDoorService doorService;
@@ -77,6 +83,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         layerL3 = findViewById(R.id.layer_l3);
 
         btnOpenCabin = findViewById(R.id.btn_open_cabin);
+        tvArrivalDuration = findViewById(R.id.tv_arrival_duration);
     }
 
     private void initData() {
@@ -249,6 +256,13 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             btnOpenCabin.setEnabled(false);
             tvCountdown.setText("正在离开...");
+
+            // 如果门没开就自动离场，记录为超时失败
+            if (!isConfirmState) {
+                String pointName = currentNode != null ? currentNode.getName() : "未知点位";
+                ItemDeliveryManager.getInstance().recordPointArrival(pointName,
+                        ItemDeliveryRecord.STATUS_FAILED_TIMEOUT);
+            }
         });
 
         if (doorService != null) {
@@ -368,11 +382,14 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
+        if (durationDialog != null && durationDialog.isShowing()) {
+            durationDialog.dismiss();
+        }
         if (departureTimer != null) {
             departureTimer.cancel();
             departureTimer = null;
         }
+        super.onDestroy();
     }
 
     @Override
@@ -401,6 +418,17 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                     btnOpenCabin.setText("确认收货");
                     isConfirmState = true;
 
+                    // 记录到达时间 (成功)
+                    String pointName = currentNode != null ? currentNode.getName() : "位置点位";
+                    ItemDeliveryRecord record = ItemDeliveryManager.getInstance().recordPointArrival(pointName,
+                            ItemDeliveryRecord.STATUS_SUCCESS);
+
+                    if (record != null) {
+                        tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
+                        tvArrivalDuration.setVisibility(View.VISIBLE);
+                        showDurationDialog(record.getFormattedDuration());
+                    }
+
                     // 防止连击，延迟3秒启用确认收货按钮
                     new android.os.Handler().postDelayed(() -> {
                         if (!isFinishing()) {
@@ -416,8 +444,30 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                     Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show();
                     btnOpenCabin.setEnabled(true);
+
+                    // 记录开门硬件失败
+                    String pointName = currentNode != null ? currentNode.getName() : "位置点位";
+                    ItemDeliveryManager.getInstance().recordPointArrival(pointName,
+                            ItemDeliveryRecord.STATUS_FAILED_HARDWARE);
                 });
             }
         });
+    }
+
+    private void showDurationDialog(String duration) {
+        if (isFinishing())
+            return;
+
+        // 如果已经有显示的对话框，先关闭
+        if (durationDialog != null && durationDialog.isShowing()) {
+            durationDialog.dismiss();
+        }
+
+        durationDialog = new AlertDialog.Builder(this)
+                .setTitle("配送记录")
+                .setMessage("本次配送到达时长: " + duration)
+                .setPositiveButton("确定", null)
+                .setCancelable(false)
+                .show();
     }
 }
