@@ -39,7 +39,7 @@ public class AppSettingsManager {
     private static final String KEY_FULLSCREEN = "is_fullscreen";
 
     private static AppSettingsManager instance;
-    private boolean isFullScreen = false;
+    private boolean isFullScreen = true;
 
     private AppSettingsManager() {
         // Delayed loading? Or just handle exception in loadSettings.
@@ -97,7 +97,7 @@ public class AppSettingsManager {
 
                 if (sb.length() > 0) {
                     JSONObject json = new JSONObject(sb.toString());
-                    this.isFullScreen = json.optBoolean(KEY_FULLSCREEN, false);
+                    this.isFullScreen = json.optBoolean(KEY_FULLSCREEN, true);
                 }
             }
         } catch (IOException | JSONException e) {
