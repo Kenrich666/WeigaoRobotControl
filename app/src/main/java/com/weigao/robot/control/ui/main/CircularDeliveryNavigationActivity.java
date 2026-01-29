@@ -380,12 +380,25 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     btnReturnOrigin.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
                     break;
-                case 6: // STATE_BLOCKED
-                    tvStatus.setText("被阻挡");
-                    tvHint.setText("路径规划失败或被阻挡，请检查障碍物");
-                    tvHint.setTextColor(android.graphics.Color.RED);
-                    llPauseControls.setVisibility(View.VISIBLE);
-                    // speak("遇到障碍物或路径被阻挡");
+                case Navigation.STATE_COLLISION:
+                case Navigation.STATE_BLOCKED:
+                    // 短暂阻挡或碰撞,正在避障
+                    Log.w(TAG, "【导航回调】遇到障碍物，正在避障");
+                    Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
+                    // speak("遇到障碍物，正在避障");
+                    break;
+
+                case Navigation.STATE_BLOCKING:
+                    // 长时间阻挡超时
+                    Log.w(TAG, "【导航回调】阻挡超时");
+                    Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
+                    // speak("长时间被阻挡，请检查路径");
+                    
+                    // 记录导航失败状态
+                    if (currentRecord != null && currentTaskIndex < targetNodes.size()) {
+                        currentRecord.complete("NAV_FAILED");
+                        Log.d(TAG, "【记录】当前导航任务被标记为失败状态");
+                    }
                     break;
                 case Navigation.STATE_RUNNING:
                     if (isPaused) {

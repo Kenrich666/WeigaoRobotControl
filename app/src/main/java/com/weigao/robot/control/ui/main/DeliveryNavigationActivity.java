@@ -340,14 +340,20 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                Log.d(TAG, "【导航控制】暂停成功");
-                pauseBackgroundMusic();
+                Log.d(TAG, "【导航控制】暂停成功 - 机器人已停止");
+                // pauseBackgroundMusic(); // Modified: Keep music playing during pause
                 // speak("已暂停配送");
             }
 
             @Override
             public void onError(ApiError error) {
                 Log.e(TAG, "【导航控制】暂停失败: " + error.getMessage());
+                // 关键修复: 暂停失败时回滚UI状态
+                runOnUiThread(() -> {
+                    setPauseState(false);
+                    Toast.makeText(DeliveryNavigationActivity.this,
+                            "暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
@@ -362,7 +368,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         hasRunningStateReceived = false;
 
         // 恢复背景音乐
-        resumeBackgroundMusic();
+        // resumeBackgroundMusic(); // Modified: Music is already playing
         playConfiguredVoice(false);
 
         if (waitingForNext) {
@@ -513,6 +519,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 case Navigation.STATE_RUNNING:
                     Log.d(TAG, "【导航回调】正在运行中");
                     hasRunningStateReceived = true;
+                    
+                    // 关键修复: 状态同步检查 - 如果UI显示暂停但机器人实际在运行，说明暂停失败
+                    if (isPaused) {
+                        Log.w(TAG, "【状态同步】检测到状态不一致: UI显示暂停但机器人运行中，自动修正UI状态");
+                        setPauseState(false);
+                        Toast.makeText(this, "检测到暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
+                    }
+                    
                     // 如果不是暂停状态，确保显示为配送中
                     if (!isPaused && !tvStatus.getText().toString().equals("配送中") && !isReturning) {
                         tvStatus.setText("配送中");
@@ -520,9 +534,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     if (isReturning && !tvStatus.getText().toString().equals("返航中") && !isMissionFinished) {
                         tvStatus.setText("返航中");
                     }
-                    if (schedule > 0 && schedule % 5 == 0) { // 防止过于频繁
-                        // speak("配送中，请避让"); 也许太吵了
-                    }
+                    
+                    // 持续播报行驶中语音（AudioServiceImpl会自动处理3秒间隔，不会重复播放）
+                    playConfiguredVoice(false);
                     break;
 
                 case Navigation.STATE_DESTINATION:
@@ -531,7 +545,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         Log.d(TAG, "【导航回调】已到达目标点");
                         Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
 
-                        pauseBackgroundMusic();
+                        // pauseBackgroundMusic(); // Modified: Keep music playing at destination
                         playConfiguredVoice(true);
 
                         handleArrival();
@@ -686,7 +700,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_CONFIRM_RECEIPT) {
             if (resultCode == RESULT_OK) {
-                Log.d(TAG, "【ConfirmReceipt】返回确认");
+                Log.d(TAG, "【ConfirmReceipt】返回确认，用户已完成收货");
                 waitingForNext = false;
 
                 // 用户已确认收货，从配对关系中移除对应的层级
@@ -742,8 +756,74 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     }
                 }
             } else {
-                Log.d(TAG, "【ConfirmReceipt】返回非OK，可能取消或异常");
-                // 视需求处理，暂时保持等待或恢复
+                // 处理确认收货页面非正常返回的情况（超时、取消、异常等）
+                Log.w(TAG, "【ConfirmReceipt】返回非OK状态，resultCode=" + resultCode + "，可能是超时或用户取消");
+                waitingForNext = false;
+                
+                // 记录当前站点为失败状态
+                if (currentUniqueTargetIndex < targetNodes.size()) {
+                    NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
+                    ItemDeliveryManager.getInstance().recordPointArrival(currentNode.getName(),
+                            ItemDeliveryRecord.STATUS_FAILED_TIMEOUT);
+                    Log.d(TAG, "【数据更新】记录站点 " + currentNode.getName() + " 为超时失败");
+                }
+                
+                // 从配对关系中移除对应的层级（即使失败也要移除，避免重复尝试）
+                if (pairings != null && currentUniqueTargetIndex < uniqueDeliveryTasks.size()) {
+                    List<Map.Entry<Integer, NavigationNode>> finishedTasks = uniqueDeliveryTasks
+                            .get(currentUniqueTargetIndex);
+                    for (Map.Entry<Integer, NavigationNode> task : finishedTasks) {
+                        pairings.remove(task.getKey());
+                    }
+                    Log.d(TAG, "【数据更新】已移除失败站点的配对关系");
+                }
+                
+                // 继续执行后续任务
+                if (currentUniqueTargetIndex < targetNodes.size() - 1) {
+                    Log.d(TAG, "【导航控制】当前站点失败，继续前往下一站");
+                    navigationService.pilotNext(new IResultCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            Log.d(TAG, "【导航控制】前往下一点成功");
+                            runOnUiThread(() -> {
+                                tvStatus.setText("配送中");
+                                Toast.makeText(DeliveryNavigationActivity.this, 
+                                        "上一站点超时，继续下一站", Toast.LENGTH_SHORT).show();
+                            });
+                        }
+
+                        @Override
+                        public void onError(ApiError error) {
+                            Log.e(TAG, "【导航控制】前往下一点失败: " + error.getMessage());
+                            runOnUiThread(() -> Toast.makeText(DeliveryNavigationActivity.this,
+                                    "跳转失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+                        }
+                    });
+                } else {
+                    Log.d(TAG, "【导航控制】最后一站失败，检查是否需要返回原点");
+                    // 标记配送任务完成
+                    currentUniqueTargetIndex = targetNodes.size();
+
+                    // 检查是否有原点数据
+                    if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
+                        Log.d(TAG, "【导航控制】找到原点，开始自动返回");
+                        NavigationNode originNode = DeliveryActivity.originPoints.get(0);
+
+                        // 设置返回模式
+                        isReturning = true;
+
+                        // 重置目标点为原点
+                        targetNodes = new ArrayList<>();
+                        targetNodes.add(originNode);
+
+                        // 更新UI并开始导航
+                        updateTaskText();
+                        startNavigation();
+                    } else {
+                        Log.d(TAG, "【导航控制】无原点数据，直接结束");
+                        updateTaskText();
+                    }
+                }
             }
         }
     }

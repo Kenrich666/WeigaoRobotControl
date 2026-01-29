@@ -395,6 +395,13 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        
+        // 如果Activity已经在结束过程中（例如超时触发了自动离场），忽略密码验证结果
+        if (isFinishing()) {
+            Log.d(TAG, "【密码验证】Activity正在结束，忽略密码验证结果");
+            return;
+        }
+        
         if (requestCode == REQUEST_CODE_VERIFY_PASSWORD && resultCode == RESULT_OK) {
             // 密码验证通过，执行开门
             performOpenCabin();
