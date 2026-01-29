@@ -28,12 +28,12 @@ import java.io.IOException;
  * 路径: /sdcard/WeigaoRobot/routes/circular_routes.json
  * 
  * 应用全局设置（如全屏开关）
- * 路径: /sdcard/WeigaoRobot/settings/app_settings.json
+ * 路径: /sdcard/WeigaoRobot/config/app_settings.json
  * 
  */
 public class AppSettingsManager {
     private static final String TAG = "AppSettingsMgr";
-    private static final String SETTINGS_DIR = "WeigaoRobot/settings";
+    private static final String SETTINGS_DIR = "WeigaoRobot/config";
     private static final String SETTINGS_FILE = "app_settings.json";
 
     private static final String KEY_FULLSCREEN = "is_fullscreen";

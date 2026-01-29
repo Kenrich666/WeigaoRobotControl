@@ -30,14 +30,12 @@ import java.io.IOException;
 public class AudioServiceImpl implements IAudioService {
 
     private static final String TAG = "AudioServiceImpl";
-    // Migration: Use File instead of SharedPreferences to match SecurityService
     private static final String CONFIG_DIR = "WeigaoRobot/config";
-    private static final String CONFIG_FILE = "audio_config.json";
+    private static final String AUDIO_DIR = "WeigaoRobot/audio";
 
     private final Context context;
     private final AudioManager audioManager;
     private AudioConfig audioConfig;
-    private final Gson gson;
 
     // Components
     private MediaPlayer mediaPlayer; // Background Music
@@ -46,13 +44,18 @@ public class AudioServiceImpl implements IAudioService {
     public AudioServiceImpl(Context context) {
         this.context = context.getApplicationContext();
         this.audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        this.gson = new Gson();
 
         // 0. 部署默认资源 (如果不存在)
         deployDefaultAssets();
 
-        // 1. 初始化配置 (从文件读取)
-        loadConfig();
+        // 1. 初始化配置 (从 Manager 获取)
+        this.audioConfig = com.weigao.robot.control.manager.SoundSettingsManager.getInstance().getAudioConfig();
+        
+        // 检查配置是否初始化
+        if (!audioConfig.isInitialized()) {
+             initDefaultConfig();
+             com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
+        }
         
         Log.d(TAG, "AudioServiceImpl (No TTS, Audio Files) created");
     }
@@ -66,7 +69,7 @@ public class AudioServiceImpl implements IAudioService {
 
     private void copyRawResourceToFile(int resId, String filename) {
         try {
-            File dest = new File(context.getExternalFilesDir("music"), filename);
+            File dest = new File(android.os.Environment.getExternalStorageDirectory(), AUDIO_DIR + "/" + filename);
             if (!dest.exists()) {
                 // Ensure dir exists
                 File dir = dest.getParentFile();
@@ -88,50 +91,7 @@ public class AudioServiceImpl implements IAudioService {
         }
     }
 
-    private void loadConfig() {
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(), CONFIG_DIR);
-        File file = new File(dir, CONFIG_FILE);
 
-        if (file.exists()) {
-            try {
-                StringBuilder sb = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        sb.append(line);
-                    }
-                }
-                audioConfig = gson.fromJson(sb.toString(), AudioConfig.class);
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to load audio config from file", e);
-                // Fallback
-                audioConfig = new AudioConfig();
-                initDefaultConfig();
-            }
-        } else {
-            // First time or missing
-            audioConfig = new AudioConfig();
-            initDefaultConfig();
-            saveConfig();
-        }
-    }
-
-    private void saveConfig() {
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(), CONFIG_DIR);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-        File file = new File(dir, CONFIG_FILE);
-
-        try {
-            String json = gson.toJson(audioConfig);
-            try (FileWriter writer = new FileWriter(file)) {
-                writer.write(json);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to save audio config", e);
-        }
-    }
 
     private void initDefaultConfig() {
         // Default volumes
@@ -147,7 +107,10 @@ public class AudioServiceImpl implements IAudioService {
         audioConfig.setLoopVoiceEnabled(true);
         
         // Default paths if available
-        File musicDir = context.getExternalFilesDir("music");
+        // Default paths if available
+        File musicDir = new File(android.os.Environment.getExternalStorageDirectory(), AUDIO_DIR);
+        if (!musicDir.exists()) musicDir.mkdirs();
+        
         if (musicDir != null) {
              audioConfig.setDeliveryMusicPath(new File(musicDir, "default_music.mp3").getAbsolutePath());
              audioConfig.setLoopMusicPath(new File(musicDir, "default_music.mp3").getAbsolutePath());
@@ -158,6 +121,9 @@ public class AudioServiceImpl implements IAudioService {
              audioConfig.setLoopNavigatingVoicePath(new File(musicDir, "default_navigating.mp3").getAbsolutePath());
              audioConfig.setLoopArrivalVoicePath(new File(musicDir, "default_arrival.mp3").getAbsolutePath());
         }
+        
+        // Mark as initialized
+        audioConfig.setInitialized(true);
     }
 
     // ==================== 音乐设置 ====================
@@ -165,14 +131,14 @@ public class AudioServiceImpl implements IAudioService {
     @Override
     public void setDeliveryMusic(String musicPath, IResultCallback<Void> callback) {
         audioConfig.setDeliveryMusicPath(musicPath);
-        saveConfig();
+        com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
         notifySuccess(callback);
     }
 
     @Override
     public void setLoopMusic(String musicPath, IResultCallback<Void> callback) {
         audioConfig.setLoopMusicPath(musicPath);
-        saveConfig();
+        com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
         notifySuccess(callback);
     }
 
@@ -289,7 +255,7 @@ public class AudioServiceImpl implements IAudioService {
     public void setVoiceVolume(int volume, IResultCallback<Void> callback) {
         int val = clampVolume(volume);
         audioConfig.setVoiceVolume(val);
-        saveConfig();
+        com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
         
         if (voiceMediaPlayer != null) {
             float v = val / 100.0f;
@@ -302,7 +268,7 @@ public class AudioServiceImpl implements IAudioService {
     public void setDeliveryVolume(int volume, IResultCallback<Void> callback) {
         int val = clampVolume(volume);
         audioConfig.setDeliveryVolume(val);
-        saveConfig();
+        com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
 
         // Update running player if exists
         if (mediaPlayer != null) {
@@ -471,7 +437,7 @@ public class AudioServiceImpl implements IAudioService {
     public void updateAudioConfig(AudioConfig config, IResultCallback<Void> callback) {
         if (config != null) {
             this.audioConfig = config;
-            saveConfig();
+            com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
             setDeliveryVolume(config.getDeliveryVolume(), null);
             notifySuccess(callback);
         } else {

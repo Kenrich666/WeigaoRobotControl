@@ -161,22 +161,21 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:layout_marginBottom="8dp">
 
                 <Switch
                     android:id="@+id/switch_delivery_music"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="背景音乐"
                     android:textColor="#616161"/>
 
                 <Switch
                     android:id="@+id/switch_delivery_voice"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_marginTop="8dp"
                     android:text="语音播报"
                     android:textColor="#616161"/>
             </LinearLayout>
@@ -247,7 +246,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Arrival Voice (At Destination)"
+                android:text="到达语音"
                 android:textColor="#616161"
                 android:textSize="14sp" />
 
@@ -337,22 +336,21 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:layout_marginBottom="8dp">
 
                 <Switch
                     android:id="@+id/switch_loop_music"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="背景音乐"
                     android:textColor="#616161"/>
 
                 <Switch
                     android:id="@+id/switch_loop_voice"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_marginTop="8dp"
                     android:text="语音播报"
                     android:textColor="#616161"/>
             </LinearLayout>

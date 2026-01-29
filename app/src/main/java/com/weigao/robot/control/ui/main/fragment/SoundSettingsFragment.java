@@ -111,7 +111,7 @@ public class SoundSettingsFragment extends Fragment {
     private View btnTestLoopArrival; // New
     private View btnStopLoopMusic;
 
-    private static final String MUSIC_DIR = "WeigaoRobot/music";
+    private static final String MUSIC_DIR = "WeigaoRobot/audio";
 
     // Request Codes
     private static final int REQUEST_CODE_PICK_DELIVERY_MUSIC = 2001;
@@ -289,7 +289,7 @@ public class SoundSettingsFragment extends Fragment {
         btnSelectLoopNavVoice.setOnClickListener(v -> openFilePicker(REQUEST_CODE_PICK_LOOP_NAV_VOICE));
         btnSelectLoopArrivalVoice.setOnClickListener(v -> openFilePicker(REQUEST_CODE_PICK_LOOP_ARRIVAL_VOICE));
 
-        // Frequency Listeners
+
 
 
         // Switches
@@ -539,9 +539,10 @@ public class SoundSettingsFragment extends Fragment {
     // ==================== Helpers ==================== //
 
     private File getMusicDir() {
-        File dir = getContext().getExternalFilesDir("music");
-        if (dir == null) dir = new File(getContext().getFilesDir(), "music");
-        if (!dir.exists()) dir.mkdirs();
+        File dir = new File(Environment.getExternalStorageDirectory(), MUSIC_DIR);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
         return dir;
     }
 
