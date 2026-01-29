@@ -103,72 +103,45 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             CircularDeliveryRecord record = data.get(position);
 
-            // Use Header for Route Info (mimicking TaskGrouping)
+            // ===== 头部: 路线信息 =====
             holder.layoutTaskHeader.setVisibility(View.VISIBLE);
             
-            String routeInfo = String.format(Locale.getDefault(), "路线: %s (循环 %d 次)", 
-                record.getRouteName(), record.getLoopCount());
+            String routeInfo = String.format(Locale.getDefault(), "路线: %s", record.getRouteName());
             holder.tvTaskId.setText(routeInfo);
-            holder.tvTaskTime.setText("开始时间: " + record.getFormattedStartTime());
+            holder.tvTaskTime.setText(String.format(Locale.getDefault(), "循环: %d次  |  开始: %s", 
+                record.getLoopCount(), record.getFormattedStartTime()));
 
-            // Body for Status and Duration
-            String statusRaw = record.getStatus();
-            String statusText = "未知状态";
-            int statusColor = 0xFF333333; // Dark Gray
-
-            if ("COMPLETED".equalsIgnoreCase(statusRaw)) {
-                statusText = "配送完成";
-                statusColor = 0xFF4CAF50; // Green
-            } else if ("CANCELLED".equalsIgnoreCase(statusRaw)) {
-                statusText = "已取消";
-                statusColor = 0xFF9E9E9E; // Gray
-            } else if ("ABORTED".equalsIgnoreCase(statusRaw)) {
-                statusText = "已终止";
-                statusColor = 0xFFF44336; // Red
-            } else if (statusRaw == null) {
-                statusText = "进行中";
-                 statusColor = 0xFF2196F3; // Blue
+            // ===== 主体: 状态信息 =====
+            // 使用 Model 的 getStatusText() 方法获取带 Emoji 的状态文本
+            holder.tvPointName.setText(record.getStatusText());
+            
+            // 根据状态设置颜色
+            int statusColor;
+            String status = record.getStatus();
+            if (CircularDeliveryRecord.STATUS_COMPLETED.equals(status)) {
+                statusColor = 0xFF4CAF50; // 绿色 - 成功
+            } else if (CircularDeliveryRecord.STATUS_CANCELLED.equals(status) 
+                    || CircularDeliveryRecord.STATUS_ABORTED.equals(status)) {
+                statusColor = 0xFF9E9E9E; // 灰色 - 取消/终止
+            } else if (CircularDeliveryRecord.STATUS_NAV_FAILED.equals(status)) {
+                statusColor = 0xFFF44336; // 红色 - 导航失败
+            } else {
+                statusColor = 0xFF666666; // 深灰色 - 未知
             }
-
-            holder.tvPointName.setText(statusText);
             holder.tvPointName.setTextColor(statusColor);
 
-            String durationStr = "";
-            if (record.getDurationSeconds() > 0) {
-                long s = record.getDurationSeconds();
-                durationStr = String.format(Locale.getDefault(), "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60);
-                durationStr = "总耗时: " + durationStr;
-            } else {
-                 durationStr = "计算中...";
-            }
-            holder.tvDuration.setText(durationStr);
-            holder.tvDuration.setTextColor(0xFF666666); // Normal text color for duration description
+            // ===== 底部: 耗时和结束时间 =====
+            // 使用 Model 的 getFormattedDuration() 方法
+            holder.tvDuration.setText("总耗时: " + record.getFormattedDuration());
+            holder.tvDuration.setTextColor(0xFF666666);
             
-            // Show End Time if available
-            // We need to calculate end time or format it if CircularDeliveryRecord exposes it, 
-            // otherwise just re-show start or hide.
-            // CircularDeliveryRecord has start and duration. End = Start + Duration*1000
+            // 显示结束时间(如果已完成)
             if (record.getDurationSeconds() > 0) {
-                 long endTime = record.getFormattedStartTime() != null ? 
-                     (System.currentTimeMillis()) : 0; // Fallback? 
-                 // Actually record has getStartTime(). Let's use simple math to show rough end time if needed
-                 // Or just hide it if not critical. 
-                 // ItemDeliveryRecord shows "Create Time" (Arrival Time).
-                 // Let's show "结束时间: ..."
-                 long endMs = 0;
-                 // We don't have access to raw start time long here easily unless we parse or add getter. 
-                 // CircularDeliveryRecord HAS getDurationSeconds.
-                 // Ideally we should add getEndTime() to CircularDeliveryRecord or use what we have.
-                 // Let's just use "结束于: [Calculated]" or just leave it blank if complex.
-                 // Actually, ItemDeliveryRecord uses "Create Time". 
-                 // Let's just put something static or formatted if possible.
-                 // Re-reading CircularDeliveryRecord in previous steps... it has private long endTime.
-                 // It does NOT expose getEndTime() public method in the snippet I saw (only complete sets it).
-                 // It has `toJson` which uses it.
-                 // Let's rely on what we have.
-                 holder.tvCreateTime.setVisibility(View.GONE);
+                holder.tvCreateTime.setText("结束: " + record.getFormattedEndTime());
+                holder.tvCreateTime.setVisibility(View.VISIBLE);
+                holder.tvCreateTime.setTextColor(0xFF666666);
             } else {
-                 holder.tvCreateTime.setVisibility(View.GONE);
+                holder.tvCreateTime.setVisibility(View.GONE);
             }
         }
 

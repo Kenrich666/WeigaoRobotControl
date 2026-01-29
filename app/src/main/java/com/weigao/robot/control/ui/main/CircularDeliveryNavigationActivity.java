@@ -47,6 +47,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean isPaused = false;
     private boolean isNavigating = false;
     private boolean isWaitingAtNode = false;
+    private boolean hasRunningStateReceived = false; // 防止粘性到达事件
 
     private GestureDetector gestureDetector;
     private INavigationService navigationService;
@@ -85,15 +86,23 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             return;
         }
 
-        // Expand nodes based on loop count
+        // 生成往返循环路线 (abccba 模式)
+        // 例: A→B→C 循环3次 = A→B→C→B→A→B→C→B→A
         targetNodes = new ArrayList<>();
         for (int i = 0; i < loopCount; i++) {
-            targetNodes.addAll(rawNodes);
+            if (i % 2 == 0) {
+                // 偶数次循环(0,2,4...): 正向 A→B→C
+                targetNodes.addAll(rawNodes);
+            } else {
+                // 奇数次循环(1,3,5...): 反向 C→B→A
+                List<NavigationNode> reverseNodes = new ArrayList<>(rawNodes);
+                java.util.Collections.reverse(reverseNodes);
+                targetNodes.addAll(reverseNodes);
+            }
         }
 
-        // Add Return to Origin at the very end?
-        // Logic: Circular delivery usually ends where it started or just stops.
-        // We'll assume it stops at the last node. User can "Return" manually.
+        // 往返循环结束后,机器人会停在起点(偶数次)或终点(奇数次)
+        // 用户可以手动点击"返回原点"按钮返航
 
         setupGestureDetector();
         setupButtons();
@@ -225,6 +234,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航控制】暂停成功 - 机器人已停止");
                 runOnUiThread(() -> {
                     isPaused = true;
                     tvStatus.setText("已暂停");
@@ -232,35 +242,50 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     btnReturnOrigin.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
 
-                    pauseBackgroundMusic();
+                    // pauseBackgroundMusic(); // Modified: Keep music playing during pause
                     // speak("已暂停循环配送");
                 });
             }
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "【导航控制】暂停失败: " + error.getMessage());
+                // 关键修复: 暂停失败时回滚UI状态
+                runOnUiThread(() -> {
+                    isPaused = false;
+                    llPauseControls.setVisibility(View.GONE);
+                    btnReturnOrigin.setVisibility(View.GONE);
+                    tvHint.setVisibility(View.VISIBLE);
+                    Toast.makeText(CircularDeliveryNavigationActivity.this,
+                            "暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
 
     private void resumeNavigation() {
+        // 重置标志位，因为恢复或跳转都会重新进入运行状态
+        hasRunningStateReceived = false;
+
+        // resumeBackgroundMusic(); // Modified: Music is already playing
+        playConfiguredVoice(false);
+
         navigationService.start(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航控制】恢复成功");
                 runOnUiThread(() -> {
                     isPaused = false;
                     tvStatus.setText("导航中");
                     llPauseControls.setVisibility(View.GONE);
                     btnReturnOrigin.setVisibility(View.GONE);
                     tvHint.setVisibility(View.VISIBLE);
-
-                    resumeBackgroundMusic();
-                    playConfiguredVoice(false);
                 });
             }
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "【导航控制】恢复失败: " + error.getMessage());
             }
         });
     }
@@ -294,22 +319,27 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void startPilotNext() {
+        // 重置标志位，因为跳转会重新进入运行状态
+        hasRunningStateReceived = false;
+
+        // resumeBackgroundMusic(); // Modified: Music is already playing
+        playConfiguredVoice(false);
+
         navigationService.pilotNext(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航控制】前往下一点成功");
                 runOnUiThread(() -> {
                     isWaitingAtNode = false;
                     tvStatus.setText("导航中");
                     llPauseControls.setVisibility(View.GONE);
                     tvHint.setVisibility(View.VISIBLE);
-
-                    resumeBackgroundMusic();
-                    playConfiguredVoice(false);
                 });
             }
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "【导航控制】前往下一点失败: " + error.getMessage());
                 runOnUiThread(() -> Toast.makeText(CircularDeliveryNavigationActivity.this, "无法前往下一站: " + error.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
@@ -320,6 +350,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         isNavigating = false;
 
         stopBackgroundMusic();
+        if (audioService != null) {
+            audioService.stopVoice(null); // 停止语音播报
+        }
 
         // Only mark as CANCELLED if it hasn't been completed yet
         if (currentRecord != null && currentRecord.getDurationSeconds() == 0
@@ -344,17 +377,38 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 int currentLoop = (currentTaskIndex / nodesPerLoop) + 1;
                 int nodeIndexInLoop = (currentTaskIndex % nodesPerLoop) + 1;
 
-                tvLoopCount.setText(String.format("第 %d / %d 轮", currentLoop, loopCount));
+                // 判断当前是正向还是反向 (往返循环模式)
+                // 偶数轮(0,2,4...)正向, 奇数轮(1,3,5...)反向
+                boolean isForward = ((currentLoop - 1) % 2) == 0;
+                String directionArrow = isForward ? "→" : "←";
+                String directionText = isForward ? "正向" : "返回";
+
+                // 显示循环轮次和方向
+                tvLoopCount.setText(String.format("第 %d/%d 轮 (%s %s)", 
+                    currentLoop, loopCount, directionText, directionArrow));
 
                 // Progress Bar
                 if (pbProgress != null) {
                     pbProgress.setProgress(currentTaskIndex + 1);
                 }
 
-                currentTaskTextView.setText(String.format("正在前往: %s (第 %d/%d 个点位)",
+                // 显示当前目标
+                currentTaskTextView.setText(String.format("正在前往: %s (本轮第 %d/%d 个)",
                         node.getName(), nodeIndexInLoop, nodesPerLoop));
+                
+                // 显示下一个点位预览
+                if (currentTaskIndex + 1 < targetNodes.size()) {
+                    NavigationNode nextNode = targetNodes.get(currentTaskIndex + 1);
+                    tvHint.setText("下一个: " + nextNode.getName());
+                    tvHint.setVisibility(View.VISIBLE);
+                } else {
+                    // 最后一个点位
+                    tvHint.setText("即将完成");
+                    tvHint.setVisibility(View.VISIBLE);
+                }
             } else {
                 currentTaskTextView.setText("导航结束");
+                tvLoopCount.setText(String.format("已完成 %d 轮", loopCount));
                 if (pbProgress != null)
                     pbProgress.setProgress(targetNodes.size());
             }
@@ -364,15 +418,49 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     // INavigationCallback Implementation
     @Override
     public void onStateChanged(int state, int schedule) {
+        Log.d(TAG, "【导航回调】onStateChanged - state: " + state + ", schedule: " + schedule);
         runOnUiThread(() -> {
-            Log.d(TAG, "onStateChanged: state=" + state + ", schedule=" + schedule);
             switch (state) {
-                case Navigation.STATE_DESTINATION:
-                    // Arrived
-                    pauseBackgroundMusic();
-                    playConfiguredVoice(true);
-                    handleArrival();
+                case Navigation.STATE_RUNNING:
+                    Log.d(TAG, "【导航回调】正在运行中");
+                    hasRunningStateReceived = true;
+
+                    // 关键修复: 状态同步检查 - 如果UI显示暂停但机器人实际在运行，说明暂停失败
+                    if (isPaused) {
+                        Log.w(TAG, "【状态同步】检测到状态不一致: UI显示暂停但机器人运行中，自动修正UI状态");
+                        isPaused = false;
+                        llPauseControls.setVisibility(View.GONE);
+                        btnReturnOrigin.setVisibility(View.GONE);
+                        tvHint.setVisibility(View.VISIBLE);
+                        Toast.makeText(this, "检测到暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
+                    }
+
+                    // 如果不是暂停状态，确保显示为导航中
+                    if (!isPaused && !tvStatus.getText().toString().equals("导航中")) {
+                        tvStatus.setText("导航中");
+                    }
+
+                    // 持续播报行驶中语音（AudioServiceImpl会自动处理3秒间隔，不会重复播放）
+                    playConfiguredVoice(false);
                     break;
+
+                case Navigation.STATE_DESTINATION:
+                    // 到达目标点
+                    if (hasRunningStateReceived) {
+                        Log.d(TAG, "【导航回调】已到达目标点");
+                        Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
+
+                        // pauseBackgroundMusic(); // Modified: Keep music playing at destination
+                        playConfiguredVoice(true);
+
+                        handleArrival();
+                        // 重置标志，防止重复触发，且等待下一段运行
+                        hasRunningStateReceived = false;
+                    } else {
+                        Log.w(TAG, "【导航回调】忽略无效的到达状态(未经历运行阶段)");
+                    }
+                    break;
+
                 case Navigation.STATE_PAUSED:
                     isPaused = true;
                     tvStatus.setText("已暂停");
@@ -380,6 +468,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     btnReturnOrigin.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
                     break;
+
                 case Navigation.STATE_COLLISION:
                 case Navigation.STATE_BLOCKED:
                     // 短暂阻挡或碰撞,正在避障
@@ -393,24 +482,24 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     Log.w(TAG, "【导航回调】阻挡超时");
                     Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
                     // speak("长时间被阻挡，请检查路径");
-                    
+
                     // 记录导航失败状态
                     if (currentRecord != null && currentTaskIndex < targetNodes.size()) {
                         currentRecord.complete("NAV_FAILED");
                         Log.d(TAG, "【记录】当前导航任务被标记为失败状态");
                     }
                     break;
-                case Navigation.STATE_RUNNING:
-                    if (isPaused) {
-                        return;
+
+                case Navigation.STATE_ERROR:
+                    Log.e(TAG, "【导航回调】导航错误");
+                    Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
+                    // 记录错误状态
+                    if (currentRecord != null && currentTaskIndex < targetNodes.size()) {
+                        currentRecord.complete("NAV_FAILED");
+                        Log.d(TAG, "【记录】当前导航任务失败");
                     }
-                    tvStatus.setText("导航中");
-                    tvHint.setText("正在前往目的地...");
-                    tvHint.setTextColor(getResources().getColor(android.R.color.darker_gray));
-                    llPauseControls.setVisibility(View.GONE);
-                    btnReturnOrigin.setVisibility(View.GONE);
-                    tvHint.setVisibility(View.VISIBLE);
                     break;
+
                 default:
                     break;
             }
@@ -539,11 +628,16 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d(TAG, "【Activity】onDestroy - 销毁活动");
         if (navigationService != null) {
             stopNavigation();
             navigationService.unregisterCallback(this);
+            Log.d(TAG, "【导航服务】已注销回调监听器");
         }
         stopBackgroundMusic();
+        if (audioService != null) {
+            audioService.stopVoice(null);
+        }
     }
 
     // ==================== Audio Helper Methods ====================

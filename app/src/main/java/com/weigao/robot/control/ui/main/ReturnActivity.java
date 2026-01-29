@@ -44,6 +44,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     private INavigationService navigationService;
     private boolean isNavigating = false;
     private boolean isPaused = false;
+    private boolean hasRunningStateReceived = false; // 防止粘性到达事件
     private com.weigao.robot.control.service.IAudioService audioService;
     private int sourceMode = 1; // 1: Delivery, 2: Loop
 
@@ -140,6 +141,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         List<Integer> targetIds = new ArrayList<>();
         targetIds.add(targetId);
 
+        // 重置运行状态标志，防止粘性到达事件
+        hasRunningStateReceived = false;
+
         // 1. 设置目标
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
@@ -196,8 +200,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航控制】暂停成功 - 机器人已停止");
                 isPaused = true;
-                if (audioService != null) audioService.pauseBackgroundMusic(null);
+                // if (audioService != null) audioService.pauseBackgroundMusic(null); // Modified: Keep music playing during pause
                 runOnUiThread(() -> {
                     showControls(true);
                     tvStatus.setText("已暂停");
@@ -206,7 +211,14 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
             @Override
             public void onError(ApiError error) {
-                Log.e(TAG, "暂停失败: " + error.getMessage());
+                Log.e(TAG, "【导航控制】暂停失败: " + error.getMessage());
+                // 关键修复: 暂停失败时回滚UI状态
+                runOnUiThread(() -> {
+                    isPaused = false;
+                    showControls(false);
+                    Toast.makeText(ReturnActivity.this,
+                            "暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
@@ -218,11 +230,15 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         if (!isNavigating || !isPaused)
             return;
 
+        // 重置标志位，因为恢复会重新进入运行状态
+        hasRunningStateReceived = false;
+
         navigationService.start(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航控制】恢复成功");
                 isPaused = false;
-                if (audioService != null) audioService.resumeBackgroundMusic(null);
+                // if (audioService != null) audioService.resumeBackgroundMusic(null); // Modified: Music is already playing
                 playReturnVoice(false); // Resuming voice
                 runOnUiThread(() -> {
                     showControls(false);
@@ -232,7 +248,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
             @Override
             public void onError(ApiError error) {
-                Log.e(TAG, "恢复失败: " + error.getMessage());
+                Log.e(TAG, "【导航控制】恢复失败: " + error.getMessage());
                 runOnUiThread(() -> Toast
                         .makeText(ReturnActivity.this, "恢复失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
             }
@@ -285,23 +301,68 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
     @Override
     public void onStateChanged(int state, int schedule) {
+        Log.d(TAG, "【导航回调】onStateChanged - state: " + state + ", schedule: " + schedule);
         runOnUiThread(() -> {
             switch (state) {
-                // 判断到达
-                case Navigation.STATE_DESTINATION:
-                    if (audioService != null) {
-                        audioService.stopBackgroundMusic(null);
-                        playReturnVoice(true);
+                case Navigation.STATE_RUNNING:
+                    Log.d(TAG, "【导航回调】正在运行中");
+                    hasRunningStateReceived = true;
+
+                    // 关键修复: 状态同步检查 - 如果UI显示暂停但机器人实际在运行，说明暂停失败
+                    if (isPaused) {
+                        Log.w(TAG, "【状态同步】棅测到状态不一致: UI显示暂停但机器人运行中，自动修正UI状态");
+                        isPaused = false;
+                        showControls(false);
+                        Toast.makeText(this, "棅测到暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
                     }
-                    Toast.makeText(this, "已回到目标点", Toast.LENGTH_SHORT).show();
-                    finish();
+
+                    // 如果不是暂停状态，确保显示为返航中
+                    if (!isPaused && !tvStatus.getText().toString().equals("返航中")) {
+                        tvStatus.setText("返航中");
+                    }
+
+                    // 持续播报行驶中语音（AudioServiceImpl会自动处理3秒间隔，不会重复播放）
+                    playReturnVoice(false);
                     break;
+
+                case Navigation.STATE_DESTINATION:
+                    // 到达目标点
+                    if (hasRunningStateReceived) {
+                        Log.d(TAG, "【导航回调】已到达目标点");
+                        // if (audioService != null) audioService.stopBackgroundMusic(null); // Modified: Keep music playing at destination
+                        playReturnVoice(true);
+                        Toast.makeText(this, "已回到目标点", Toast.LENGTH_SHORT).show();
+
+                        // 重置标志，防止重复触发
+                        hasRunningStateReceived = false;
+
+                        // 延迟一点再退出，让用户看到提示
+                        rootLayout.postDelayed(() -> {
+                            if (audioService != null) {
+                                audioService.stopBackgroundMusic(null);
+                                audioService.stopVoice(null);
+                            }
+                            finish();
+                        }, 2000);
+                    } else {
+                        Log.w(TAG, "【导航回调】忽略无效的到达状态(未经历运行阶段)");
+                    }
+                    break;
+
                 case Navigation.STATE_BLOCKED:
                 case Navigation.STATE_COLLISION:
+                    Log.w(TAG, "【导航回调】遇到障碍物，正在避障");
                     Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
-                    if (audioService != null) {
-                        // audioService.speak("遇到障碍物", null);
-                    }
+                    break;
+
+                case Navigation.STATE_BLOCKING:
+                    Log.w(TAG, "【导航回调】阻挡超时");
+                    Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
+                    break;
+
+                case Navigation.STATE_ERROR:
+                    Log.e(TAG, "【导航回调】导航错误");
+                    Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
                     break;
             }
         });
@@ -346,12 +407,14 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d(TAG, "【Activity】onDestroy - 销毁活动");
         if (navigationService != null) {
             // 退出页面时确保停止导航
             if (isNavigating) {
                 navigationService.stop(null);
             }
             navigationService.unregisterCallback(this);
+            Log.d(TAG, "【导航服务】已注销回调监听器");
         }
         if (audioService != null) {
             audioService.stopBackgroundMusic(null);
