@@ -11,6 +11,8 @@ import java.io.Serializable;
 public class AudioConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    private boolean initialized = false; // Flag to indicate if defaults have been set or user has configured it
+
     private int voiceVolume;
     private int deliveryVolume;
     private String deliveryMusicPath;
@@ -24,11 +26,21 @@ public class AudioConfig implements Serializable {
     private String loopNavigatingVoicePath;
     private String loopArrivalVoicePath;
 
-    // Global volume settings removed frequency
 
-    
-    // 语速 (0.5x - 2.0x, 默认为 1.0)
-    private float speechRate = 1.0f;
+
+    // 开关配置
+    private boolean isDeliveryMusicEnabled = true;
+    private boolean isDeliveryVoiceEnabled = true;
+    private boolean isLoopMusicEnabled = true;
+    private boolean isLoopVoiceEnabled = true;
+
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    public void setInitialized(boolean initialized) {
+        this.initialized = initialized;
+    }
 
     public int getVoiceVolume() {
         return voiceVolume;
@@ -94,22 +106,6 @@ public class AudioConfig implements Serializable {
         this.loopArrivalVoicePath = loopArrivalVoicePath;
     }
 
-
-
-    private boolean isBackgroundMusicEnabled = true; // Default true
-    private boolean isVoiceAnnouncementEnabled = true; // Default true
-
-
-
-    // 语音播放间隔 (固定3s，移除配置字段)
-
-    // 开关配置
-    private boolean isDeliveryMusicEnabled = true;
-    private boolean isDeliveryVoiceEnabled = true;
-    private boolean isLoopMusicEnabled = true;
-    private boolean isLoopVoiceEnabled = true;
-
-    // Getters and Setters
     public boolean isDeliveryMusicEnabled() { return isDeliveryMusicEnabled; }
     public void setDeliveryMusicEnabled(boolean deliveryMusicEnabled) { isDeliveryMusicEnabled = deliveryMusicEnabled; }
 

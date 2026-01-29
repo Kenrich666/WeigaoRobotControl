@@ -19,7 +19,7 @@ import java.io.IOException;
  */
 public class CircularDeliverySettingsManager {
     private static final String TAG = "CircularSettingsMgr";
-    private static final String SETTINGS_DIR = "WeigaoRobot/settings";
+    private static final String SETTINGS_DIR = "WeigaoRobot/config";
     private static final String SETTINGS_FILE = "circular_settings.json";
 
     private static final String KEY_SPEED = "delivery_speed";

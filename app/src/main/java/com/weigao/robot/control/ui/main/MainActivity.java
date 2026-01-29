@@ -26,6 +26,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.manager.CircularDeliverySettingsManager;
 import com.weigao.robot.control.manager.ItemDeliverySettingsManager;
+import com.weigao.robot.control.manager.SoundSettingsManager;
 import com.weigao.robot.control.service.ISecurityService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
@@ -240,6 +241,7 @@ public class MainActivity extends AppCompatActivity {
         AppSettingsManager.getInstance().reloadSettings();
         ItemDeliverySettingsManager.getInstance().reloadSettings();
         CircularDeliverySettingsManager.getInstance().reloadSettings();
+        SoundSettingsManager.getInstance().reloadSettings();
 
         com.weigao.robot.control.app.WeigaoApplication app = com.weigao.robot.control.app.WeigaoApplication
                 .getInstance();
@@ -276,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "正在检查配置完整性...");
         
         // 1. 全屏配置检查
-        File appSettingsFile = new File(Environment.getExternalStorageDirectory(), "WeigaoRobot/settings/app_settings.json");
+        File appSettingsFile = new File(Environment.getExternalStorageDirectory(), "WeigaoRobot/config/app_settings.json");
         if (!appSettingsFile.exists()) {
             Log.i(TAG, "配置缺失，写入默认全屏设置: false");
             AppSettingsManager.getInstance().setFullScreen(false); // 默认显示导航栏
@@ -289,14 +291,14 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 2. 配送速度配置检查 (物品配送)
-        File itemSettingsFile = new File(Environment.getExternalStorageDirectory(), "WeigaoRobot/settings/item_delivery_settings.json");
+        File itemSettingsFile = new File(Environment.getExternalStorageDirectory(), "WeigaoRobot/config/item_delivery_settings.json");
         if (!itemSettingsFile.exists()) {
              Log.i(TAG, "配置缺失，写入默认物品配送速度: 50");
              ItemDeliverySettingsManager.getInstance().setDeliverySpeed(50);
         }
 
         // 3. 配送速度配置检查 (循环配送)
-        File circularSettingsFile = new File(Environment.getExternalStorageDirectory(), "WeigaoRobot/settings/circular_settings.json");
+        File circularSettingsFile = new File(Environment.getExternalStorageDirectory(), "WeigaoRobot/config/circular_settings.json");
          if (!circularSettingsFile.exists()) {
              Log.i(TAG, "配置缺失，写入默认循环配送速度: 50");
              CircularDeliverySettingsManager.getInstance().setDeliverySpeed(50);
@@ -313,6 +315,16 @@ public class MainActivity extends AppCompatActivity {
                 // 默认密码通常由 Service 内部处理，这里主要确保锁功能开启
             }
         }
+
+        // 5. 声音配置检查
+        File audioConfigFile = new File(Environment.getExternalStorageDirectory(), "WeigaoRobot/config/audio_config.json");
+        if (!audioConfigFile.exists()) {
+            Log.i(TAG, "声音配置缺失，AudioServiceImpl 将在初始化时写入默认值。此步骤可由 Service 自动完成，但也强制触发一次获取以确保文件生成。");
+            // 访问一次 audio config，如果 Service 已经运行，它可能已经创建了文件。这里的检查主要是防御性编程。
+            // AudioServiceImpl 构造函数已经包含了 "check and init default" 的逻辑，因此只要 Service 被创建，配置就会生成。
+            // 显式调用 ServiceManager.getInstance().getAudioService() 可以确保 Service 初始化
+            ServiceManager.getInstance().getAudioService();
+        }
     }
 
     /**
@@ -320,10 +332,10 @@ public class MainActivity extends AppCompatActivity {
      */
     private void ensureDirectoriesExist() {
         String[] dirs = {
-            "WeigaoRobot/settings",
             "WeigaoRobot/config",
             "WeigaoRobot/history",
-            "WeigaoRobot/routes"
+            "WeigaoRobot/routes",
+            "WeigaoRobot/audio"
         };
         for (String dirPath : dirs) {
             File dir = new File(Environment.getExternalStorageDirectory(), dirPath);

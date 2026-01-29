@@ -19,7 +19,7 @@ import java.io.IOException;
  */
 public class ItemDeliverySettingsManager {
     private static final String TAG = "ItemSettingsMgr";
-    private static final String SETTINGS_DIR = "WeigaoRobot/settings";
+    private static final String SETTINGS_DIR = "WeigaoRobot/config";
     private static final String SETTINGS_FILE = "item_delivery_settings.json";
 
     private static final String KEY_SPEED = "delivery_speed";
