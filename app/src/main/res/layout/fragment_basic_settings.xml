@@ -20,11 +20,11 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 普通配送速度 Section -->
+            <!-- 物品配送速度 Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="普通配送速度"
+                android:text="物品配送速度"
                 android:textColor="#333333"
                 android:textSize="16sp"
                 android:layout_marginBottom="16dp"/>

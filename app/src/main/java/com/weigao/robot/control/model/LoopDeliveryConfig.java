@@ -37,8 +37,7 @@ public class LoopDeliveryConfig implements Serializable {
     /** 循环配送背景音乐路径 */
     private String loopMusicPath;
 
-    /** 循环配送语音播报频率 */
-    private int announcementFrequency;
+
 
     // ==================== Getters and Setters ====================
 
@@ -106,13 +105,7 @@ public class LoopDeliveryConfig implements Serializable {
         this.loopMusicPath = loopMusicPath;
     }
 
-    public int getAnnouncementFrequency() {
-        return announcementFrequency;
-    }
 
-    public void setAnnouncementFrequency(int announcementFrequency) {
-        this.announcementFrequency = announcementFrequency;
-    }
 
     @Override
     public String toString() {

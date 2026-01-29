@@ -284,7 +284,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 // 播放背景音乐
                 playBackgroundMusic();
                 // 播报语音
-                speak("开始配送任务");
+                playConfiguredVoice(false);
 
                 // 设置导航速度
                 int speed = isReturning
@@ -342,7 +342,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】暂停成功");
                 pauseBackgroundMusic();
-                speak("已暂停配送");
+                // speak("已暂停配送");
             }
 
             @Override
@@ -363,7 +363,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
         // 恢复背景音乐
         resumeBackgroundMusic();
-        speak("继续配送");
+        playConfiguredVoice(false);
 
         if (waitingForNext) {
             Log.d(TAG, "【导航控制】恢复导航：处于等待跳转状态，立即前往下一目标");
@@ -407,7 +407,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】停止成功");
                 stopBackgroundMusic();
-                speak("停止配送");
+                audioService.stopVoice(null);
             }
 
             @Override
@@ -532,7 +532,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
 
                         pauseBackgroundMusic();
-                        speak("已到达目的地");
+                        playConfiguredVoice(true);
 
                         handleArrival();
                         // 重置标志，防止重复触发，且等待下一段运行
@@ -546,13 +546,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 case Navigation.STATE_BLOCKED:
                     Log.w(TAG, "【导航回调】遇到障碍物，正在避障");
                     Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
-                    speak("遇到障碍物，正在避障");
+                    // speak("遇到障碍物，正在避障");
                     break;
 
                 case Navigation.STATE_BLOCKING:
                     Log.w(TAG, "【导航回调】阻挡超时");
                     Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
-                    speak("长时间被阻挡，请检查路径");
+                    // speak("长时间被阻挡，请检查路径");
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),
@@ -563,7 +563,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 case Navigation.STATE_ERROR:
                     Log.e(TAG, "【导航回调】导航错误");
                     Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
-                    speak("导航出现错误");
+                    // speak("导航出现错误");
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),
@@ -755,7 +755,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
-                    if (config != null && !android.text.TextUtils.isEmpty(config.getDeliveryMusicPath())) {
+                    if (config != null && config.isDeliveryMusicEnabled() && !android.text.TextUtils.isEmpty(config.getDeliveryMusicPath())) {
                         audioService.playBackgroundMusic(config.getDeliveryMusicPath(), true, null);
                     }
                 }
@@ -766,6 +766,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             });
         }
     }
+
+
 
     private void stopBackgroundMusic() {
         if (audioService != null) {
@@ -785,9 +787,24 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         }
     }
 
-    private void speak(String text) {
+    private void playConfiguredVoice(boolean isArrival) {
         if (audioService != null) {
-            audioService.speak(text, null);
+            audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
+                @Override
+                public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
+                    if (config != null && config.isDeliveryVoiceEnabled()) {
+                        String path = isArrival ? config.getDeliveryArrivalVoicePath() : config.getDeliveryNavigatingVoicePath();
+                        if (!android.text.TextUtils.isEmpty(path)) {
+                            audioService.playVoice(path, null);
+                        }
+                    }
+                }
+
+
+                @Override
+                public void onError(ApiError error) {
+                }
+            });
         }
     }
 }

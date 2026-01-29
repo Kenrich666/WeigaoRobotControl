@@ -161,6 +161,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             Intent intent = new Intent(this, ReturnActivity.class);
             intent.putExtra("return_speed",
                     com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
+            intent.putExtra("return_source_mode", 2); // 2 = Loop
             startActivity(intent);
             finish();
         });
@@ -182,7 +183,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             public void onSuccess(Void result) {
                 // 播放背景音乐
                 playBackgroundMusic();
-                speak("开始循环配送任务");
+                // 播报语音
+                playConfiguredVoice(false);
 
                 int speed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
                         .getDeliverySpeed();
@@ -231,7 +233,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     tvHint.setVisibility(View.INVISIBLE);
 
                     pauseBackgroundMusic();
-                    speak("已暂停循环配送");
+                    // speak("已暂停循环配送");
                 });
             }
 
@@ -253,7 +255,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     tvHint.setVisibility(View.VISIBLE);
 
                     resumeBackgroundMusic();
-                    speak("继续配送");
+                    playConfiguredVoice(false);
                 });
             }
 
@@ -302,7 +304,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     tvHint.setVisibility(View.VISIBLE);
 
                     resumeBackgroundMusic();
-                    speak("前往下一站");
+                    playConfiguredVoice(false);
                 });
             }
 
@@ -368,7 +370,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 case Navigation.STATE_DESTINATION:
                     // Arrived
                     pauseBackgroundMusic();
-                    speak("到达站点");
+                    playConfiguredVoice(true);
                     handleArrival();
                     break;
                 case Navigation.STATE_PAUSED:
@@ -383,7 +385,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     tvHint.setText("路径规划失败或被阻挡，请检查障碍物");
                     tvHint.setTextColor(android.graphics.Color.RED);
                     llPauseControls.setVisibility(View.VISIBLE);
-                    speak("遇到障碍物或路径被阻挡");
+                    // speak("遇到障碍物或路径被阻挡");
                     break;
                 case Navigation.STATE_RUNNING:
                     if (isPaused) {
@@ -452,6 +454,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     // Jump to ReturnActivity as requested (Aborted/Early return)
                     Toast.makeText(this, "任务终止，开始返航", Toast.LENGTH_SHORT).show();
                     Intent returnIntent = new Intent(this, ReturnActivity.class);
+                    returnIntent.putExtra("return_source_mode", 2);
                     startActivity(returnIntent);
                     finish();
                 }
@@ -478,6 +481,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         Intent intent = new Intent(this, ReturnActivity.class);
         intent.putExtra("return_speed",
                 com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
+        intent.putExtra("return_source_mode", 2);
         startActivity(intent);
         finish();
     }
@@ -536,9 +540,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
-                    if (config != null && !android.text.TextUtils.isEmpty(config.getDeliveryMusicPath())) {
-                        // We reuse delivery music for now, or check if there is specific loop music
-                        audioService.playBackgroundMusic(config.getDeliveryMusicPath(), true, null);
+                    if (config != null && config.isLoopMusicEnabled() && !android.text.TextUtils.isEmpty(config.getLoopMusicPath())) {
+                        audioService.playBackgroundMusic(config.getLoopMusicPath(), true, null);
                     }
                 }
 
@@ -548,6 +551,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             });
         }
     }
+
+
 
     private void stopBackgroundMusic() {
         if (audioService != null) {
@@ -567,9 +572,23 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         }
     }
 
-    private void speak(String text) {
+    private void playConfiguredVoice(boolean isArrival) {
         if (audioService != null) {
-            audioService.speak(text, null);
+            audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
+                @Override
+                public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
+                    if (config != null && config.isLoopVoiceEnabled()) {
+                        String path = isArrival ? config.getLoopArrivalVoicePath() : config.getLoopNavigatingVoicePath();
+                        if (!android.text.TextUtils.isEmpty(path)) {
+                            audioService.playVoice(path, null);
+                        }
+                    }
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                }
+            });
         }
     }
 }

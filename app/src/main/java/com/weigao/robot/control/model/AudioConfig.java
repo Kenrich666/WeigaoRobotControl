@@ -15,8 +15,20 @@ public class AudioConfig implements Serializable {
     private int deliveryVolume;
     private String deliveryMusicPath;
     private String loopMusicPath;
-    private int announcementFrequency;
-    private int loopAnnouncementFrequency;
+
+    // Item Delivery Voice Paths
+    private String deliveryNavigatingVoicePath;
+    private String deliveryArrivalVoicePath;
+
+    // Loop Delivery Voice Paths
+    private String loopNavigatingVoicePath;
+    private String loopArrivalVoicePath;
+
+    // Global volume settings removed frequency
+
+    
+    // 语速 (0.5x - 2.0x, 默认为 1.0)
+    private float speechRate = 1.0f;
 
     public int getVoiceVolume() {
         return voiceVolume;
@@ -50,38 +62,63 @@ public class AudioConfig implements Serializable {
         this.loopMusicPath = loopMusicPath;
     }
 
-    public int getAnnouncementFrequency() {
-        return announcementFrequency;
+    public String getDeliveryNavigatingVoicePath() {
+        return deliveryNavigatingVoicePath;
     }
 
-    public void setAnnouncementFrequency(int announcementFrequency) {
-        this.announcementFrequency = announcementFrequency;
+    public void setDeliveryNavigatingVoicePath(String deliveryNavigatingVoicePath) {
+        this.deliveryNavigatingVoicePath = deliveryNavigatingVoicePath;
     }
 
-    public int getLoopAnnouncementFrequency() {
-        return loopAnnouncementFrequency;
+    public String getDeliveryArrivalVoicePath() {
+        return deliveryArrivalVoicePath;
     }
+
+    public void setDeliveryArrivalVoicePath(String deliveryArrivalVoicePath) {
+        this.deliveryArrivalVoicePath = deliveryArrivalVoicePath;
+    }
+
+    public String getLoopNavigatingVoicePath() {
+        return loopNavigatingVoicePath;
+    }
+
+    public void setLoopNavigatingVoicePath(String loopNavigatingVoicePath) {
+        this.loopNavigatingVoicePath = loopNavigatingVoicePath;
+    }
+
+    public String getLoopArrivalVoicePath() {
+        return loopArrivalVoicePath;
+    }
+
+    public void setLoopArrivalVoicePath(String loopArrivalVoicePath) {
+        this.loopArrivalVoicePath = loopArrivalVoicePath;
+    }
+
+
 
     private boolean isBackgroundMusicEnabled = true; // Default true
     private boolean isVoiceAnnouncementEnabled = true; // Default true
 
-    public void setLoopAnnouncementFrequency(int loopAnnouncementFrequency) {
-        this.loopAnnouncementFrequency = loopAnnouncementFrequency;
-    }
 
-    public boolean isBackgroundMusicEnabled() {
-        return isBackgroundMusicEnabled;
-    }
 
-    public void setBackgroundMusicEnabled(boolean backgroundMusicEnabled) {
-        isBackgroundMusicEnabled = backgroundMusicEnabled;
-    }
+    // 语音播放间隔 (固定3s，移除配置字段)
 
-    public boolean isVoiceAnnouncementEnabled() {
-        return isVoiceAnnouncementEnabled;
-    }
+    // 开关配置
+    private boolean isDeliveryMusicEnabled = true;
+    private boolean isDeliveryVoiceEnabled = true;
+    private boolean isLoopMusicEnabled = true;
+    private boolean isLoopVoiceEnabled = true;
 
-    public void setVoiceAnnouncementEnabled(boolean voiceAnnouncementEnabled) {
-        isVoiceAnnouncementEnabled = voiceAnnouncementEnabled;
-    }
+    // Getters and Setters
+    public boolean isDeliveryMusicEnabled() { return isDeliveryMusicEnabled; }
+    public void setDeliveryMusicEnabled(boolean deliveryMusicEnabled) { isDeliveryMusicEnabled = deliveryMusicEnabled; }
+
+    public boolean isDeliveryVoiceEnabled() { return isDeliveryVoiceEnabled; }
+    public void setDeliveryVoiceEnabled(boolean deliveryVoiceEnabled) { isDeliveryVoiceEnabled = deliveryVoiceEnabled; }
+
+    public boolean isLoopMusicEnabled() { return isLoopMusicEnabled; }
+    public void setLoopMusicEnabled(boolean loopMusicEnabled) { isLoopMusicEnabled = loopMusicEnabled; }
+
+    public boolean isLoopVoiceEnabled() { return isLoopVoiceEnabled; }
+    public void setLoopVoiceEnabled(boolean loopVoiceEnabled) { isLoopVoiceEnabled = loopVoiceEnabled; }
 }
