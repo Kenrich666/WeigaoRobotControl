@@ -45,6 +45,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     private boolean isNavigating = false;
     private boolean isPaused = false;
     private com.weigao.robot.control.service.IAudioService audioService;
+    private int sourceMode = 1; // 1: Delivery, 2: Loop
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -55,6 +56,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         initService();
         setupGesture();
         setupButtons();
+
+        // 获取源模式
+        sourceMode = getIntent().getIntExtra("return_source_mode", 1);
 
         // 延迟一点启动，给UI渲染时间
         rootLayout.postDelayed(this::startReturnNavigation, 500);
@@ -141,9 +145,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public void onSuccess(Void result) {
                 // 播报
-                if (audioService != null) {
-                    audioService.speak("开始返航", null);
-                }
+                // 播报和音乐
+                playReturnMusic();
+                playReturnVoice(false);
 
                 // 2. 设置速度
                 int speed = getIntent().getIntExtra("return_speed", -1);
@@ -193,6 +197,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public void onSuccess(Void result) {
                 isPaused = true;
+                if (audioService != null) audioService.pauseBackgroundMusic(null);
                 runOnUiThread(() -> {
                     showControls(true);
                     tvStatus.setText("已暂停");
@@ -217,6 +222,8 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public void onSuccess(Void result) {
                 isPaused = false;
+                if (audioService != null) audioService.resumeBackgroundMusic(null);
+                playReturnVoice(false); // Resuming voice
                 runOnUiThread(() -> {
                     showControls(false);
                     tvStatus.setText("返航中");
@@ -240,6 +247,10 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public void onSuccess(Void result) {
                 isNavigating = false;
+                if (audioService != null) {
+                    audioService.stopBackgroundMusic(null);
+                    audioService.stopVoice(null);
+                }
                 runOnUiThread(ReturnActivity.this::finish);
             }
 
@@ -279,7 +290,8 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 // 判断到达
                 case Navigation.STATE_DESTINATION:
                     if (audioService != null) {
-                        audioService.speak("已回到充电桩或原点", null);
+                        audioService.stopBackgroundMusic(null);
+                        playReturnVoice(true);
                     }
                     Toast.makeText(this, "已回到目标点", Toast.LENGTH_SHORT).show();
                     finish();
@@ -288,7 +300,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 case Navigation.STATE_COLLISION:
                     Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
                     if (audioService != null) {
-                        audioService.speak("遇到障碍物", null);
+                        // audioService.speak("遇到障碍物", null);
                     }
                     break;
             }
@@ -340,6 +352,54 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 navigationService.stop(null);
             }
             navigationService.unregisterCallback(this);
+        }
+        if (audioService != null) {
+            audioService.stopBackgroundMusic(null);
+            audioService.stopVoice(null);
+        }
+    }
+
+    private void playReturnMusic() {
+        if (audioService != null) {
+            audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
+                @Override
+                public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
+                    if (config != null) {
+                        boolean enabled = (sourceMode == 2) ? config.isLoopMusicEnabled() : config.isDeliveryMusicEnabled();
+                        String path = (sourceMode == 2) ? config.getLoopMusicPath() : config.getDeliveryMusicPath();
+                        
+                        if (enabled && !android.text.TextUtils.isEmpty(path)) {
+                            audioService.playBackgroundMusic(path, true, null);
+                        }
+                    }
+                }
+                @Override public void onError(ApiError e) {}
+            });
+        }
+    }
+
+    private void playReturnVoice(boolean isArrival) {
+        if (audioService != null) {
+            audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
+                @Override
+                public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
+                    if (config != null) {
+                        boolean enabled = (sourceMode == 2) ? config.isLoopVoiceEnabled() : config.isDeliveryVoiceEnabled();
+                        if (enabled) {
+                            String path;
+                            if (sourceMode == 2) {
+                                path = isArrival ? config.getLoopArrivalVoicePath() : config.getLoopNavigatingVoicePath();
+                            } else {
+                                path = isArrival ? config.getDeliveryArrivalVoicePath() : config.getDeliveryNavigatingVoicePath();
+                            }
+                            if (!android.text.TextUtils.isEmpty(path)) {
+                                audioService.playVoice(path, null);
+                            }
+                        }
+                    }
+                }
+                @Override public void onError(ApiError e) {}
+            });
         }
     }
 }
