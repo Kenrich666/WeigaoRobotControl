@@ -40,6 +40,7 @@ public class AudioServiceImpl implements IAudioService {
     // Components
     private MediaPlayer mediaPlayer; // Background Music
     private MediaPlayer voiceMediaPlayer; // Voice Announcement
+    private String currentMusicPath; // Track currently playing music
 
     public AudioServiceImpl(Context context) {
         this.context = context.getApplicationContext();
@@ -155,6 +156,13 @@ public class AudioServiceImpl implements IAudioService {
 
         // Logic moved to caller (Activity) to avoid ambiguity when paths are identical
         
+        // Idempotency check: If same music is already playing, do nothing.
+        if (mediaPlayer != null && mediaPlayer.isPlaying() && TextUtils.equals(musicPath, currentMusicPath)) {
+            Log.d(TAG, "Music already playing: " + musicPath + ", ignoring request to restart.");
+            notifySuccess(callback);
+            return;
+        }
+        
         try {
             if (mediaPlayer != null) {
                 mediaPlayer.release();
@@ -198,6 +206,9 @@ public class AudioServiceImpl implements IAudioService {
             // Speed logic removed
 
             notifySuccess(callback);
+            
+            // Update current track
+            currentMusicPath = musicPath;
 
         } catch (IOException e) {
             Log.e(TAG, "播放音乐IO异常", e);
@@ -219,6 +230,7 @@ public class AudioServiceImpl implements IAudioService {
                 mediaPlayer.release();
                 mediaPlayer = null;
             }
+            currentMusicPath = null;
             notifySuccess(callback);
         } catch (Exception e) {
             notifyError(callback, -1, e.getMessage());
@@ -450,6 +462,7 @@ public class AudioServiceImpl implements IAudioService {
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
+            currentMusicPath = null;
         }
         if (voiceMediaPlayer != null) {
             try {

@@ -33,7 +33,7 @@ public class SecurityServiceImpl implements ISecurityService {
     private static final String CONFIG_DIR = "WeigaoRobot/config";
     private static final String CONFIG_FILE = "security_config.json";
 
-    private static final String DEFAULT_PASSWORD = "123456";
+    private static final String DEFAULT_PASSWORD = "000000";
 
     private final Context context;
 

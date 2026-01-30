@@ -76,8 +76,15 @@ public class ItemDeliveryHistoryActivity extends AppCompatActivity {
                     loadData();
                     Toast.makeText(this, "记录已清空", Toast.LENGTH_SHORT).show();
                 })
-                .setNegativeButton("取消", null)
                 .show();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
     }
 
     private static class RecordAdapter extends RecyclerView.Adapter<RecordAdapter.ViewHolder> {

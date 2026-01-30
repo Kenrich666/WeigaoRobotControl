@@ -164,20 +164,46 @@
                 android:orientation="vertical"
                 android:layout_marginBottom="8dp">
 
-                <Switch
-                    android:id="@+id/switch_delivery_music"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="背景音乐"
-                    android:textColor="#616161"/>
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
 
-                <Switch
-                    android:id="@+id/switch_delivery_voice"
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="背景音乐"
+                        android:textColor="#616161"/>
+
+                    <Switch
+                        android:id="@+id/switch_delivery_music"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="语音播报"
-                    android:textColor="#616161"/>
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="语音播报"
+                        android:textColor="#616161"/>
+
+                    <Switch
+                        android:id="@+id/switch_delivery_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Delivery Music -->
@@ -339,20 +365,46 @@
                 android:orientation="vertical"
                 android:layout_marginBottom="8dp">
 
-                <Switch
-                    android:id="@+id/switch_loop_music"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="背景音乐"
-                    android:textColor="#616161"/>
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
 
-                <Switch
-                    android:id="@+id/switch_loop_voice"
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="背景音乐"
+                        android:textColor="#616161"/>
+
+                    <Switch
+                        android:id="@+id/switch_loop_music"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="语音播报"
-                    android:textColor="#616161"/>
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="语音播报"
+                        android:textColor="#616161"/>
+
+                    <Switch
+                        android:id="@+id/switch_loop_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Loop Music -->

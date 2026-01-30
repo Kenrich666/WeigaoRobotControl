@@ -99,7 +99,13 @@ public class WeigaoApplication extends Application {
         // initializeSdk();
     }
 
-    private void applyGlobalSettings(android.app.Activity activity) {
+    /**
+     * Public static method to apply full screen settings
+     * Can be called from onWindowFocusChanged
+     */
+    public static void applyFullScreen(android.app.Activity activity) {
+        if (activity == null) return;
+        
         // Use AppSettingsManager for persistent storage
         boolean isFullscreen = false;
         try {
@@ -109,16 +115,36 @@ public class WeigaoApplication extends Application {
         }
 
         if (isFullscreen) {
-            activity.getWindow().getDecorView().setSystemUiVisibility(
-                    android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+            android.util.Log.d(TAG, "Applying Full Screen to: " + activity.getClass().getSimpleName());
+            try {
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), false);
+                androidx.core.view.WindowInsetsControllerCompat controller = 
+                        new androidx.core.view.WindowInsetsControllerCompat(activity.getWindow(), activity.getWindow().getDecorView());
+                controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+                controller.setSystemBarsBehavior(androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            } catch (Exception e) {
+                // Fallback for non-AndroidX or older contexts if needed (though project uses AndroidX)
+                android.util.Log.e(TAG, "Error applying full screen", e);
+            }
         } else {
-            activity.getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+             // For non-fullscreen, we might want to reset, but usually we just leave it default
+             // or ensure system bars are shown if we supported switching back.
+             // For now, if not fullscreen, we do minimal interference or show bars explicitly if needed.
+             // activity.getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+             
+             try {
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), true);
+                androidx.core.view.WindowInsetsControllerCompat controller = 
+                        new androidx.core.view.WindowInsetsControllerCompat(activity.getWindow(), activity.getWindow().getDecorView());
+                controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+             } catch (Exception e) {
+                // Ignore
+             }
         }
+    }
+
+    private void applyGlobalSettings(android.app.Activity activity) {
+        applyFullScreen(activity);
     }
 
     @Override

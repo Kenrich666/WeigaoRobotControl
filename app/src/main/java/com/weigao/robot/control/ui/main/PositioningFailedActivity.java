@@ -68,4 +68,12 @@ public class PositioningFailedActivity extends AppCompatActivity {
             }
         });
     }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package com.weigao.robot.control.ui.main;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -19,6 +20,7 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.NavigationNode;
+import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
 
@@ -32,18 +34,24 @@ import java.util.List;
 public class ReturnActivity extends AppCompatActivity implements INavigationCallback {
 
     private static final String TAG = "ReturnActivity";
+    private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1001;
 
     // 控件
     private LinearLayout llControls;
+
     private TextView tvHint;
     private TextView tvStatus;
+    private TextView tvCountdown; // Added
     private GestureDetector gestureDetector;
     private View rootLayout;
 
     // 导航服务
     private INavigationService navigationService;
+    private IDoorService doorService;
     private boolean isNavigating = false;
     private boolean isPaused = false;
+    private long lastPauseTime = 0;
+    private int pauseRetryCount = 0;
     private com.weigao.robot.control.service.IAudioService audioService;
     private int sourceMode = 1; // 1: Delivery, 2: Loop
 
@@ -69,12 +77,14 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         llControls = findViewById(R.id.ll_controls);
         tvHint = findViewById(R.id.tv_hint);
         tvStatus = findViewById(R.id.tv_status);
+        tvCountdown = findViewById(R.id.tv_countdown); // Added
         tvStatus.setText("返航中");
     }
 
     private void initService() {
         navigationService = ServiceManager.getInstance().getNavigationService();
         audioService = ServiceManager.getInstance().getAudioService();
+        doorService = ServiceManager.getInstance().getDoorService();
         if (navigationService != null) {
             navigationService.registerCallback(this);
         } else {
@@ -88,6 +98,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public boolean onDoubleTap(MotionEvent e) {
                 // 双击暂停
+                pauseRetryCount = 0;
                 pauseNavigation();
                 return true;
             }
@@ -109,15 +120,76 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         });
 
         btnEnd.setOnClickListener(v -> {
-            // 结束并停止
-            stopNavigation();
+            // 不停止自动恢复计时，让其继续计时
+            android.content.Intent intent = new android.content.Intent(ReturnActivity.this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
     }
 
     /**
-     * 开始返航导航
+     * 开始返航导航 (包含舱门检查)
      */
     private void startReturnNavigation() {
+        if (isNavigating)
+            return;
+
+        if (doorService == null) {
+            performReturnNavigation();
+            return;
+        }
+
+        // 检查舱门状态
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                runOnUiThread(() -> {
+                    if (allClosed != null && allClosed) {
+                        // 已关闭，直接开始
+                        performReturnNavigation();
+                    } else {
+                        // 未关闭，先关门
+                        Toast.makeText(ReturnActivity.this, "检测到舱门未关，正在关闭...", Toast.LENGTH_SHORT).show();
+                        doorService.closeAllDoors(new IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ReturnActivity.this, "舱门已关闭，5秒后开始返航...", Toast.LENGTH_SHORT).show();
+                                    // 增加5秒等待时间
+                                    new Handler().postDelayed(() -> performReturnNavigation(), 5000);
+                                });
+                            }
+
+                            @Override
+                            public void onError(ApiError error) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ReturnActivity.this, "自动关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ReturnActivity.this, "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    // 查询失败也尝试开始返航? 为了安全起见，或者如果只是传感器错误，还是应该让用户决定?
+                    // 参考DeliveryActivity，这里只是Toast。
+                    // 但由于这里是自动流程，如果在这里卡住，机器人就停了。
+                    // 我们可以尝试直接开始，或者就停在这里。
+                    // 假设为了健壮性，查询不到状态就不自动处理舱门，直接尝试返航（或者不返航）。
+                    // 这里选择直接尝试返航，防止因舱门服务异常导致无法返航。
+                    performReturnNavigation();
+                });
+            }
+        });
+    }
+
+    /**
+     * 执行实际的返航逻辑
+     */
+    private void performReturnNavigation() {
         if (isNavigating)
             return;
 
@@ -193,14 +265,33 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         if (!isNavigating || isPaused)
             return;
 
+        // 1s内尽可能多发暂停指令，从第一次发计时1s
+        final long startTime = System.currentTimeMillis();
+        final android.os.Handler handler = new android.os.Handler();
+        Runnable multiplePauseTask = new Runnable() {
+            @Override
+            public void run() {
+                if (navigationService != null) {
+                    navigationService.pause(null);
+                }
+                if (System.currentTimeMillis() - startTime < 1000) {
+                    handler.postDelayed(this, 50);
+                }
+            }
+        };
+        handler.post(multiplePauseTask);
+
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 isPaused = true;
+                lastPauseTime = System.currentTimeMillis();
+                
                 if (audioService != null) audioService.pauseBackgroundMusic(null);
                 runOnUiThread(() -> {
                     showControls(true);
                     tvStatus.setText("已暂停");
+                    startAutoResumeTimer();
                 });
             }
 
@@ -215,6 +306,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
      * 恢复导航
      */
     private void resumeNavigation() {
+        stopAutoResumeTimer();
         if (!isNavigating || !isPaused)
             return;
 
@@ -281,6 +373,16 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         }
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_END_NAVIGATION_PASSWORD) {
+            if (resultCode == RESULT_OK) {
+                stopNavigation();
+            }
+        }
+    }
+
     // ==================== Navigation Callbacks ====================
 
     @Override
@@ -294,7 +396,11 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                         playReturnVoice(true);
                     }
                     Toast.makeText(this, "已回到目标点", Toast.LENGTH_SHORT).show();
-                    finish();
+                    
+                    // 延迟5秒后关闭Activity，确保到达语音播放完成
+                    rootLayout.postDelayed(() -> {
+                        finish();
+                    }, 5000);
                     break;
                 case Navigation.STATE_BLOCKED:
                 case Navigation.STATE_COLLISION:
@@ -302,6 +408,28 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                     if (audioService != null) {
                         // audioService.speak("遇到障碍物", null);
                     }
+                    break;
+                case Navigation.STATE_RUNNING:
+                    if (isPaused) {
+                        if (System.currentTimeMillis() - lastPauseTime > 1000) {
+                            if (pauseRetryCount < 1) {
+                                pauseRetryCount++;
+                                lastPauseTime = System.currentTimeMillis();
+                                Log.d(TAG, "暂停无效，尝试二次暂停...");
+                                navigationService.pause(null);
+                                return;
+                            }
+                            // 暂停失败或失效，强制恢复 UI 状态
+                            isPaused = false;
+                            stopAutoResumeTimer();
+                            showControls(false);
+                            tvStatus.setText("返航中");
+                            Toast.makeText(ReturnActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
+                        } else {
+                            return;
+                        }
+                    }
+                    tvStatus.setText("返航中");
                     break;
             }
         });
@@ -346,6 +474,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopAutoResumeTimer();
         if (navigationService != null) {
             // 退出页面时确保停止导航
             if (isNavigating) {
@@ -400,6 +529,56 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 }
                 @Override public void onError(ApiError e) {}
             });
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
+    }
+
+    // ==================== Auto Resume ====================
+    private android.os.CountDownTimer autoResumeTimer;
+
+    private void startAutoResumeTimer() {
+        stopAutoResumeTimer();
+
+        if (tvCountdown != null) {
+            tvCountdown.setVisibility(View.VISIBLE);
+        }
+
+        autoResumeTimer = new android.os.CountDownTimer(30000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                if (!isFinishing() && tvCountdown != null) {
+                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动继续");
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                if (!isFinishing() && isPaused) {
+                    finishActivity(REQUEST_CODE_END_NAVIGATION_PASSWORD);
+
+                    if (tvCountdown != null) tvCountdown.setVisibility(View.GONE);
+                    Toast.makeText(ReturnActivity.this, "暂停超时，自动继续返航", Toast.LENGTH_SHORT).show();
+                    resumeNavigation();
+                }
+            }
+        };
+        autoResumeTimer.start();
+    }
+
+    private void stopAutoResumeTimer() {
+        if (autoResumeTimer != null) {
+            autoResumeTimer.cancel();
+            autoResumeTimer = null;
+        }
+        if (tvCountdown != null) {
+            tvCountdown.setVisibility(View.GONE);
         }
     }
 }

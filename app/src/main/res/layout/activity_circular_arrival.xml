@@ -4,88 +4,119 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="#F5F7FA"
     tools:context=".ui.main.CircularArrivalActivity">
 
+    <!-- Header / Top Bar -->
     <Button
         android:id="@+id/btn_back"
         android:layout_width="wrap_content"
-        android:layout_height="60dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="24dp"
+        android:layout_height="50dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="32dp"
+        android:paddingHorizontal="24dp"
         android:text="返回"
-        android:textSize="20sp"
+        android:textSize="18sp"
+        android:textColor="#333333"
         android:background="@drawable/rounded_button"
         app:backgroundTint="@null"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Top Right Buttons -->
+    <TextView
+        android:id="@+id/tv_current_point"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="当前点位: --"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        app:layout_constraintBottom_toBottomOf="@+id/btn_back"
+        app:layout_constraintTop_toTopOf="@+id/btn_back"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
     <LinearLayout
         android:id="@+id/ll_top_buttons"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:layout_marginEnd="24dp"
         android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:layout_marginEnd="32dp"
+        app:layout_constraintBottom_toBottomOf="@+id/btn_back"
+        app:layout_constraintTop_toTopOf="@+id/btn_back"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <Button
             android:id="@+id/btn_open_door"
             android:layout_width="120dp"
-            android:layout_height="60dp"
+            android:layout_height="50dp"
             android:layout_marginEnd="16dp"
             android:text="开门"
-            android:textSize="20sp"
+            android:textSize="18sp"
+            android:textColor="#333333"
             android:background="@drawable/rounded_button"
             app:backgroundTint="@null"/>
 
         <Button
             android:id="@+id/btn_return_home"
             android:layout_width="120dp"
-            android:layout_height="60dp"
+            android:layout_height="50dp"
             android:text="返航"
-            android:textSize="20sp"
+            android:textSize="18sp"
+            android:textColor="#333333"
             android:background="@drawable/rounded_button"
             app:backgroundTint="@null"/>
     </LinearLayout>
 
-    <!-- Center Hint Box -->
-    <FrameLayout
-        android:id="@+id/fl_hint_box"
-        android:layout_width="600dp"
-        android:layout_height="300dp"
-        android:background="@drawable/rounded_button"
+    <!-- Center Content -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginHorizontal="60dp"
         app:layout_constraintBottom_toTopOf="@+id/ll_bottom_buttons"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/ll_top_buttons">
-        
-        <!-- Inner white background to make it look like a border if rounded_button is solid color, 
-             or just rely on the drawable. Assuming rounded_button is a solid shape.
-             The sketch shows a box with text. Let's make it a outlined box or light background.
-             Since I can't see rounded_button xml, I'll assume standard button style.
-             I'll style it manually to look like a message box.
-         -->
-         <TextView
-             android:id="@+id/tv_arrival_message"
-             android:layout_width="match_parent"
-             android:layout_height="match_parent"
-             android:gravity="center"
-             android:text="请尽快把货物放入机器人中"
-             android:textColor="#333333"
-             android:textSize="32sp"
-             android:textStyle="bold"
-             android:background="#F0F0F0"/>
-    </FrameLayout>
+        app:layout_constraintTop_toBottomOf="@+id/btn_back"
+        android:layout_marginVertical="32dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="已到达"
+            android:textSize="56sp"
+            android:textStyle="bold"
+            android:textColor="#2D3E50"
+            android:layout_marginBottom="24dp"/>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#FFFFFF">
+            
+            <TextView
+                android:id="@+id/tv_arrival_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="32dp"
+                android:text="请尽快把货物放入机器人中\n(无人操作将继续下一站: 30s)"
+                android:textColor="#555555"
+                android:textSize="26sp"
+                android:lineSpacingExtra="10dp"/>
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
 
     <!-- Bottom Buttons -->
     <LinearLayout
         android:id="@+id/ll_bottom_buttons"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
+        android:layout_marginBottom="60dp"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -93,22 +124,24 @@
 
         <Button
             android:id="@+id/btn_continue"
-            android:layout_width="200dp"
-            android:layout_height="80dp"
-            android:layout_marginEnd="40dp"
+            android:layout_width="220dp"
+            android:layout_height="72dp"
+            android:layout_marginEnd="48dp"
             android:text="继续"
-            android:textSize="24sp"
+            android:textSize="26sp"
             android:textStyle="bold"
+            android:textColor="#333333"
             android:background="@drawable/rounded_button"
             app:backgroundTint="@null"/>
 
         <Button
             android:id="@+id/btn_full_return"
-            android:layout_width="300dp"
-            android:layout_height="80dp"
-            android:text="已装满。回到出餐口"
-            android:textSize="24sp"
+            android:layout_width="340dp"
+            android:layout_height="72dp"
+            android:text="已装满 回到出餐口"
+            android:textSize="26sp"
             android:textStyle="bold"
+            android:textColor="#333333"
             android:background="@drawable/rounded_button"
             app:backgroundTint="@null"/>
 

@@ -24,6 +24,7 @@ import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.app.WeigaoApplication;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +37,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private static final String TAG = "CircularNavActivity";
 
     private TextView tvStatus, currentTaskTextView, tvHint, tvLoopCount;
+    private TextView tvCountdown;
     private android.widget.ProgressBar pbProgress;
     private Button btnPauseEnd, btnContinue, btnReturnOrigin;
     private LinearLayout llPauseControls;
@@ -62,7 +64,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
         initViews();
 
-        initViews();
+
 
         navigationService = ServiceManager.getInstance().getNavigationService();
         audioService = ServiceManager.getInstance().getAudioService(); // Init AudioService
@@ -114,6 +116,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         pbProgress = findViewById(R.id.pb_progress);
 
         llPauseControls = findViewById(R.id.ll_pause_controls);
+        tvHint = findViewById(R.id.tv_hint);
+        tvCountdown = findViewById(R.id.tv_countdown);
+
         btnPauseEnd = findViewById(R.id.btn_pause_end);
         btnContinue = findViewById(R.id.btn_continue);
         rootLayout = findViewById(R.id.root_layout);
@@ -121,6 +126,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
         // Adjust button text for "Pause" state initially hidden
         llPauseControls.setVisibility(View.GONE);
+        btnReturnOrigin.setVisibility(View.GONE);
     }
 
     private void setupGestureDetector() {
@@ -128,6 +134,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             @Override
             public boolean onDoubleTap(MotionEvent e) {
                 if (isNavigating && !isPaused && !isWaitingAtNode) {
+                    pauseRetryCount = 0;
                     pauseNavigation();
                 }
                 return true;
@@ -142,8 +149,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private void setupButtons() {
         btnPauseEnd.setText("结束导航");
         btnPauseEnd.setOnClickListener(v -> {
-            stopNavigation();
-            finish();
+            // 不停止自动恢复计时，让其继续计时 (参考 ConfirmReceiptActivity)
+            Intent intent = new Intent(this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
 
         // Continue button logic
@@ -181,6 +189,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航控制】设置目标点成功");
                 // 播放背景音乐
                 playBackgroundMusic();
                 // 播报语音
@@ -191,9 +200,11 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
+                        Log.d(TAG, "【导航控制】设置速度成功");
                         navigationService.prepare(new IResultCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
+                                Log.d(TAG, "【导航控制】准备路线成功");
                             } // Will accept onRoutePrepared
 
                             @Override
@@ -222,17 +233,36 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void pauseNavigation() {
+        // 1s内尽可能多发暂停指令，从第一次发计时1s
+        final long startTime = System.currentTimeMillis();
+        final android.os.Handler handler = new android.os.Handler();
+        Runnable multiplePauseTask = new Runnable() {
+            @Override
+            public void run() {
+                if (navigationService != null) {
+                    navigationService.pause(null);
+                }
+                if (System.currentTimeMillis() - startTime < 1000) {
+                    handler.postDelayed(this, 50);
+                }
+            }
+        };
+        handler.post(multiplePauseTask);
+
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
                     isPaused = true;
+                    lastPauseTime = System.currentTimeMillis();
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
-                    btnReturnOrigin.setVisibility(View.VISIBLE);
+                    // btnReturnOrigin.setVisibility(View.VISIBLE); // Removed as per user request
                     tvHint.setVisibility(View.INVISIBLE);
+                    
+                    startAutoResumeTimer();
 
-                    pauseBackgroundMusic();
+                    // pauseBackgroundMusic(); // Modified: Keep music playing during pause
                     // speak("已暂停循环配送");
                 });
             }
@@ -244,6 +274,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void resumeNavigation() {
+        stopAutoResumeTimer();
         navigationService.start(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
@@ -254,7 +285,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     btnReturnOrigin.setVisibility(View.GONE);
                     tvHint.setVisibility(View.VISIBLE);
 
-                    resumeBackgroundMusic();
+                    // resumeBackgroundMusic(); // Modified: Music is already playing
                     playConfiguredVoice(false);
                 });
             }
@@ -281,7 +312,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 @Override
                 public void onError(ApiError error) {
                     runOnUiThread(() -> {
-                        Toast.makeText(CircularDeliveryNavigationActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(CircularDeliveryNavigationActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                         // 即使关门失败，也尝试继续导航？或者让用户决定？这里选择继续尝试导航
                          startPilotNext();
                     });
@@ -303,7 +334,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     llPauseControls.setVisibility(View.GONE);
                     tvHint.setVisibility(View.VISIBLE);
 
-                    resumeBackgroundMusic();
+                    // resumeBackgroundMusic(); // Modified: Music is already playing
                     playConfiguredVoice(false);
                 });
             }
@@ -369,7 +400,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             switch (state) {
                 case Navigation.STATE_DESTINATION:
                     // Arrived
-                    pauseBackgroundMusic();
+                    // pauseBackgroundMusic(); // Modified: Keep music playing at destination
                     playConfiguredVoice(true);
                     handleArrival();
                     break;
@@ -377,19 +408,47 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     isPaused = true;
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
-                    btnReturnOrigin.setVisibility(View.VISIBLE);
+                    // btnReturnOrigin.setVisibility(View.VISIBLE); // Removed as per user request
                     tvHint.setVisibility(View.INVISIBLE);
                     break;
-                case 6: // STATE_BLOCKED
-                    tvStatus.setText("被阻挡");
-                    tvHint.setText("路径规划失败或被阻挡，请检查障碍物");
-                    tvHint.setTextColor(android.graphics.Color.RED);
-                    llPauseControls.setVisibility(View.VISIBLE);
-                    // speak("遇到障碍物或路径被阻挡");
+                case Navigation.STATE_COLLISION:
+                case Navigation.STATE_BLOCKED:
+                    // 短暂阻挡或碰撞,正在避障
+                    Log.w(TAG, "【导航回调】遇到障碍物，正在避障");
+                    Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
+                    // speak("遇到障碍物，正在避障");
+                    break;
+
+                case Navigation.STATE_BLOCKING:
+                    // 长时间阻挡超时
+                    Log.w(TAG, "【导航回调】阻挡超时");
+                    Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
+                    // speak("长时间被阻挡，请检查路径");
+                    
+                    // 记录导航失败状态
+                    if (currentRecord != null && currentTaskIndex < targetNodes.size()) {
+                        currentRecord.complete("NAV_FAILED");
+                        Log.d(TAG, "【记录】当前导航任务被标记为失败状态");
+                    }
                     break;
                 case Navigation.STATE_RUNNING:
                     if (isPaused) {
-                        return;
+                        if (System.currentTimeMillis() - lastPauseTime > 1000) {
+                            if (pauseRetryCount < 1) {
+                                pauseRetryCount++;
+                                lastPauseTime = System.currentTimeMillis();
+                                Log.d(TAG, "暂停无效，尝试二次暂停...");
+                                navigationService.pause(null);
+                                return;
+                            }
+                            // 如果暂停后超过1秒仍收到运行状态，说明暂停失败或已被覆盖，强制同步UI
+                            isPaused = false;
+                            stopAutoResumeTimer();
+                            Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
+                        } else {
+                            // 暂停指令发出不久，忽略短暂的运行状态回调（避免UI闪烁）
+                            return;
+                        }
                     }
                     tvStatus.setText("导航中");
                     tvHint.setText("正在前往目的地...");
@@ -405,10 +464,13 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private static final int REQUEST_CODE_ARRIVAL = 1001;
+    private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1002;
 
     // ...
 
     private CircularDeliveryRecord currentRecord;
+    private long lastPauseTime = 0;
+    private int pauseRetryCount = 0;
 
     private boolean isReturning = false;
 
@@ -431,6 +493,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         Intent intent = new Intent(this, CircularArrivalActivity.class);
         boolean isLastPoint = (currentTaskIndex >= targetNodes.size() - 1);
         intent.putExtra("is_last_point", isLastPoint);
+        if (currentTaskIndex < targetNodes.size()) {
+            intent.putExtra("current_point_name", targetNodes.get(currentTaskIndex).getName());
+        }
         startActivityForResult(intent, REQUEST_CODE_ARRIVAL);
     }
 
@@ -461,6 +526,13 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             } else if (resultCode == CircularArrivalActivity.RESULT_CANCEL || resultCode == RESULT_CANCELED) {
                 // Cancelled
                 Toast.makeText(this, "循环任务已取消", Toast.LENGTH_SHORT).show();
+                stopNavigation();
+                finish();
+            }
+        } else if (requestCode == REQUEST_CODE_END_NAVIGATION_PASSWORD) {
+            // 无论验证是否成功，都不需要显式停止密码计时器了（因为它不存在了）
+            // 也不需要重启自动恢复计时器（因为它没停过）
+            if (resultCode == RESULT_OK) {
                 stopNavigation();
                 finish();
             }
@@ -526,11 +598,20 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopAutoResumeTimer();
         if (navigationService != null) {
             stopNavigation();
             navigationService.unregisterCallback(this);
         }
         stopBackgroundMusic();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            WeigaoApplication.applyFullScreen(this);
+        }
     }
 
     // ==================== Audio Helper Methods ====================
@@ -541,6 +622,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
                     if (config != null && config.isLoopMusicEnabled() && !android.text.TextUtils.isEmpty(config.getLoopMusicPath())) {
+                        Log.d(TAG, "【音频】播放循环配送背景音乐 (Loop=true)");
                         audioService.playBackgroundMusic(config.getLoopMusicPath(), true, null);
                     }
                 }
@@ -589,6 +671,47 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 public void onError(ApiError error) {
                 }
             });
+        }
+    }
+
+    // ==================== Auto Resume ====================
+    private android.os.CountDownTimer autoResumeTimer;
+
+    private void startAutoResumeTimer() {
+        stopAutoResumeTimer();
+        
+        tvCountdown.setVisibility(View.VISIBLE);
+        
+        autoResumeTimer = new android.os.CountDownTimer(30000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                if (!isFinishing()) {
+                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动继续");
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                if (!isFinishing() && isPaused) {
+                    // 关键：如果密码页面还在显示，强制关闭它 (参考 ConfirmReceiptActivity)
+                    finishActivity(REQUEST_CODE_END_NAVIGATION_PASSWORD);
+                    
+                    tvCountdown.setVisibility(View.GONE);
+                    Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停超时，自动继续", Toast.LENGTH_SHORT).show();
+                    resumeNavigation();
+                }
+            }
+        };
+        autoResumeTimer.start();
+    }
+
+    private void stopAutoResumeTimer() {
+        if (autoResumeTimer != null) {
+            autoResumeTimer.cancel();
+            autoResumeTimer = null;
+        }
+        if (tvCountdown != null) {
+            tvCountdown.setVisibility(View.GONE);
         }
     }
 }

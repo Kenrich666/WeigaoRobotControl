@@ -81,6 +81,14 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
                 .show();
     }
 
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
+    }
+
     private static class RecordAdapter extends RecyclerView.Adapter<RecordAdapter.ViewHolder> {
         private List<CircularDeliveryRecord> data;
         
