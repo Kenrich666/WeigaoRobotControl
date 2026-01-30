@@ -1,6 +1,7 @@
 package com.weigao.robot.control.ui.main;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -19,6 +20,7 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.NavigationNode;
+import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
 
@@ -42,6 +44,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
     // 导航服务
     private INavigationService navigationService;
+    private IDoorService doorService;
     private boolean isNavigating = false;
     private boolean isPaused = false;
     private com.weigao.robot.control.service.IAudioService audioService;
@@ -75,6 +78,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     private void initService() {
         navigationService = ServiceManager.getInstance().getNavigationService();
         audioService = ServiceManager.getInstance().getAudioService();
+        doorService = ServiceManager.getInstance().getDoorService();
         if (navigationService != null) {
             navigationService.registerCallback(this);
         } else {
@@ -115,9 +119,69 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     }
 
     /**
-     * 开始返航导航
+     * 开始返航导航 (包含舱门检查)
      */
     private void startReturnNavigation() {
+        if (isNavigating)
+            return;
+
+        if (doorService == null) {
+            performReturnNavigation();
+            return;
+        }
+
+        // 检查舱门状态
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                runOnUiThread(() -> {
+                    if (allClosed != null && allClosed) {
+                        // 已关闭，直接开始
+                        performReturnNavigation();
+                    } else {
+                        // 未关闭，先关门
+                        Toast.makeText(ReturnActivity.this, "检测到舱门未关，正在关闭...", Toast.LENGTH_SHORT).show();
+                        doorService.closeAllDoors(new IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ReturnActivity.this, "舱门已关闭，5秒后开始返航...", Toast.LENGTH_SHORT).show();
+                                    // 增加5秒等待时间
+                                    new Handler().postDelayed(() -> performReturnNavigation(), 5000);
+                                });
+                            }
+
+                            @Override
+                            public void onError(ApiError error) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(ReturnActivity.this, "自动关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ReturnActivity.this, "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    // 查询失败也尝试开始返航? 为了安全起见，或者如果只是传感器错误，还是应该让用户决定?
+                    // 参考DeliveryActivity，这里只是Toast。
+                    // 但由于这里是自动流程，如果在这里卡住，机器人就停了。
+                    // 我们可以尝试直接开始，或者就停在这里。
+                    // 假设为了健壮性，查询不到状态就不自动处理舱门，直接尝试返航（或者不返航）。
+                    // 这里选择直接尝试返航，防止因舱门服务异常导致无法返航。
+                    performReturnNavigation();
+                });
+            }
+        });
+    }
+
+    /**
+     * 执行实际的返航逻辑
+     */
+    private void performReturnNavigation() {
         if (isNavigating)
             return;
 
@@ -294,7 +358,11 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                         playReturnVoice(true);
                     }
                     Toast.makeText(this, "已回到目标点", Toast.LENGTH_SHORT).show();
-                    finish();
+                    
+                    // 延迟5秒后关闭Activity，确保到达语音播放完成
+                    rootLayout.postDelayed(() -> {
+                        finish();
+                    }, 5000);
                     break;
                 case Navigation.STATE_BLOCKED:
                 case Navigation.STATE_COLLISION:

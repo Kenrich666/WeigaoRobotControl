@@ -26,6 +26,7 @@ import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
 
+import com.weigao.robot.control.ui.auth.PasswordActivity;
 import com.keenon.sdk.component.navigation.route.RouteNode;
 
 import org.json.JSONArray;
@@ -47,6 +48,12 @@ public class DeliveryActivity extends AppCompatActivity {
     private Button selectedLayerButton;
     // 存储配对关系
     private final HashMap<Integer, NavigationNode> pairings = new HashMap<>();
+    
+    // 密码验证请求码
+    private static final int REQUEST_PASSWORD_FOR_BACK = 2001;
+    private static final int REQUEST_PASSWORD_FOR_DOOR = 2002;
+    private static final int REQUEST_PASSWORD_FOR_RETURN = 2003;
+    private static final int REQUEST_PASSWORD_FOR_HISTORY = 2004;
 
     /**
      * 舱门服务
@@ -79,10 +86,16 @@ public class DeliveryActivity extends AppCompatActivity {
         doorService.registerCallback(doorCallback);
 
         // --- 1. 基础按钮 ---
-        findViewById(R.id.back_button).setOnClickListener(v -> finish());
+        // 返回按钮需要密码验证
+        findViewById(R.id.back_button).setOnClickListener(v -> {
+            Intent intent = new Intent(this, PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_PASSWORD_FOR_BACK);
+        });
 
+        // 配送记录按钮需要密码验证
         findViewById(R.id.history_button).setOnClickListener(v -> {
-            startActivity(new Intent(DeliveryActivity.this, ItemDeliveryHistoryActivity.class));
+            Intent intent = new Intent(this, PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_PASSWORD_FOR_HISTORY);
         });
 
         openDoorButton = findViewById(R.id.open_door_button);
@@ -90,62 +103,20 @@ public class DeliveryActivity extends AppCompatActivity {
         // 初始化时查询舱门状态并更新按钮文本
         updateDoorButtonState();
 
+        // 开门按钮：开门需要密码验证，关门不需要
         openDoorButton.setOnClickListener(v -> {
-            // 禁用按钮防止重复点击
-            openDoorButton.setEnabled(false);
-            Log.i(TAG, "点击了开/关门按钮，开始查询状态...");
-
-            // 动态查询当前舱门状态
+            // 先查询当前舱门状态
             doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
                 @Override
                 public void onSuccess(Boolean allClosed) {
                     runOnUiThread(() -> {
                         if (allClosed) {
-                            Log.d(TAG, "当前所有舱门已关闭，准备执行开门操作");
-                            // 当前门是关闭的，执行开门操作
-                            doorService.openAllDoors(false, new IResultCallback<Void>() {
-                                @Override
-                                public void onSuccess(Void result) {
-                                    runOnUiThread(() -> {
-                                        Log.i(TAG, "开门成功");
-                                        updateDoorButtonState();
-                                        Toast.makeText(DeliveryActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
-                                    });
-                                }
-
-                                @Override
-                                public void onError(ApiError error) {
-                                    runOnUiThread(() -> {
-                                        Log.e(TAG, "开门失败: " + error.getMessage());
-                                        openDoorButton.setEnabled(true);
-                                        Toast.makeText(DeliveryActivity.this,
-                                                "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                                    });
-                                }
-                            });
+                            // 当前门是关闭的，要执行开门操作 -> 需要密码验证
+                            Intent intent = new Intent(DeliveryActivity.this, PasswordActivity.class);
+                            startActivityForResult(intent, REQUEST_PASSWORD_FOR_DOOR);
                         } else {
-                            Log.d(TAG, "当前有舱门开启，准备执行关门操作");
-                            // 当前门是打开的，执行关门操作
-                            doorService.closeAllDoors(new IResultCallback<Void>() {
-                                @Override
-                                public void onSuccess(Void result) {
-                                    runOnUiThread(() -> {
-                                        Log.i(TAG, "关门成功");
-                                        updateDoorButtonState();
-                                        Toast.makeText(DeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
-                                    });
-                                }
-
-                                @Override
-                                public void onError(ApiError error) {
-                                    runOnUiThread(() -> {
-                                        Log.e(TAG, "关门失败: " + error.getMessage());
-                                        openDoorButton.setEnabled(true);
-                                        Toast.makeText(DeliveryActivity.this,
-                                                "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                                    });
-                                }
-                            });
+                            // 当前门是打开的，要执行关门操作 -> 不需要密码，直接关门
+                            performDoorOperation();
                         }
                     });
                 }
@@ -153,8 +124,6 @@ public class DeliveryActivity extends AppCompatActivity {
                 @Override
                 public void onError(ApiError error) {
                     runOnUiThread(() -> {
-                        Log.e(TAG, "查询舱门状态失败: " + error.getMessage());
-                        openDoorButton.setEnabled(true);
                         Toast.makeText(DeliveryActivity.this,
                                 "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     });
@@ -162,11 +131,10 @@ public class DeliveryActivity extends AppCompatActivity {
             });
         });
 
+        // 返航按钮需要密码验证
         findViewById(R.id.return_button).setOnClickListener(v -> {
-            Intent intent = new Intent(this, ReturnActivity.class);
-            intent.putExtra("return_speed",
-                    com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed());
-            startActivity(intent);
+            Intent intent = new Intent(this, PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_PASSWORD_FOR_RETURN);
         });
 
         findViewById(R.id.start_delivery_button).setOnClickListener(v -> {
@@ -552,21 +520,134 @@ public class DeliveryActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1002 && resultCode == RESULT_OK) {
-            Log.d(TAG, "配送任务结束返回");
-            if (data != null && data.hasExtra("remaining_pairings")) {
-                HashMap<Integer, NavigationNode> remaining = (HashMap<Integer, NavigationNode>) data
-                        .getSerializableExtra("remaining_pairings");
-                pairings.clear();
-                if (remaining != null) {
-                    pairings.putAll(remaining);
-                }
-                updateUIFromPairings();
-            } else {
-                Log.d(TAG, "未收到剩余配对信息，重置界面");
-                resetUI();
+        
+        // 处理密码验证结果
+        if (resultCode == RESULT_OK) {
+            switch (requestCode) {
+                case REQUEST_PASSWORD_FOR_BACK:
+                    // 密码验证成功,执行返回操作
+                    finish();
+                    break;
+                    
+                case REQUEST_PASSWORD_FOR_DOOR:
+                    // 密码验证成功,执行开/关门操作
+                    performDoorOperation();
+                    break;
+                    
+                case REQUEST_PASSWORD_FOR_RETURN:
+                    // 密码验证成功,执行返航操作
+                    performReturnOperation();
+                    break;
+                    
+                case REQUEST_PASSWORD_FOR_HISTORY:
+                    // 密码验证成功,跳转到配送记录页面
+                    startActivity(new Intent(DeliveryActivity.this, ItemDeliveryHistoryActivity.class));
+                    break;
+                    
+                case 1002:
+                    // 配送任务结束返回
+                    Log.d(TAG, "配送任务结束返回");
+                    if (data != null && data.hasExtra("remaining_pairings")) {
+                        HashMap<Integer, NavigationNode> remaining = (HashMap<Integer, NavigationNode>) data
+                                .getSerializableExtra("remaining_pairings");
+                        pairings.clear();
+                        if (remaining != null) {
+                            pairings.putAll(remaining);
+                        }
+                        updateUIFromPairings();
+                    } else {
+                        Log.d(TAG, "未收到剩余配对信息,重置界面");
+                        resetUI();
+                    }
+                    break;
             }
         }
+    }
+
+    /**
+     * 执行开门或关门操作
+     */
+    private void performDoorOperation() {
+        // 禁用按钮防止重复点击
+        openDoorButton.setEnabled(false);
+        Log.i(TAG, "点击了开/关门按钮，开始查询状态...");
+
+        // 动态查询当前舱门状态
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                runOnUiThread(() -> {
+                    if (allClosed) {
+                        Log.d(TAG, "当前所有舱门已关闭，准备执行开门操作");
+                        // 当前门是关闭的，执行开门操作
+                        doorService.openAllDoors(false, new IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    Log.i(TAG, "开门成功");
+                                    updateDoorButtonState();
+                                    Toast.makeText(DeliveryActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
+                                });
+                            }
+
+                            @Override
+                            public void onError(ApiError error) {
+                                runOnUiThread(() -> {
+                                    Log.e(TAG, "开门失败: " + error.getMessage());
+                                    openDoorButton.setEnabled(true);
+                                    Toast.makeText(DeliveryActivity.this,
+                                            "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
+                    } else {
+                        Log.d(TAG, "当前有舱门开启，准备执行关门操作");
+                        // 当前门是打开的，执行关门操作
+                        doorService.closeAllDoors(new IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    Log.i(TAG, "关门成功");
+                                    updateDoorButtonState();
+                                    Toast.makeText(DeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
+                                });
+                            }
+
+                            @Override
+                            public void onError(ApiError error) {
+                                runOnUiThread(() -> {
+                                    Log.e(TAG, "关门失败: " + error.getMessage());
+                                    openDoorButton.setEnabled(true);
+                                    Toast.makeText(DeliveryActivity.this,
+                                            "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    Log.e(TAG, "查询舱门状态失败: " + error.getMessage());
+                    openDoorButton.setEnabled(true);
+                    Toast.makeText(DeliveryActivity.this,
+                            "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    /**
+     * 执行返航操作
+     */
+    private void performReturnOperation() {
+        Intent intent = new Intent(this, ReturnActivity.class);
+        intent.putExtra("return_speed",
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed());
+        startActivity(intent);
+        Log.d(TAG, "执行返航操作");
     }
 
     /**

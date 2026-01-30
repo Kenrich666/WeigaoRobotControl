@@ -23,6 +23,7 @@ import com.weigao.robot.control.model.ItemDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.app.WeigaoApplication;
 
 import android.content.Intent;
 
@@ -512,8 +513,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     // 更新状态文本
                     tvStatus.setText("配送中");
                     
-                    // 持续播报行驶中语音（AudioServiceImpl会自动处理3秒间隔，不会重复播放）
-                    playConfiguredVoice(false);
+                    // 移除此处的语音播放调用 - 语音应该只在开始导航、恢复导航等特定时刻播放
+                    // 原因：STATE_RUNNING 会被多次触发，导致不可预测的重复播放
                     break;
 
                 case Navigation.STATE_DESTINATION:
@@ -663,6 +664,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             Log.d(TAG, "【导航服务】已注销回调监听器");
         }
         stopBackgroundMusic();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            WeigaoApplication.applyFullScreen(this);
+        }
     }
 
     @Override

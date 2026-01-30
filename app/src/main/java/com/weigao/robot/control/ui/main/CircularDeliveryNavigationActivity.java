@@ -24,6 +24,7 @@ import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.app.WeigaoApplication;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -121,6 +122,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
         // Adjust button text for "Pause" state initially hidden
         llPauseControls.setVisibility(View.GONE);
+        btnReturnOrigin.setVisibility(View.GONE);
     }
 
     private void setupGestureDetector() {
@@ -229,10 +231,10 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     isPaused = true;
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
-                    btnReturnOrigin.setVisibility(View.VISIBLE);
+                    // btnReturnOrigin.setVisibility(View.VISIBLE); // Removed as per user request
                     tvHint.setVisibility(View.INVISIBLE);
 
-                    pauseBackgroundMusic();
+                    // pauseBackgroundMusic(); // Modified: Keep music playing during pause
                     // speak("已暂停循环配送");
                 });
             }
@@ -254,7 +256,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     btnReturnOrigin.setVisibility(View.GONE);
                     tvHint.setVisibility(View.VISIBLE);
 
-                    resumeBackgroundMusic();
+                    // resumeBackgroundMusic(); // Modified: Music is already playing
                     playConfiguredVoice(false);
                 });
             }
@@ -303,7 +305,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     llPauseControls.setVisibility(View.GONE);
                     tvHint.setVisibility(View.VISIBLE);
 
-                    resumeBackgroundMusic();
+                    // resumeBackgroundMusic(); // Modified: Music is already playing
                     playConfiguredVoice(false);
                 });
             }
@@ -369,7 +371,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             switch (state) {
                 case Navigation.STATE_DESTINATION:
                     // Arrived
-                    pauseBackgroundMusic();
+                    // pauseBackgroundMusic(); // Modified: Keep music playing at destination
                     playConfiguredVoice(true);
                     handleArrival();
                     break;
@@ -377,7 +379,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     isPaused = true;
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
-                    btnReturnOrigin.setVisibility(View.VISIBLE);
+                    // btnReturnOrigin.setVisibility(View.VISIBLE); // Removed as per user request
                     tvHint.setVisibility(View.INVISIBLE);
                     break;
                 case Navigation.STATE_COLLISION:
@@ -444,6 +446,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         Intent intent = new Intent(this, CircularArrivalActivity.class);
         boolean isLastPoint = (currentTaskIndex >= targetNodes.size() - 1);
         intent.putExtra("is_last_point", isLastPoint);
+        if (currentTaskIndex < targetNodes.size()) {
+            intent.putExtra("current_point_name", targetNodes.get(currentTaskIndex).getName());
+        }
         startActivityForResult(intent, REQUEST_CODE_ARRIVAL);
     }
 
@@ -544,6 +549,14 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             navigationService.unregisterCallback(this);
         }
         stopBackgroundMusic();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            WeigaoApplication.applyFullScreen(this);
+        }
     }
 
     // ==================== Audio Helper Methods ====================

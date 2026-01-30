@@ -18,6 +18,8 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.ui.auth.PasswordActivity;
+import com.weigao.robot.control.app.WeigaoApplication;
 // 循环配送的到达点位暂停页面
 public class CircularArrivalActivity extends AppCompatActivity {
     private static final String TAG = "CircularArrivalActivity";
@@ -25,6 +27,11 @@ public class CircularArrivalActivity extends AppCompatActivity {
     public static final int RESULT_CONTINUE = 101;
     public static final int RESULT_RETURN_ORIGIN = 102;
     public static final int RESULT_CANCEL = 100;
+
+    private static final int REQUEST_CODE_PWD_BACK = 201;
+    private static final int REQUEST_CODE_PWD_OPEN_DOOR = 202;
+    private static final int REQUEST_CODE_PWD_RETURN_HOME = 203;
+    private static final int REQUEST_CODE_PWD_FULL_RETURN = 204;
 
     private IDoorService doorService;
     private Button btnOpenDoor;
@@ -34,6 +41,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
     private android.os.CountDownTimer countDownTimer;
     private boolean isLastPoint = false;
     private Button btnContinue;
+    private TextView tvCurrentPoint;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -46,27 +54,35 @@ public class CircularArrivalActivity extends AppCompatActivity {
         }
 
         isLastPoint = getIntent().getBooleanExtra("is_last_point", false);
+        String currentPointName = getIntent().getStringExtra("current_point_name");
 
         initViews();
+        if (currentPointName != null) {
+            tvCurrentPoint.setText("当前到达: " + currentPointName);
+        }
         updateDoorButtonState();
         startCountdown();
     }
 
     private void initViews() {
         btnOpenDoor = findViewById(R.id.btn_open_door);
+        tvCurrentPoint = findViewById(R.id.tv_current_point); // Added
         Button btnReturnHome = findViewById(R.id.btn_return_home);
         btnContinue = findViewById(R.id.btn_continue);
         Button btnFullReturn = findViewById(R.id.btn_full_return);
         tvArrivalMessage = findViewById(R.id.tv_arrival_message);
         Button btnBack = findViewById(R.id.btn_back);
 
-        btnBack.setOnClickListener(v -> closeDoorAndFinish(RESULT_CANCEL));
+        btnBack.setOnClickListener(v -> {
+            Intent intent = new Intent(CircularArrivalActivity.this, PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_PWD_BACK);
+        });
 
         btnOpenDoor.setOnClickListener(v -> toggleDoor());
 
         btnReturnHome.setOnClickListener(v -> {
-            setResult(RESULT_RETURN_ORIGIN);
-            finish();
+            Intent intent = new Intent(CircularArrivalActivity.this, PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_PWD_RETURN_HOME);
         });
 
         if (isLastPoint) {
@@ -77,7 +93,37 @@ public class CircularArrivalActivity extends AppCompatActivity {
         
         btnContinue.setOnClickListener(v -> closeDoorAndFinish(RESULT_CONTINUE));
 
-        btnFullReturn.setOnClickListener(v -> closeDoorAndFinish(RESULT_RETURN_ORIGIN));
+        btnFullReturn.setOnClickListener(v -> {
+            Intent intent = new Intent(CircularArrivalActivity.this, PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_PWD_FULL_RETURN);
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        startCountdown();
+        if (resultCode == RESULT_OK) {
+            switch (requestCode) {
+                case REQUEST_CODE_PWD_BACK:
+                    closeDoorAndFinish(RESULT_CANCEL);
+                    break;
+                case REQUEST_CODE_PWD_OPEN_DOOR:
+                    performOpenDoors();
+                    break;
+                case REQUEST_CODE_PWD_RETURN_HOME:
+                    setResult(RESULT_RETURN_ORIGIN);
+                    finish();
+                    break;
+                case REQUEST_CODE_PWD_FULL_RETURN:
+                    closeDoorAndFinish(RESULT_RETURN_ORIGIN);
+                    break;
+            }
+        } else {
+             if (requestCode == REQUEST_CODE_PWD_OPEN_DOOR) {
+                 updateDoorButtonState();
+             }
+        }
     }
 
     private void startCountdown() {
@@ -138,35 +184,46 @@ public class CircularArrivalActivity extends AppCompatActivity {
             public void onSuccess(Boolean allClosed) {
                 runOnUiThread(() -> {
                     if (allClosed) {
-                        doorService.openAllDoors(false, new IResultCallback<Void>() {
-                            @Override public void onSuccess(Void result) {
-                                runOnUiThread(() -> {
-                                    Toast.makeText(CircularArrivalActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
-                                    updateDoorButtonState();
-                                });
-                            }
-                            @Override public void onError(ApiError error) {
-                                handleDoorError("开门失败", error);
-                            }
-                        });
+                        Intent intent = new Intent(CircularArrivalActivity.this, PasswordActivity.class);
+                        startActivityForResult(intent, REQUEST_CODE_PWD_OPEN_DOOR);
                     } else {
-                        doorService.closeAllDoors(new IResultCallback<Void>() {
-                            @Override public void onSuccess(Void result) {
-                                runOnUiThread(() -> {
-                                    Toast.makeText(CircularArrivalActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
-                                    updateDoorButtonState();
-                                });
-                            }
-                            @Override public void onError(ApiError error) {
-                                handleDoorError("关门失败", error);
-                            }
-                        });
+                        performCloseDoors();
                     }
                 });
             }
             @Override
             public void onError(ApiError error) {
                 handleDoorError("状态查询失败", error);
+            }
+        });
+    }
+
+    private void performOpenDoors() {
+        if (doorService == null) return;
+        doorService.openAllDoors(false, new IResultCallback<Void>() {
+            @Override public void onSuccess(Void result) {
+                runOnUiThread(() -> {
+                    Toast.makeText(CircularArrivalActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
+                    updateDoorButtonState();
+                });
+            }
+            @Override public void onError(ApiError error) {
+                handleDoorError("开门失败", error);
+            }
+        });
+    }
+
+    private void performCloseDoors() {
+        if (doorService == null) return;
+        doorService.closeAllDoors(new IResultCallback<Void>() {
+            @Override public void onSuccess(Void result) {
+                runOnUiThread(() -> {
+                    Toast.makeText(CircularArrivalActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
+                    updateDoorButtonState();
+                });
+            }
+            @Override public void onError(ApiError error) {
+                handleDoorError("关门失败", error);
             }
         });
     }
@@ -250,6 +307,14 @@ public class CircularArrivalActivity extends AppCompatActivity {
         }
         if (doorService != null) {
             doorService.unregisterCallback(doorCallback);
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            WeigaoApplication.applyFullScreen(this);
         }
     }
 }

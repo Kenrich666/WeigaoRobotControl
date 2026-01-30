@@ -30,6 +30,7 @@ import com.weigao.robot.control.manager.SoundSettingsManager;
 import com.weigao.robot.control.service.ISecurityService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
+import com.weigao.robot.control.app.WeigaoApplication;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -350,11 +351,15 @@ public class MainActivity extends AppCompatActivity {
      * 应用全屏 UI
      */
     private void applyFullScreen() {
-        Log.d(TAG, "执行全屏 UI 适配");
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
-        controller.hide(WindowInsetsCompat.Type.systemBars());
-        controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        WeigaoApplication.applyFullScreen(this);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            WeigaoApplication.applyFullScreen(this);
+        }
     }
 
     @Override

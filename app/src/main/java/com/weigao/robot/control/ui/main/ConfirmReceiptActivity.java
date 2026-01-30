@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.os.CountDownTimer;
 
 import com.weigao.robot.control.ui.auth.PasswordActivity;
+import com.weigao.robot.control.app.WeigaoApplication;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -480,6 +481,14 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            WeigaoApplication.applyFullScreen(this);
+        }
     }
 
 }
