@@ -37,6 +37,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private static final String TAG = "CircularNavActivity";
 
     private TextView tvStatus, currentTaskTextView, tvHint, tvLoopCount;
+    private TextView tvCountdown;
     private android.widget.ProgressBar pbProgress;
     private Button btnPauseEnd, btnContinue, btnReturnOrigin;
     private LinearLayout llPauseControls;
@@ -63,7 +64,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
         initViews();
 
-        initViews();
+
 
         navigationService = ServiceManager.getInstance().getNavigationService();
         audioService = ServiceManager.getInstance().getAudioService(); // Init AudioService
@@ -115,6 +116,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         pbProgress = findViewById(R.id.pb_progress);
 
         llPauseControls = findViewById(R.id.ll_pause_controls);
+        tvHint = findViewById(R.id.tv_hint);
+        tvCountdown = findViewById(R.id.tv_countdown);
+
         btnPauseEnd = findViewById(R.id.btn_pause_end);
         btnContinue = findViewById(R.id.btn_continue);
         rootLayout = findViewById(R.id.root_layout);
@@ -145,6 +149,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private void setupButtons() {
         btnPauseEnd.setText("结束导航");
         btnPauseEnd.setOnClickListener(v -> {
+            // 不停止自动恢复计时，让其继续计时 (参考 ConfirmReceiptActivity)
             Intent intent = new Intent(this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
             startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
@@ -225,14 +230,25 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void pauseNavigation() {
+        // 1s内尽可能多发暂停指令，从第一次发计时1s
+        final long startTime = System.currentTimeMillis();
+        final android.os.Handler handler = new android.os.Handler();
+        Runnable multiplePauseTask = new Runnable() {
+            @Override
+            public void run() {
+                if (navigationService != null) {
+                    navigationService.pause(null);
+                }
+                if (System.currentTimeMillis() - startTime < 1000) {
+                    handler.postDelayed(this, 50);
+                }
+            }
+        };
+        handler.post(multiplePauseTask);
+
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                // 发送第二次暂停指令，确保命令生效 (Double Check)
-                new android.os.Handler().postDelayed(() -> {
-                    if (navigationService != null) navigationService.pause(null);
-                }, 150);
-
                 runOnUiThread(() -> {
                     isPaused = true;
                     lastPauseTime = System.currentTimeMillis();
@@ -240,6 +256,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     llPauseControls.setVisibility(View.VISIBLE);
                     // btnReturnOrigin.setVisibility(View.VISIBLE); // Removed as per user request
                     tvHint.setVisibility(View.INVISIBLE);
+                    
+                    startAutoResumeTimer();
 
                     // pauseBackgroundMusic(); // Modified: Keep music playing during pause
                     // speak("已暂停循环配送");
@@ -253,6 +271,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void resumeNavigation() {
+        stopAutoResumeTimer();
         navigationService.start(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
@@ -290,7 +309,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 @Override
                 public void onError(ApiError error) {
                     runOnUiThread(() -> {
-                        Toast.makeText(CircularDeliveryNavigationActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(CircularDeliveryNavigationActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                         // 即使关门失败，也尝试继续导航？或者让用户决定？这里选择继续尝试导航
                          startPilotNext();
                     });
@@ -421,6 +440,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                             }
                             // 如果暂停后超过1秒仍收到运行状态，说明暂停失败或已被覆盖，强制同步UI
                             isPaused = false;
+                            stopAutoResumeTimer();
                             Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
                         } else {
                             // 暂停指令发出不久，忽略短暂的运行状态回调（避免UI闪烁）
@@ -507,6 +527,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 finish();
             }
         } else if (requestCode == REQUEST_CODE_END_NAVIGATION_PASSWORD) {
+            // 无论验证是否成功，都不需要显式停止密码计时器了（因为它不存在了）
+            // 也不需要重启自动恢复计时器（因为它没停过）
             if (resultCode == RESULT_OK) {
                 stopNavigation();
                 finish();
@@ -573,6 +595,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopAutoResumeTimer();
         if (navigationService != null) {
             stopNavigation();
             navigationService.unregisterCallback(this);
@@ -644,6 +667,47 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 public void onError(ApiError error) {
                 }
             });
+        }
+    }
+
+    // ==================== Auto Resume ====================
+    private android.os.CountDownTimer autoResumeTimer;
+
+    private void startAutoResumeTimer() {
+        stopAutoResumeTimer();
+        
+        tvCountdown.setVisibility(View.VISIBLE);
+        
+        autoResumeTimer = new android.os.CountDownTimer(30000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                if (!isFinishing()) {
+                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动继续");
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                if (!isFinishing() && isPaused) {
+                    // 关键：如果密码页面还在显示，强制关闭它 (参考 ConfirmReceiptActivity)
+                    finishActivity(REQUEST_CODE_END_NAVIGATION_PASSWORD);
+                    
+                    tvCountdown.setVisibility(View.GONE);
+                    Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停超时，自动继续", Toast.LENGTH_SHORT).show();
+                    resumeNavigation();
+                }
+            }
+        };
+        autoResumeTimer.start();
+    }
+
+    private void stopAutoResumeTimer() {
+        if (autoResumeTimer != null) {
+            autoResumeTimer.cancel();
+            autoResumeTimer = null;
+        }
+        if (tvCountdown != null) {
+            tvCountdown.setVisibility(View.GONE);
         }
     }
 }

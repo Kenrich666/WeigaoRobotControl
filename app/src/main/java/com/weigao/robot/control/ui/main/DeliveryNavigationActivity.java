@@ -57,6 +57,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private int currentTaskIndex = 0;
     private boolean isPaused = false;
+    private TextView tvCountdown;
+
+    // 导航服务
     private long lastPauseTime = 0;
     private int pauseRetryCount = 0;
     private boolean isNavigating = false;
@@ -146,6 +149,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         currentTaskTextView = findViewById(R.id.current_task_textview);
         tvHint = findViewById(R.id.tv_hint);
         llPauseControls = findViewById(R.id.ll_pause_controls);
+        tvHint = findViewById(R.id.tv_hint);
+        tvCountdown = findViewById(R.id.tv_countdown);
+
         btnPauseEnd = findViewById(R.id.btn_pause_end);
         btnContinue = findViewById(R.id.btn_continue);
         rootLayout = findViewById(R.id.root_layout);
@@ -230,6 +236,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private void setupButtons() {
         btnPauseEnd.setOnClickListener(v -> {
             Log.d(TAG, "【用户操作】点击结束按钮，请求密码验证");
+            // 不停止自动恢复计时，让其继续计时
             Intent intent = new Intent(this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
             startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
@@ -324,15 +331,26 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 暂停导航
      */
     private void pauseNavigation() {
+        // 1s内尽可能多发暂停指令，从第一次发计时1s
+        final long startTime = System.currentTimeMillis();
+        final android.os.Handler handler = new android.os.Handler();
+        Runnable multiplePauseTask = new Runnable() {
+            @Override
+            public void run() {
+                if (navigationService != null) {
+                    navigationService.pause(null);
+                }
+                if (System.currentTimeMillis() - startTime < 1000) {
+                    handler.postDelayed(this, 50);
+                }
+            }
+        };
+        handler.post(multiplePauseTask);
+
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】暂停成功 - 机器人已停止");
-                
-                // 发送第二次暂停指令，确保命令生效 (Double Check)
-                new android.os.Handler().postDelayed(() -> {
-                    if (navigationService != null) navigationService.pause(null);
-                }, 150);
 
                 runOnUiThread(() -> {
                     isPaused = true;
@@ -340,6 +358,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
+                    
+                    startAutoResumeTimer();
+
                     // pauseBackgroundMusic(); // Modified: Keep music playing during pause
                     // speak("已暂停配送");
                 });
@@ -363,6 +384,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 恢复导航
      */
     private void resumeNavigation() {
+        stopAutoResumeTimer();
         // 恢复背景音乐
         // resumeBackgroundMusic(); // Modified: Music is already playing
         playConfiguredVoice(false);
@@ -515,6 +537,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                             }
                             // 暂停失败或失效，强制恢复 UI 状态
                             isPaused = false;
+                            stopAutoResumeTimer();
                             Toast.makeText(DeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
                         } else {
                             return;
@@ -666,6 +689,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopAutoResumeTimer();
         Log.d(TAG, "【Activity】onDestroy - 销毁活动");
         // 停止导航
         if (navigationService != null) {
@@ -800,6 +824,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 }
             }
         } else if (requestCode == REQUEST_CODE_END_NAVIGATION_PASSWORD) {
+            // 无论验证是否成功，都不需要显式停止密码计时器了
             if (resultCode == RESULT_OK) {
                 performEndNavigation();
             }
@@ -881,6 +906,47 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 public void onError(ApiError error) {
                 }
             });
+        }
+    }
+
+    // ==================== Auto Resume ====================
+    private android.os.CountDownTimer autoResumeTimer;
+
+    private void startAutoResumeTimer() {
+        stopAutoResumeTimer();
+
+        tvCountdown.setVisibility(View.VISIBLE);
+
+        autoResumeTimer = new android.os.CountDownTimer(30000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                if (!isFinishing()) {
+                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动继续");
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                if (!isFinishing() && isPaused) {
+                    // 关键：如果密码页面还在显示，强制关闭它
+                    finishActivity(REQUEST_CODE_END_NAVIGATION_PASSWORD);
+
+                    tvCountdown.setVisibility(View.GONE);
+                    Toast.makeText(DeliveryNavigationActivity.this, "暂停超时，自动继续", Toast.LENGTH_SHORT).show();
+                    resumeNavigation();
+                }
+            }
+        };
+        autoResumeTimer.start();
+    }
+
+    private void stopAutoResumeTimer() {
+        if (autoResumeTimer != null) {
+            autoResumeTimer.cancel();
+            autoResumeTimer = null;
+        }
+        if (tvCountdown != null) {
+            tvCountdown.setVisibility(View.GONE);
         }
     }
 }

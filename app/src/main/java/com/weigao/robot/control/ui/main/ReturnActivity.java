@@ -34,11 +34,14 @@ import java.util.List;
 public class ReturnActivity extends AppCompatActivity implements INavigationCallback {
 
     private static final String TAG = "ReturnActivity";
+    private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1001;
 
     // 控件
     private LinearLayout llControls;
+
     private TextView tvHint;
     private TextView tvStatus;
+    private TextView tvCountdown; // Added
     private GestureDetector gestureDetector;
     private View rootLayout;
 
@@ -74,6 +77,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         llControls = findViewById(R.id.ll_controls);
         tvHint = findViewById(R.id.tv_hint);
         tvStatus = findViewById(R.id.tv_status);
+        tvCountdown = findViewById(R.id.tv_countdown); // Added
         tvStatus.setText("返航中");
     }
 
@@ -116,8 +120,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         });
 
         btnEnd.setOnClickListener(v -> {
-            // 结束并停止
-            stopNavigation();
+            // 不停止自动恢复计时，让其继续计时
+            android.content.Intent intent = new android.content.Intent(ReturnActivity.this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
     }
 
@@ -260,21 +265,33 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         if (!isNavigating || isPaused)
             return;
 
+        // 1s内尽可能多发暂停指令，从第一次发计时1s
+        final long startTime = System.currentTimeMillis();
+        final android.os.Handler handler = new android.os.Handler();
+        Runnable multiplePauseTask = new Runnable() {
+            @Override
+            public void run() {
+                if (navigationService != null) {
+                    navigationService.pause(null);
+                }
+                if (System.currentTimeMillis() - startTime < 1000) {
+                    handler.postDelayed(this, 50);
+                }
+            }
+        };
+        handler.post(multiplePauseTask);
+
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 isPaused = true;
                 lastPauseTime = System.currentTimeMillis();
                 
-                // 发送第二次暂停指令，确保命令生效 (Double Check)
-                new android.os.Handler().postDelayed(() -> {
-                    if (navigationService != null) navigationService.pause(null);
-                }, 150);
-
                 if (audioService != null) audioService.pauseBackgroundMusic(null);
                 runOnUiThread(() -> {
                     showControls(true);
                     tvStatus.setText("已暂停");
+                    startAutoResumeTimer();
                 });
             }
 
@@ -289,6 +306,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
      * 恢复导航
      */
     private void resumeNavigation() {
+        stopAutoResumeTimer();
         if (!isNavigating || !isPaused)
             return;
 
@@ -355,6 +373,16 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         }
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_END_NAVIGATION_PASSWORD) {
+            if (resultCode == RESULT_OK) {
+                stopNavigation();
+            }
+        }
+    }
+
     // ==================== Navigation Callbacks ====================
 
     @Override
@@ -393,6 +421,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                             }
                             // 暂停失败或失效，强制恢复 UI 状态
                             isPaused = false;
+                            stopAutoResumeTimer();
                             showControls(false);
                             tvStatus.setText("返航中");
                             Toast.makeText(ReturnActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
@@ -445,6 +474,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopAutoResumeTimer();
         if (navigationService != null) {
             // 退出页面时确保停止导航
             if (isNavigating) {
@@ -507,6 +537,48 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
+    }
+
+    // ==================== Auto Resume ====================
+    private android.os.CountDownTimer autoResumeTimer;
+
+    private void startAutoResumeTimer() {
+        stopAutoResumeTimer();
+
+        if (tvCountdown != null) {
+            tvCountdown.setVisibility(View.VISIBLE);
+        }
+
+        autoResumeTimer = new android.os.CountDownTimer(30000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                if (!isFinishing() && tvCountdown != null) {
+                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动继续");
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                if (!isFinishing() && isPaused) {
+                    finishActivity(REQUEST_CODE_END_NAVIGATION_PASSWORD);
+
+                    if (tvCountdown != null) tvCountdown.setVisibility(View.GONE);
+                    Toast.makeText(ReturnActivity.this, "暂停超时，自动继续返航", Toast.LENGTH_SHORT).show();
+                    resumeNavigation();
+                }
+            }
+        };
+        autoResumeTimer.start();
+    }
+
+    private void stopAutoResumeTimer() {
+        if (autoResumeTimer != null) {
+            autoResumeTimer.cancel();
+            autoResumeTimer = null;
+        }
+        if (tvCountdown != null) {
+            tvCountdown.setVisibility(View.GONE);
         }
     }
 }

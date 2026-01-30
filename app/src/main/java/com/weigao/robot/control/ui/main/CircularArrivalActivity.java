@@ -260,7 +260,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
                 });
             }
             @Override public void onError(ApiError error) {
-                handleDoorError("关门失败", error);
+                // handleDoorError("关门失败", error);
             }
         });
     }
@@ -320,7 +320,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
                                 @Override
                                 public void onError(ApiError error) {
                                     runOnUiThread(() -> {
-                                        Toast.makeText(CircularArrivalActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                        // Toast.makeText(CircularArrivalActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                                         // Still finish to avoid blocking workflow
                                         setResult(resultCode);
                                         finish();
