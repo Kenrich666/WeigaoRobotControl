@@ -44,6 +44,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private static final String TAG = "DeliveryNavActivity";
 
     private static final int REQUEST_CODE_CONFIRM_RECEIPT = 1001;
+    private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1002;
 
     private TextView tvStatus, currentTaskTextView, tvHint;
     private Button btnPauseEnd, btnContinue;
@@ -225,22 +226,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      */
     private void setupButtons() {
         btnPauseEnd.setOnClickListener(v -> {
-            Log.d(TAG, "【用户操作】点击结束按钮");
-
-            // 如果配送任务尚未完成就被手动结束，记录为取消状态
-            if (!isMissionFinished && currentUniqueTargetIndex < targetNodes.size()) {
-                NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
-                ItemDeliveryManager.getInstance().recordPointArrival(currentNode.getName(),
-                        ItemDeliveryRecord.STATUS_CANCELLED);
-            }
-
-            Intent returnIntent = new Intent();
-            if (pairings != null) {
-                returnIntent.putExtra("remaining_pairings", pairings);
-            }
-            setResult(RESULT_OK, returnIntent);
-            stopNavigation();
-            finish();
+            Log.d(TAG, "【用户操作】点击结束按钮，请求密码验证");
+            Intent intent = new Intent(this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
 
         // "完成取物" / "继续" 按钮逻辑复用
@@ -788,7 +776,29 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     }
                 }
             }
+        } else if (requestCode == REQUEST_CODE_END_NAVIGATION_PASSWORD) {
+            if (resultCode == RESULT_OK) {
+                performEndNavigation();
+            }
         }
+    }
+
+    private void performEndNavigation() {
+        Log.d(TAG, "【操作】密码验证通过，执行结束导航");
+        // 如果配送任务尚未完成就被手动结束，记录为取消状态
+        if (!isMissionFinished && currentUniqueTargetIndex < targetNodes.size()) {
+            NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
+            ItemDeliveryManager.getInstance().recordPointArrival(currentNode.getName(),
+                    ItemDeliveryRecord.STATUS_CANCELLED);
+        }
+
+        Intent returnIntent = new Intent();
+        if (pairings != null) {
+            returnIntent.putExtra("remaining_pairings", pairings);
+        }
+        setResult(RESULT_OK, returnIntent);
+        stopNavigation();
+        finish();
     }
 
     // ==================== Audio Helper Methods ====================

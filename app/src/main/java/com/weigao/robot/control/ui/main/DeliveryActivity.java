@@ -510,9 +510,9 @@ public class DeliveryActivity extends AppCompatActivity {
             // 舱门错误，可以在这里显示错误提示
             Log.e(TAG, "onDoorError: doorId=" + doorId + ", errorCode=" + errorCode);
             runOnUiThread(() -> {
-                Toast.makeText(DeliveryActivity.this,
-                        "舱门错误 (ID: " + doorId + ", 错误码: " + errorCode + ")",
-                        Toast.LENGTH_SHORT).show();
+                // Toast.makeText(DeliveryActivity.this,
+                //         "舱门错误 (ID: " + doorId + ", 错误码: " + errorCode + ")",
+                //         Toast.LENGTH_SHORT).show();
             });
         }
     };
@@ -718,6 +718,8 @@ public class DeliveryActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(Void result) {
                                 runOnUiThread(() -> {
+                                    // 更新按钮状态及文字
+                                    updateDoorButtonState();
                                     Toast.makeText(DeliveryActivity.this, "舱门已关闭，5秒后开始配送...", Toast.LENGTH_SHORT)
                                             .show();
 
@@ -762,6 +764,13 @@ public class DeliveryActivity extends AppCompatActivity {
         // 注销舱门状态回调
         if (doorService != null) {
             doorService.unregisterCallback(doorCallback);
+        }
+    }
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
         }
     }
 }

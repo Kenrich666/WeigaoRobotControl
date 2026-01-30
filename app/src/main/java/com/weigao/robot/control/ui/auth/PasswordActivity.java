@@ -179,4 +179,12 @@ public class PasswordActivity extends AppCompatActivity implements View.OnClickL
             updateDots();
         }, 500);
     }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
+    }
 }

@@ -535,12 +535,15 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(Void result) {
                                 runOnUiThread(() -> {
-                                    Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭，5秒后开始导航...", Toast.LENGTH_SHORT).show();
                                     // Update button state just in case
                                     updateDoorButtonState();
-                                    proceedToNavigation();
-                                    if (btn != null)
-                                        btn.setEnabled(true);
+                                    
+                                    new Handler().postDelayed(() -> {
+                                        proceedToNavigation();
+                                        if (btn != null)
+                                            btn.setEnabled(true);
+                                    }, 5000);
                                 });
                             }
 

@@ -119,6 +119,20 @@ public class SettingsActivity extends AppCompatActivity implements View.OnClickL
         selectedButton = button;
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
+    }
+
     private void showToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }

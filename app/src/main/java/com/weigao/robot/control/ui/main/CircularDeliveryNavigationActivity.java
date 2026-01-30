@@ -144,8 +144,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private void setupButtons() {
         btnPauseEnd.setText("结束导航");
         btnPauseEnd.setOnClickListener(v -> {
-            stopNavigation();
-            finish();
+            Intent intent = new Intent(this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
 
         // Continue button logic
@@ -420,6 +420,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private static final int REQUEST_CODE_ARRIVAL = 1001;
+    private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1002;
 
     // ...
 
@@ -479,6 +480,11 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             } else if (resultCode == CircularArrivalActivity.RESULT_CANCEL || resultCode == RESULT_CANCELED) {
                 // Cancelled
                 Toast.makeText(this, "循环任务已取消", Toast.LENGTH_SHORT).show();
+                stopNavigation();
+                finish();
+            }
+        } else if (requestCode == REQUEST_CODE_END_NAVIGATION_PASSWORD) {
+            if (resultCode == RESULT_OK) {
                 stopNavigation();
                 finish();
             }

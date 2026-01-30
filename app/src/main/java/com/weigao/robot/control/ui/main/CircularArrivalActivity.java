@@ -102,7 +102,12 @@ public class CircularArrivalActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        startCountdown();
+        
+        // If the activity is finishing (e.g. timeout triggered), ignore the result
+        if (isFinishing()) {
+            return;
+        }
+
         if (resultCode == RESULT_OK) {
             switch (requestCode) {
                 case REQUEST_CODE_PWD_BACK:
@@ -133,7 +138,9 @@ public class CircularArrivalActivity extends AppCompatActivity {
         countDownTimer = new android.os.CountDownTimer(COUNTDOWN_TIME_MS, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
-                updateMessage(millisUntilFinished / 1000);
+                if (!isFinishing()) {
+                    updateMessage(millisUntilFinished / 1000);
+                }
             }
 
             @Override
@@ -151,33 +158,63 @@ public class CircularArrivalActivity extends AppCompatActivity {
     }
 
     private void handleTimeout() {
-        if (isLastPoint) {
-            // Auto return
-            Toast.makeText(this, "倒计时结束，自动返航", Toast.LENGTH_SHORT).show();
-            // closeDoorAndFinish(RESULT_RETURN_ORIGIN); // Or just finish with result?
-            // The prompt said: "倒计时结束相当按下已装满返航到原点"
-             closeDoorAndFinish(RESULT_RETURN_ORIGIN);
-        } else {
-            // Auto continue
-            Toast.makeText(this, "倒计时结束，前往下一站", Toast.LENGTH_SHORT).show();
-            closeDoorAndFinish(RESULT_CONTINUE);
-        }
-    }
+        if (isFinishing()) return;
 
-    @Override
-    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
-        if (ev.getAction() == android.view.MotionEvent.ACTION_DOWN) {
-            // Reset timer on user interaction
-            startCountdown();
-        }
-        return super.dispatchTouchEvent(ev);
+        // Force close any open password activities
+        finishActivity(REQUEST_CODE_PWD_BACK);
+        finishActivity(REQUEST_CODE_PWD_OPEN_DOOR);
+        finishActivity(REQUEST_CODE_PWD_RETURN_HOME);
+        finishActivity(REQUEST_CODE_PWD_FULL_RETURN);
+
+        runOnUiThread(() -> {
+            btnOpenDoor.setEnabled(false);
+            btnContinue.setEnabled(false);
+            
+            String msg = isLastPoint ? "倒计时结束，自动返航" : "倒计时结束，前往下一站";
+            Toast.makeText(CircularArrivalActivity.this, msg, Toast.LENGTH_SHORT).show();
+            
+            // Logic similar to processAutoDeparture in ConfirmReceiptActivity
+            // Try to close doors and leave
+            int resultCode = isLastPoint ? RESULT_RETURN_ORIGIN : RESULT_CONTINUE;
+            
+            if (doorService != null) {
+                doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+                    @Override
+                    public void onSuccess(Boolean allClosed) {
+                         if (allClosed) {
+                             closeDoorAndFinish(resultCode);
+                         } else {
+                             // Force close
+                             doorService.closeAllDoors(new IResultCallback<Void>() {
+                                 @Override
+                                 public void onSuccess(Void result) {
+                                     // Wait a bit then finish
+                                     closeDoorAndFinish(resultCode); 
+                                 }
+                                 @Override
+                                 public void onError(ApiError error) {
+                                     // Error closing, but time is up, force leave
+                                     closeDoorAndFinish(resultCode); 
+                                 }
+                             });
+                         }
+                    }
+                    @Override
+                    public void onError(ApiError error) {
+                        closeDoorAndFinish(resultCode);
+                    }
+                });
+            } else {
+                setResult(resultCode);
+                finish();
+            }
+        });
     }
 
     private void toggleDoor() {
         if (doorService == null) return;
         btnOpenDoor.setEnabled(false);
-        // Reset timer as this is an action
-        startCountdown();
+        // Do NOT reset timer here, strict 30s limit
         
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
@@ -256,27 +293,69 @@ public class CircularArrivalActivity extends AppCompatActivity {
         if (countDownTimer != null) countDownTimer.cancel();
         
         if (doorService != null) {
-            // Attempt to close door automatically before continuing
-            Toast.makeText(this, "正在关闭舱门...", Toast.LENGTH_SHORT).show();
-            doorService.closeAllDoors(new IResultCallback<Void>() {
+            // First check door status
+            doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
                 @Override
-                public void onSuccess(Void result) {
+                public void onSuccess(Boolean allClosed) {
                     runOnUiThread(() -> {
-                        setResult(resultCode);
-                        finish();
+                        if (allClosed) {
+                            // Already closed, proceed immediately
+                            setResult(resultCode);
+                            finish();
+                        } else {
+                            // Doors are open, close them
+                            Toast.makeText(CircularArrivalActivity.this, "正在关闭舱门...", Toast.LENGTH_SHORT).show();
+                            doorService.closeAllDoors(new IResultCallback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(CircularArrivalActivity.this, "舱门已关闭，5秒后继续...", Toast.LENGTH_SHORT).show();
+                                        new Handler().postDelayed(() -> {
+                                            setResult(resultCode);
+                                            finish();
+                                        }, 5000);
+                                    });
+                                }
+
+                                @Override
+                                public void onError(ApiError error) {
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(CircularArrivalActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                        // Still finish to avoid blocking workflow
+                                        setResult(resultCode);
+                                        finish();
+                                    });
+                                }
+                            });
+                        }
                     });
                 }
 
                 @Override
                 public void onError(ApiError error) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(CircularArrivalActivity.this, "关门失败，请手动关闭", Toast.LENGTH_SHORT).show();
-                        // For safety, finish anyway? Or allow user to retry?
-                        // If logic requires closing doors for safety, we might get stuck here.
-                        // But let's proceed to finish for flow continuity as requested.
-                         setResult(resultCode);
-                         finish();
-                    });
+                     // Check failed, try to close blindly
+                     runOnUiThread(() -> {
+                         // Toast.makeText(CircularArrivalActivity.this, "查询状态失败，尝试关闭舱门...", Toast.LENGTH_SHORT).show();
+                         doorService.closeAllDoors(new IResultCallback<Void>() {
+                             @Override
+                             public void onSuccess(Void result) {
+                                 runOnUiThread(() -> {
+                                     Toast.makeText(CircularArrivalActivity.this, "舱门已关闭，5秒后继续...", Toast.LENGTH_SHORT).show();
+                                     new Handler().postDelayed(() -> {
+                                         setResult(resultCode);
+                                         finish();
+                                     }, 5000);
+                                 });
+                             }
+                             @Override
+                             public void onError(ApiError error) {
+                                 runOnUiThread(() -> {
+                                     setResult(resultCode);
+                                     finish();
+                                 });
+                             }
+                         });
+                     });
                 }
             });
         } else {
@@ -290,8 +369,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
         public void onDoorStateChanged(int doorId, int state) {
             runOnUiThread(() -> {
                 updateDoorButtonState();
-                // Door state change is also an interaction
-                startCountdown();
+                // removed startCountdown() to avoid resetting timer
             });
         }
         @Override public void onDoorTypeChanged(DoorType type) {}
