@@ -256,6 +256,10 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         if (isFinishing())
             return;
 
+        // 关键修复：如果密码验证页面还在显示，强制关闭它
+        finishActivity(REQUEST_CODE_VERIFY_PASSWORD);
+        Log.d(TAG, "【超时离场】强制关闭密码验证页面");
+
         runOnUiThread(() -> {
             btnOpenCabin.setEnabled(false);
             tvCountdown.setText("正在离开...");
@@ -316,10 +320,20 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     Toast.makeText(ConfirmReceiptActivity.this, "关门指令失败: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show();
-                    // 如果是手动，允许重试；如果是自动，可能需要人工干预
-                    btnOpenCabin.setEnabled(true);
-                    if (!isManual) {
-                        tvCountdown.setText("关门异常");
+                    
+                    if (isManual) {
+                        // 如果是手动触发，允许重试
+                        btnOpenCabin.setEnabled(true);
+                    } else {
+                        // 如果是自动超时触发，延迟5秒后强制结束
+                        btnOpenCabin.setEnabled(false);
+                        tvCountdown.setText("关门异常，5秒后离场...");
+                        new android.os.Handler().postDelayed(() -> {
+                            if (!isFinishing()) {
+                                Log.w(TAG, "【关门失败】强制结束Activity");
+                                finishWithSuccess();
+                            }
+                        }, 5000);
                     }
                 });
             }
@@ -335,9 +349,17 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
         if (remainingRetries <= 0) {
             runOnUiThread(() -> {
-                Toast.makeText(ConfirmReceiptActivity.this, "关门检测超时，请检查舱门状态", Toast.LENGTH_LONG).show();
-                btnOpenCabin.setEnabled(true);
-                tvCountdown.setText("关门超时");
+                Toast.makeText(ConfirmReceiptActivity.this, "关门检测超时，5秒后自动离场", Toast.LENGTH_LONG).show();
+                btnOpenCabin.setEnabled(false);
+                tvCountdown.setText("检测超时，即将离场...");
+                
+                // 延迟5秒后强制结束，避免无限等待
+                new android.os.Handler().postDelayed(() -> {
+                    if (!isFinishing()) {
+                        Log.w(TAG, "【关门超时】强制结束Activity");
+                        finishWithSuccess();
+                    }
+                }, 5000);
             });
             return;
         }

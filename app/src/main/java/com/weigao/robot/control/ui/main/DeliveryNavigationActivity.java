@@ -56,8 +56,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private int currentTaskIndex = 0;
     private boolean isPaused = false;
     private boolean isNavigating = false;
-    // 是否正在返回原点
-    private boolean isReturning = false;
+
 
     private GestureDetector gestureDetector;
 
@@ -206,9 +205,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDoubleTap(MotionEvent e) {
-                if (isNavigating && currentTaskIndex < deliveryTasks.size()) {
+                if (isNavigating && !isPaused && currentTaskIndex < deliveryTasks.size()) {
                     Log.d(TAG, "【用户操作】双击屏幕，暂停导航");
-                    setPauseState(true);
                     pauseNavigation();
                 }
                 return true;
@@ -229,7 +227,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             Log.d(TAG, "【用户操作】点击结束按钮");
 
             // 如果配送任务尚未完成就被手动结束，记录为取消状态
-            if (!isMissionFinished && !isReturning && currentUniqueTargetIndex < targetNodes.size()) {
+            if (!isMissionFinished && currentUniqueTargetIndex < targetNodes.size()) {
                 NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
                 ItemDeliveryManager.getInstance().recordPointArrival(currentNode.getName(),
                         ItemDeliveryRecord.STATUS_CANCELLED);
@@ -248,7 +246,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         // 若在到达等待状态，执行 processDeparture
         btnContinue.setOnClickListener(v -> {
             Log.d(TAG, "【用户操作】点击继续/完成取物按钮");
-            setPauseState(false);
             resumeNavigation();
         });
     }
@@ -287,9 +284,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 playConfiguredVoice(false);
 
                 // 设置导航速度
-                int speed = isReturning
-                        ? com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed()
-                        : com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getDeliverySpeed();
+                int speed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getDeliverySpeed();
 
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
@@ -341,18 +336,23 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】暂停成功 - 机器人已停止");
-                // pauseBackgroundMusic(); // Modified: Keep music playing during pause
-                // speak("已暂停配送");
+                runOnUiThread(() -> {
+                    isPaused = true;
+                    tvStatus.setText("已暂停");
+                    llPauseControls.setVisibility(View.VISIBLE);
+                    tvHint.setVisibility(View.INVISIBLE);
+                    // pauseBackgroundMusic(); // Modified: Keep music playing during pause
+                    // speak("已暂停配送");
+                });
             }
 
             @Override
             public void onError(ApiError error) {
                 Log.e(TAG, "【导航控制】暂停失败: " + error.getMessage());
-                // 关键修复: 暂停失败时回滚UI状态
+                // 暂停失败时显示提示
                 runOnUiThread(() -> {
-                    setPauseState(false);
                     Toast.makeText(DeliveryNavigationActivity.this,
-                            "暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
+                            "暂停失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -364,9 +364,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 恢复导航
      */
     private void resumeNavigation() {
-        // 重置标志位，因为恢复或跳转都会重新进入运行状态
-        hasRunningStateReceived = false;
-
         // 恢复背景音乐
         // resumeBackgroundMusic(); // Modified: Music is already playing
         playConfiguredVoice(false);
@@ -378,7 +375,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 @Override
                 public void onSuccess(Void result) {
                     Log.d(TAG, "【导航控制】前往下一点成功");
-                    runOnUiThread(() -> tvStatus.setText("配送中"));
+                    runOnUiThread(() -> {
+                        isPaused = false;
+                        tvStatus.setText("配送中");
+                        llPauseControls.setVisibility(View.GONE);
+                        tvHint.setVisibility(View.VISIBLE);
+                    });
                 }
 
                 @Override
@@ -393,6 +395,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 @Override
                 public void onSuccess(Void result) {
                     Log.d(TAG, "【导航控制】恢复成功");
+                    runOnUiThread(() -> {
+                        isPaused = false;
+                        tvStatus.setText("配送中");
+                        llPauseControls.setVisibility(View.GONE);
+                        tvHint.setVisibility(View.VISIBLE);
+                    });
                 }
 
                 @Override
@@ -423,25 +431,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         });
     }
 
-    /**
-     * 设置暂停状态
-     */
-    private void setPauseState(boolean paused) {
-        isPaused = paused;
-        runOnUiThread(() -> {
-            if (isPaused) {
-                tvStatus.setText("已暂停");
-                llPauseControls.setVisibility(View.VISIBLE);
-                tvHint.setVisibility(View.INVISIBLE);
-                Log.d(TAG, "【UI更新】显示暂停状态");
-            } else {
-                tvStatus.setText("配送中");
-                llPauseControls.setVisibility(View.GONE);
-                tvHint.setVisibility(View.VISIBLE);
-                Log.d(TAG, "【UI更新】显示导航中状态");
-            }
-        });
-    }
+
 
     /**
      * 更新任务文本
@@ -459,13 +449,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             if (isMissionFinished)
                 return;
 
-            if (isReturning) {
-                String targetName = (targetNodes != null && !targetNodes.isEmpty()) ? targetNodes.get(0).getName()
-                        : "原点";
-                currentTaskTextView.setText("所有任务已完成，正在返回：" + targetName);
-                tvStatus.setText("返航中");
-                return;
-            }
+
 
             if (currentUniqueTargetIndex < targetNodes.size()) {
                 NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
@@ -520,20 +504,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     Log.d(TAG, "【导航回调】正在运行中");
                     hasRunningStateReceived = true;
                     
-                    // 关键修复: 状态同步检查 - 如果UI显示暂停但机器人实际在运行，说明暂停失败
+                    // 如果处于暂停状态，忽略运行状态更新（参考循环配送）
                     if (isPaused) {
-                        Log.w(TAG, "【状态同步】检测到状态不一致: UI显示暂停但机器人运行中，自动修正UI状态");
-                        setPauseState(false);
-                        Toast.makeText(this, "检测到暂停失败，机器人继续运行", Toast.LENGTH_SHORT).show();
+                        return;
                     }
                     
-                    // 如果不是暂停状态，确保显示为配送中
-                    if (!isPaused && !tvStatus.getText().toString().equals("配送中") && !isReturning) {
-                        tvStatus.setText("配送中");
-                    }
-                    if (isReturning && !tvStatus.getText().toString().equals("返航中") && !isMissionFinished) {
-                        tvStatus.setText("返航中");
-                    }
+                    // 更新状态文本
+                    tvStatus.setText("配送中");
                     
                     // 持续播报行驶中语音（AudioServiceImpl会自动处理3秒间隔，不会重复播放）
                     playConfiguredVoice(false);
@@ -647,14 +624,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 处理到达目标点
      */
     private void handleArrival() {
-        if (isReturning) {
-            Log.d(TAG, "【到达处理】已回到原点，任务彻底结束");
-            runOnUiThread(() -> {
-                Toast.makeText(this, "已回到原点", Toast.LENGTH_LONG).show();
-                showMissionCompletedUI();
-            });
-            return;
-        }
+
 
         Log.d(TAG, "【到达处理】当前唯一目标索引: " + currentUniqueTargetIndex + ", 总唯一目标数: " + targetNodes.size());
 
@@ -735,21 +705,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     // 标记配送任务完成
                     currentUniqueTargetIndex = targetNodes.size();
 
-                    // 检查是否有原点数据
+                    // 检查是否有原点数据，跳转到返航页面
                     if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
-                        Log.d(TAG, "【导航控制】找到原点，开始自动返回");
-                        NavigationNode originNode = DeliveryActivity.originPoints.get(0);
-
-                        // 设置返回模式
-                        isReturning = true;
-
-                        // 重置目标点为原点
-                        targetNodes = new ArrayList<>();
-                        targetNodes.add(originNode);
-
-                        // 更新UI并开始导航
-                        updateTaskText();
-                        startNavigation();
+                        Log.d(TAG, "【导航控制】配送完成，跳转到返航页面");
+                        Intent intent = new Intent(DeliveryNavigationActivity.this, ReturnActivity.class);
+                        intent.putExtra("return_source_mode", 1); // 1: Delivery
+                        startActivity(intent);
+                        finish();
                     } else {
                         Log.d(TAG, "【导航控制】无原点数据，直接结束");
                         updateTaskText();
@@ -804,21 +766,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     // 标记配送任务完成
                     currentUniqueTargetIndex = targetNodes.size();
 
-                    // 检查是否有原点数据
+                    // 检查是否有原点数据，跳转到返航页面
                     if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
-                        Log.d(TAG, "【导航控制】找到原点，开始自动返回");
-                        NavigationNode originNode = DeliveryActivity.originPoints.get(0);
-
-                        // 设置返回模式
-                        isReturning = true;
-
-                        // 重置目标点为原点
-                        targetNodes = new ArrayList<>();
-                        targetNodes.add(originNode);
-
-                        // 更新UI并开始导航
-                        updateTaskText();
-                        startNavigation();
+                        Log.d(TAG, "【导航控制】最后一站失败，但仍跳转到返航页面");
+                        Intent intent = new Intent(DeliveryNavigationActivity.this, ReturnActivity.class);
+                        intent.putExtra("return_source_mode", 1); // 1: Delivery
+                        startActivity(intent);
+                        finish();
                     } else {
                         Log.d(TAG, "【导航控制】无原点数据，直接结束");
                         updateTaskText();
