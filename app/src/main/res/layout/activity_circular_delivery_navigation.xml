@@ -5,7 +5,7 @@
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA"
+    android:background="@color/bg_primary"
     tools:context=".ui.main.CircularDeliveryNavigationActivity">
 
     <Button
@@ -18,7 +18,7 @@
         android:paddingStart="20dp"
         android:paddingEnd="20dp"
         android:text="返航"
-        android:textColor="#333333"
+        android:textColor="@color/white"
         android:textSize="20sp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
@@ -41,7 +41,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="循环导航中"
-        android:textColor="#444444"
+        android:textColor="@color/text_primary"
         android:textSize="60sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/tv_loop_count"
@@ -56,7 +56,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="第 1 / 1 轮"
-        android:textColor="#333333"
+        android:textColor="@color/text_primary"
         android:textSize="32sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/pb_progress"
@@ -82,7 +82,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:textColor="#555555"
+        android:textColor="@color/text_secondary"
         android:textSize="24sp"
         app:layout_constraintBottom_toTopOf="@+id/tv_hint"
         app:layout_constraintEnd_toEndOf="parent"
@@ -96,7 +96,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="120dp"
         android:text="双击屏幕可以暂停"
-        android:textColor="#999999"
+        android:textColor="@color/text_tertiary"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -108,7 +108,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:text="30s 后自动继续"
-        android:textColor="#FF5722"
+        android:textColor="@color/accent_orange_100"
         android:textSize="28sp"
         android:textStyle="bold"
         android:visibility="gone"
@@ -135,7 +135,7 @@
             android:layout_marginEnd="20dp"
             android:background="@drawable/rounded_button"
             android:text="结束"
-            android:textColor="#333333"
+            android:textColor="@color/white"
             android:textSize="24sp" />
 
         <Button
@@ -144,7 +144,7 @@
             android:layout_height="60dp"
             android:background="@drawable/rounded_button"
             android:text="继续"
-            android:textColor="#333333"
+            android:textColor="@color/white"
             android:textSize="24sp" />
     </LinearLayout>
 

@@ -5,7 +5,7 @@
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA"
+    android:background="@color/bg_primary"
     tools:context=".ui.main.DeliveryNavigationActivity">
 
     <ImageView
@@ -25,7 +25,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="配送中"
-        android:textColor="#444444"
+        android:textColor="@color/text_primary"
         android:textSize="80sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/current_task_textview"
@@ -39,7 +39,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:textColor="#555555"
+        android:textColor="@color/text_secondary"
         android:textSize="20sp"
         app:layout_constraintBottom_toTopOf="@+id/tv_hint"
         app:layout_constraintEnd_toEndOf="parent"
@@ -53,7 +53,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="60dp"
         android:text="双击屏幕可暂停"
-        android:textColor="#999999"
+        android:textColor="@color/text_tertiary"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -92,7 +92,7 @@
             android:layout_marginEnd="20dp"
             android:background="@drawable/rounded_button"
             android:text="结束"
-            android:textColor="#333333"
+            android:textColor="@color/white"
             android:textSize="24sp" />
 
         <Button
@@ -101,7 +101,7 @@
             android:layout_height="60dp"
             android:background="@drawable/rounded_button"
             android:text="继续"
-            android:textColor="#333333"
+            android:textColor="@color/white"
             android:textSize="24sp" />
     </LinearLayout>
 

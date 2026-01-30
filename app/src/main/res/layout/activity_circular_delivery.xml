@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFFFF"
+    android:background="@color/bg_primary"
     tools:context=".ui.main.CircularDeliveryActivity">
 
     <!-- Header Area -->
@@ -25,7 +25,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="循环路线"
-        android:textColor="#000000"
+        android:textColor="@color/text_primary"
         android:textSize="28sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="@+id/back_button"
@@ -125,7 +125,8 @@
             android:layout_width="500dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:background="#FFFFFF"
+            android:background="@drawable/bg_modern_card"
+            android:elevation="8dp"
             android:orientation="vertical"
             android:padding="24dp">
 

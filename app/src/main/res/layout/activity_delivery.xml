@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA">
+    android:background="@color/bg_primary">
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline_top"
@@ -80,7 +80,7 @@
             android:gravity="center"
             android:text="威高智能配送机器人"
             android:textStyle="bold"
-            android:textColor="#444444"/>
+            android:textColor="@color/text_primary"/>
 
         <android.widget.Button
             android:id="@+id/l1_button"

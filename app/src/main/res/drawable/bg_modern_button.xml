@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 现代化浅蓝渐变按钮 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
             <gradient 
                 android:startColor="@color/button_pressed_start" 
                 android:endColor="@color/button_pressed_end" 
-                android:angle="45"/>
-            <corners android:radius="12dp"/>
+                android:angle="135"/>
+            <corners android:radius="14dp"/>
         </shape>
     </item>
     <item>
@@ -14,8 +15,8 @@
             <gradient 
                 android:startColor="@color/button_primary_start" 
                 android:endColor="@color/button_primary_end" 
-                android:angle="45"/>
-            <corners android:radius="12dp"/>
+                android:angle="135"/>
+            <corners android:radius="14dp"/>
         </shape>
     </item>
 </selector>

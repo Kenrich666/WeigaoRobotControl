@@ -7,22 +7,66 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Light Theme Background Colors -->
+    <color name="bg_primary">#F5F7FA</color>        <!-- 主背景：柔和浅灰 -->
+    <color name="bg_secondary">#FAFBFC</color>      <!-- 次背景：米白色 -->
+    <color name="bg_surface">#FFFFFF</color>        <!-- 表面/卡片：纯白 -->
     
-    <!-- Password Screen Colors -->
-    <color name="password_bg_start">#1B2E4B</color>
-    <color name="password_bg_end">#0F1925</color>
-    <color name="password_btn_stroke">#33AADD</color>
-    <color name="password_btn_pressed">#2233AADD</color>
-    <color name="password_text_hint">#AAAAAA</color>
-    <!-- Modern Tech UI Colors -->
-    <color name="tech_bg_start">#1a2a3a</color> <!-- Deep Blue-Grey -->
-    <color name="tech_bg_end">#0d1218</color>   <!-- Near Black -->
-    <color name="tech_primary">#2196F3</color>  <!-- Material Blue -->
-    <color name="tech_secondary">#00E676</color> <!-- Bright Green -->
-    <color name="tech_accent">#00BCD4</color>    <!-- Cyan -->
-    <color name="tech_surface">#2A3744</color>   <!-- Lighter Surface -->
-    <color name="tech_text_primary">#FFFFFF</color>
-    <color name="tech_text_secondary">#B0BEC5</color>
-    <color name="tech_button_start">#3facff</color>
-    <color name="tech_button_end">#007ad9</color>
+    <!-- Light Blue Accent Colors (浅蓝强调色) -->
+    <color name="accent_blue_50">#E3F2FD</color>    <!-- 最浅蓝 -->
+    <color name="accent_blue_100">#BBDEFB</color>   <!-- 浅蓝 -->
+    <color name="accent_blue_200">#90CAF9</color>   <!-- 中浅蓝 -->
+    <color name="accent_blue_300">#64B5F6</color>   <!-- 天蓝 -->
+    <color name="accent_blue_400">#42A5F5</color>   <!-- 标准蓝 -->
+    <color name="accent_blue_500">#2196F3</color>   <!-- 主蓝色 -->
+    
+    <!-- Light Green Accent (浅绿辅助色) -->
+    <color name="accent_green_50">#E8F5E9</color>   <!-- 最浅绿 -->
+    <color name="accent_green_100">#C8E6C9</color>  <!-- 浅绿 -->
+    <color name="accent_green_300">#81C784</color>  <!-- 中绿 -->
+    
+    <!-- Light Orange/Amber (浅橙辅助色) -->
+    <color name="accent_orange_50">#FFF3E0</color>  <!-- 最浅橙 -->
+    <color name="accent_orange_100">#FFE0B2</color> <!-- 浅橙 -->
+    
+    <!-- Text Colors (文字颜色) -->
+    <color name="text_primary">#424242</color>      <!-- 主文字：深灰 -->
+    <color name="text_secondary">#616161</color>    <!-- 次文字：中灰 -->
+    <color name="text_tertiary">#9E9E9E</color>     <!-- 三级文字：浅灰 -->
+    <color name="text_disabled">#BDBDBD</color>     <!-- 禁用文字 -->
+    <color name="text_hint">#AAAAAA</color>         <!-- 提示文字 -->
+    
+    <!-- Border and Divider (边框和分隔线) -->
+    <color name="border_light">#F0F0F0</color>      <!-- 极浅边框 -->
+    <color name="border_normal">#E0E0E0</color>     <!-- 浅边框 -->
+    <color name="border_medium">#EEEEEE</color>     <!-- 中浅边框 -->
+    <color name="divider">#E5E5E5</color>           <!-- 分隔线 -->
+    
+    <!-- Button Colors (按钮颜色 - 浅蓝渐变) -->
+    <color name="button_primary_start">#64B5F6</color>   <!-- 按钮渐变起始 -->
+    <color name="button_primary_end">#42A5F5</color>     <!-- 按钮渐变结束 -->
+    <color name="button_pressed_start">#42A5F5</color>   <!-- 按下状态起始 -->
+    <color name="button_pressed_end">#2196F3</color>     <!-- 按下状态结束 -->
+    <color name="button_light_bg">#E3F2FD</color>        <!-- 浅色按钮背景 -->
+    <color name="button_light_pressed">#BBDEFB</color>   <!-- 浅色按钮按下 -->
+    
+    <!-- Legacy Password Screen Colors (保持兼容性，但调整为浅色) -->
+    <color name="password_bg_start">#E3F2FD</color>
+    <color name="password_bg_end">#BBDEFB</color>
+    <color name="password_btn_stroke">#90CAF9</color>
+    <color name="password_btn_pressed">#64B5F6</color>
+    <color name="password_text_hint">#9E9E9E</color>
+    
+    <!-- Legacy Tech UI Colors (调整为浅色系) -->
+    <color name="tech_bg_start">#F5F7FA</color>     <!-- 浅灰背景 -->
+    <color name="tech_bg_end">#FAFBFC</color>       <!-- 米白背景 -->
+    <color name="tech_primary">#2196F3</color>      <!-- 主蓝色 -->
+    <color name="tech_secondary">#81C784</color>    <!-- 浅绿色 -->
+    <color name="tech_accent">#64B5F6</color>       <!-- 天蓝色 -->
+    <color name="tech_surface">#FFFFFF</color>      <!-- 白色表面 -->
+    <color name="tech_text_primary">#424242</color>
+    <color name="tech_text_secondary">#616161</color>
+    <color name="tech_button_start">#64B5F6</color>
+    <color name="tech_button_end">#42A5F5</color>
 </resources>
