@@ -189,6 +189,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航控制】设置目标点成功");
                 // 播放背景音乐
                 playBackgroundMusic();
                 // 播报语音
@@ -199,9 +200,11 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
+                        Log.d(TAG, "【导航控制】设置速度成功");
                         navigationService.prepare(new IResultCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
+                                Log.d(TAG, "【导航控制】准备路线成功");
                             } // Will accept onRoutePrepared
 
                             @Override
@@ -619,6 +622,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
                     if (config != null && config.isLoopMusicEnabled() && !android.text.TextUtils.isEmpty(config.getLoopMusicPath())) {
+                        Log.d(TAG, "【音频】播放循环配送背景音乐 (Loop=true)");
                         audioService.playBackgroundMusic(config.getLoopMusicPath(), true, null);
                     }
                 }

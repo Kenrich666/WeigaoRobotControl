@@ -734,7 +734,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             params.setMargins(m8dp, m8dp, m8dp, m8dp);
             root.setLayoutParams(params);
             root.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-            root.setBackgroundResource(R.drawable.rounded_button);
+            root.setBackgroundResource(R.drawable.bg_selection_item_normal);
             root.setGravity(android.view.Gravity.CENTER);
             root.setClickable(true);
             root.setFocusable(true);
@@ -754,8 +754,13 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             holder.text.setText(route.getName());
 
             boolean isSelected = (selectedRoute == route);
-            holder.itemView
-                    .setBackgroundResource(isSelected ? R.drawable.rounded_button_selected : R.drawable.rounded_button);
+            if (isSelected) {
+                holder.itemView.setBackgroundResource(R.drawable.bg_selection_item_checked);
+                holder.text.setTextColor(Color.WHITE);
+            } else {
+                holder.itemView.setBackgroundResource(R.drawable.bg_selection_item_normal);
+                holder.text.setTextColor(Color.BLACK);
+            }
 
             holder.itemView.setOnClickListener(v -> listener.onClick(route));
 
@@ -837,7 +842,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             tv.setGravity(android.view.Gravity.CENTER);
             tv.setTextColor(Color.BLACK);
             tv.setTextSize(16);
-            tv.setBackgroundResource(R.drawable.rounded_button);
+            tv.setBackgroundResource(R.drawable.bg_selection_item_normal);
 
             return new ViewHolder(tv);
         }
@@ -848,8 +853,13 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             holder.text.setText(node.getName());
 
             boolean isSelected = selectedNodes.contains(node);
-            holder.text
-                    .setBackgroundResource(isSelected ? R.drawable.rounded_button_selected : R.drawable.rounded_button);
+            if (isSelected) {
+                holder.text.setBackgroundResource(R.drawable.bg_selection_item_checked);
+                holder.text.setTextColor(Color.WHITE);
+            } else {
+                holder.text.setBackgroundResource(R.drawable.bg_selection_item_normal);
+                holder.text.setTextColor(Color.BLACK);
+            }
 
             holder.itemView.setOnClickListener(v -> {
                 if (isSelected) {
@@ -896,6 +906,14 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                     .show());
         }
     };
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this);
+        }
+    }
 
     @Override
     protected void onDestroy() {
