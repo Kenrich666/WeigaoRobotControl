@@ -130,6 +130,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             @Override
             public boolean onDoubleTap(MotionEvent e) {
                 if (isNavigating && !isPaused && !isWaitingAtNode) {
+                    pauseRetryCount = 0;
                     pauseNavigation();
                 }
                 return true;
@@ -227,8 +228,14 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                // 发送第二次暂停指令，确保命令生效 (Double Check)
+                new android.os.Handler().postDelayed(() -> {
+                    if (navigationService != null) navigationService.pause(null);
+                }, 150);
+
                 runOnUiThread(() -> {
                     isPaused = true;
+                    lastPauseTime = System.currentTimeMillis();
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
                     // btnReturnOrigin.setVisibility(View.VISIBLE); // Removed as per user request
@@ -404,7 +411,21 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     break;
                 case Navigation.STATE_RUNNING:
                     if (isPaused) {
-                        return;
+                        if (System.currentTimeMillis() - lastPauseTime > 1000) {
+                            if (pauseRetryCount < 1) {
+                                pauseRetryCount++;
+                                lastPauseTime = System.currentTimeMillis();
+                                Log.d(TAG, "暂停无效，尝试二次暂停...");
+                                navigationService.pause(null);
+                                return;
+                            }
+                            // 如果暂停后超过1秒仍收到运行状态，说明暂停失败或已被覆盖，强制同步UI
+                            isPaused = false;
+                            Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
+                        } else {
+                            // 暂停指令发出不久，忽略短暂的运行状态回调（避免UI闪烁）
+                            return;
+                        }
                     }
                     tvStatus.setText("导航中");
                     tvHint.setText("正在前往目的地...");
@@ -425,6 +446,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     // ...
 
     private CircularDeliveryRecord currentRecord;
+    private long lastPauseTime = 0;
+    private int pauseRetryCount = 0;
 
     private boolean isReturning = false;
 

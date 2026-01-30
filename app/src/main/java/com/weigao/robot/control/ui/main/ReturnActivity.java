@@ -47,6 +47,8 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     private IDoorService doorService;
     private boolean isNavigating = false;
     private boolean isPaused = false;
+    private long lastPauseTime = 0;
+    private int pauseRetryCount = 0;
     private com.weigao.robot.control.service.IAudioService audioService;
     private int sourceMode = 1; // 1: Delivery, 2: Loop
 
@@ -92,6 +94,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public boolean onDoubleTap(MotionEvent e) {
                 // 双击暂停
+                pauseRetryCount = 0;
                 pauseNavigation();
                 return true;
             }
@@ -261,6 +264,13 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
             @Override
             public void onSuccess(Void result) {
                 isPaused = true;
+                lastPauseTime = System.currentTimeMillis();
+                
+                // 发送第二次暂停指令，确保命令生效 (Double Check)
+                new android.os.Handler().postDelayed(() -> {
+                    if (navigationService != null) navigationService.pause(null);
+                }, 150);
+
                 if (audioService != null) audioService.pauseBackgroundMusic(null);
                 runOnUiThread(() -> {
                     showControls(true);
@@ -370,6 +380,27 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                     if (audioService != null) {
                         // audioService.speak("遇到障碍物", null);
                     }
+                    break;
+                case Navigation.STATE_RUNNING:
+                    if (isPaused) {
+                        if (System.currentTimeMillis() - lastPauseTime > 1000) {
+                            if (pauseRetryCount < 1) {
+                                pauseRetryCount++;
+                                lastPauseTime = System.currentTimeMillis();
+                                Log.d(TAG, "暂停无效，尝试二次暂停...");
+                                navigationService.pause(null);
+                                return;
+                            }
+                            // 暂停失败或失效，强制恢复 UI 状态
+                            isPaused = false;
+                            showControls(false);
+                            tvStatus.setText("返航中");
+                            Toast.makeText(ReturnActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
+                        } else {
+                            return;
+                        }
+                    }
+                    tvStatus.setText("返航中");
                     break;
             }
         });

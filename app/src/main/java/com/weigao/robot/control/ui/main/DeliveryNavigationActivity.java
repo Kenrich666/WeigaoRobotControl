@@ -57,6 +57,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private int currentTaskIndex = 0;
     private boolean isPaused = false;
+    private long lastPauseTime = 0;
+    private int pauseRetryCount = 0;
     private boolean isNavigating = false;
 
 
@@ -209,6 +211,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             public boolean onDoubleTap(MotionEvent e) {
                 if (isNavigating && !isPaused && currentTaskIndex < deliveryTasks.size()) {
                     Log.d(TAG, "【用户操作】双击屏幕，暂停导航");
+                    pauseRetryCount = 0;
                     pauseNavigation();
                 }
                 return true;
@@ -325,8 +328,15 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】暂停成功 - 机器人已停止");
+                
+                // 发送第二次暂停指令，确保命令生效 (Double Check)
+                new android.os.Handler().postDelayed(() -> {
+                    if (navigationService != null) navigationService.pause(null);
+                }, 150);
+
                 runOnUiThread(() -> {
                     isPaused = true;
+                    lastPauseTime = System.currentTimeMillis();
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
@@ -495,7 +505,20 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     
                     // 如果处于暂停状态，忽略运行状态更新（参考循环配送）
                     if (isPaused) {
-                        return;
+                        if (System.currentTimeMillis() - lastPauseTime > 1000) {
+                            if (pauseRetryCount < 1) {
+                                pauseRetryCount++;
+                                lastPauseTime = System.currentTimeMillis();
+                                Log.d(TAG, "暂停无效，尝试二次暂停...");
+                                navigationService.pause(null);
+                                return;
+                            }
+                            // 暂停失败或失效，强制恢复 UI 状态
+                            isPaused = false;
+                            Toast.makeText(DeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
+                        } else {
+                            return;
+                        }
                     }
                     
                     // 更新状态文本
