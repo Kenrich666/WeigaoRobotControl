@@ -5,147 +5,159 @@
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA"
+    android:background="@color/medical_background"
+    android:padding="32dp"
     tools:context=".ui.main.CircularDeliveryNavigationActivity">
 
-    <Button
-        android:id="@+id/btn_return_origin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:layout_marginEnd="24dp"
-        android:background="@drawable/rounded_button"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:text="返航"
-        android:textColor="#333333"
-        android:textSize="20sp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
+    <!-- Robot Image: Left Side, Adjusted Size (40% Width) -->
     <ImageView
         android:id="@+id/iv_robot"
-        android:layout_width="263dp"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginStart="16dp"
-        android:adjustViewBounds="true"
+        android:contentDescription="Robot"
+        android:scaleType="fitCenter"
         android:src="@drawable/qinglang"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintHeight_percent="0.75"
+        app:layout_constraintBottom_toTopOf="@+id/control_area"
+        app:layout_constraintEnd_toStartOf="@+id/guideline_vertical_center"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/tv_status"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="循环导航中"
-        android:textColor="#444444"
-        android:textSize="60sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/tv_loop_count"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/iv_robot"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed"/>
+        app:layout_constraintWidth_percent="0.40" />
 
-    <TextView
-        android:id="@+id/tv_loop_count"
+    <!-- Vertical Guideline at 45% -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_vertical_center"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="第 1 / 1 轮"
-        android:textColor="#333333"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/pb_progress"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/iv_robot"
-        app:layout_constraintTop_toBottomOf="@+id/tv_status" />
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.45" />
 
-    <ProgressBar
-        android:id="@+id/pb_progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="400dp"
-        android:layout_height="24dp"
-        android:layout_marginTop="16dp"
-        android:max="100"
-        android:progress="0"
-        app:layout_constraintBottom_toTopOf="@+id/current_task_textview"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/iv_robot"
-        app:layout_constraintTop_toBottomOf="@+id/tv_loop_count" />
-
-    <TextView
-        android:id="@+id/current_task_textview"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:textColor="#555555"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toTopOf="@+id/tv_hint"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/iv_robot"
-        app:layout_constraintTop_toBottomOf="@+id/pb_progress"
-        tools:text="正在前往：点位 A" />
-
-    <TextView
-        android:id="@+id/tv_hint"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="120dp"
-        android:text="双击屏幕可以暂停"
-        android:textColor="#999999"
-        android:textSize="18sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/iv_robot" />
-
-    <TextView
-        android:id="@+id/tv_countdown"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="30s 后自动继续"
-        android:textColor="#FF5722"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/ll_pause_controls"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/iv_robot" />
-
+    <!-- Text Area: Right Side, Centered -->
     <LinearLayout
-        android:id="@+id/ll_pause_controls"
+        android:id="@+id/status_layout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="40dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/control_area"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/guideline_vertical_center"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="循环导航中"
+            android:textColor="@color/medical_primary"
+            android:textSize="80sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_loop_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="第 1 / 1 轮"
+            android:textColor="@color/medical_text_primary"
+            android:textSize="40sp"
+            android:textStyle="bold" />
+
+        <ProgressBar
+            android:id="@+id/pb_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="400dp"
+            android:layout_height="12dp"
+            android:layout_marginTop="24dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/bg_gradient_primary_medical"
+            android:progressTint="@color/medical_primary" />
+
+        <TextView
+            android:id="@+id/current_task_textview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="正在前往：点位 A"
+            android:textColor="@color/medical_text_secondary"
+            android:textSize="32sp" />
+
+        <TextView
+            android:id="@+id/tv_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:gravity="center"
+            android:text="双击屏幕可暂停"
+            android:textColor="@color/medical_text_secondary"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/tv_countdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:gravity="center"
+            android:text="30s 后自动继续"
+            android:textColor="@color/medical_warning"
+            android:textSize="40sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Bottom Control Area -->
+    <LinearLayout
+        android:id="@+id/control_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal"
-        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/iv_robot">
+        app:layout_constraintStart_toStartOf="parent">
 
-        <Button
-            android:id="@+id/btn_pause_end"
-            android:layout_width="150dp"
-            android:layout_height="60dp"
-            android:layout_marginEnd="20dp"
-            android:background="@drawable/rounded_button"
-            android:text="结束"
-            android:textColor="#333333"
-            android:textSize="24sp" />
+        <!-- Pause Controls -->
+        <LinearLayout
+            android:id="@+id/ll_pause_controls"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_pause_end"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="200dp"
+                android:layout_height="80dp"
+                android:layout_marginEnd="48dp"
+                android:text="结束"
+                android:textSize="28sp"
+                android:textColor="@color/medical_error"
+                app:strokeColor="@color/medical_error"
+                app:icon="@drawable/ic_stop_circle"
+                app:iconTint="@color/medical_error"
+                app:strokeWidth="2dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_continue"
+                android:layout_width="200dp"
+                android:layout_height="80dp"
+                android:backgroundTint="@color/medical_primary"
+                android:text="继续"
+                android:textSize="28sp"
+                app:cornerRadius="40dp"
+                app:icon="@drawable/ic_play_circle" />
+        </LinearLayout>
+        
+        <!-- Button used in original but hidden in navigation usually? 
+             The original had btn_return_origin hidden. keeping it just in case logic uses it -->
         <Button
-            android:id="@+id/btn_continue"
-            android:layout_width="150dp"
-            android:layout_height="60dp"
-            android:background="@drawable/rounded_button"
-            android:text="继续"
-            android:textColor="#333333"
-            android:textSize="24sp" />
+            android:id="@+id/btn_return_origin"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="Back hidden dummy" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

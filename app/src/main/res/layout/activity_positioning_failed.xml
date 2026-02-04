@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="#FFFFFF"
+    android:background="@color/medical_background"
     android:padding="32dp">
 
     <ImageView
@@ -14,7 +14,7 @@
         android:src="@android:drawable/ic_dialog_alert"
         android:layout_marginBottom="32dp"
         android:contentDescription="Warning Icon"
-        app:tint="#FF5722" />
+        app:tint="@color/medical_error" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -22,7 +22,7 @@
         android:text="定位失败"
         android:textSize="36sp"
         android:textStyle="bold"
-        android:textColor="#333333"
+        android:textColor="@color/medical_text_primary"
         android:layout_marginBottom="16dp" />
 
     <TextView
@@ -30,8 +30,8 @@
         android:layout_height="wrap_content"
         android:text="请将机器人推回充电桩重新尝试定位"
         android:textSize="24sp"
-        android:textColor="#666666"
-        android:layout_marginBottom="48dp"
+        android:textColor="@color/medical_text_secondary"
+        android:layout_marginBottom="64dp"
         android:gravity="center" />
 
     <LinearLayout
@@ -39,24 +39,30 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_retry"
             android:layout_width="200dp"
-            android:layout_height="60dp"
+            android:layout_height="64dp"
             android:text="重试"
             android:textSize="20sp"
-            android:background="@drawable/rounded_button_selected"
-            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            app:backgroundTint="@color/medical_primary"
+            android:textColor="@color/white"
+            app:cornerRadius="32dp"
             android:layout_marginEnd="32dp" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_back"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="200dp"
-            android:layout_height="60dp"
+            android:layout_height="64dp"
             android:text="取消"
             android:textSize="20sp"
-            android:background="@drawable/rounded_button"
-            android:textColor="#333333" />
+            android:textStyle="bold"
+            android:textColor="@color/medical_text_secondary"
+            app:strokeColor="@color/medical_divider"
+            app:strokeWidth="1dp"
+            app:cornerRadius="32dp" />
     </LinearLayout>
 
 </LinearLayout>

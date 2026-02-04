@@ -8,19 +8,37 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     
-    <!-- Password Screen Colors -->
+    <!-- Password Screen Colors (Keeping for compatibility) -->
     <color name="password_bg_start">#1B2E4B</color>
     <color name="password_bg_end">#0F1925</color>
     <color name="password_btn_stroke">#33AADD</color>
     <color name="password_btn_pressed">#2233AADD</color>
     <color name="password_text_hint">#AAAAAA</color>
-    <!-- Modern Tech UI Colors -->
-    <color name="tech_bg_start">#1a2a3a</color> <!-- Deep Blue-Grey -->
-    <color name="tech_bg_end">#0d1218</color>   <!-- Near Black -->
-    <color name="tech_primary">#2196F3</color>  <!-- Material Blue -->
-    <color name="tech_secondary">#00E676</color> <!-- Bright Green -->
-    <color name="tech_accent">#00BCD4</color>    <!-- Cyan -->
-    <color name="tech_surface">#2A3744</color>   <!-- Lighter Surface -->
+
+    <!-- Medical Theme Colors (New Design System) -->
+    <color name="medical_primary">#0056D2</color>      <!-- Deep Blue -->
+    <color name="medical_primary_light">#42A5F5</color> <!-- Light Blue -->
+    <color name="medical_primary_dark">#003c8f</color>  <!-- Darker Blue -->
+    <color name="medical_secondary">#E1F5FE</color>    <!-- Pale Blue Background -->
+    <color name="medical_background">#F5F7FA</color>   <!-- Global Background -->
+    <color name="medical_surface">#FFFFFF</color>      <!-- Cards/Dialogs -->
+    <color name="medical_text_primary">#212121</color> <!-- Heavy Text -->
+    <color name="medical_text_secondary">#757575</color> <!-- Light Text -->
+    <color name="medical_divider">#E0E0E0</color>      <!-- Dividers -->
+    <color name="medical_success">#00C853</color>      <!-- Green -->
+    <color name="medical_warning">#FFAB00</color>      <!-- Orange -->
+    <color name="medical_error">#D32F2F</color>        <!-- Red -->
+    <color name="medical_grey_100">#F5F5F5</color>
+    <color name="medical_grey_200">#EEEEEE</color>
+    <color name="medical_grey_500">#9E9E9E</color>
+
+    <!-- Deprecated Tech Colors (Keeping to prevent immediate build break until all layouts updated) -->
+    <color name="tech_bg_start">#1a2a3a</color>
+    <color name="tech_bg_end">#0d1218</color>
+    <color name="tech_primary">#2196F3</color>
+    <color name="tech_secondary">#00E676</color>
+    <color name="tech_accent">#00BCD4</color>
+    <color name="tech_surface">#2A3744</color>
     <color name="tech_text_primary">#FFFFFF</color>
     <color name="tech_text_secondary">#B0BEC5</color>
     <color name="tech_button_start">#3facff</color>
