@@ -143,3 +143,6 @@ Desktop.ini
 # 再次强调：必须保留 libs 目录下的 SDK，否则队友无法编译
 !libs/*.aar
 !libs/*.jar
+/docs/SourceCode/
+/docs/s/
+/docs/SampleAppCode/

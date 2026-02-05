@@ -11,6 +11,8 @@ import com.weigao.robot.control.service.impl.RemoteCallServiceImpl;
 import com.weigao.robot.control.service.impl.RobotStateServiceImpl;
 import com.weigao.robot.control.service.impl.SecurityServiceImpl;
 import com.weigao.robot.control.service.impl.TimingServiceImpl;
+import com.weigao.robot.control.service.impl.UVLampServiceImpl;
+import com.weigao.robot.control.service.impl.ProjectionLightServiceImpl;
 
 /**
  * 服务管理器
@@ -48,6 +50,8 @@ public class ServiceManager {
     private volatile IAudioService audioService;
     private volatile IRobotStateService robotStateService;
     private volatile IRemoteCallService remoteCallService;
+    private volatile IUVLampService uvLampService;
+    private volatile IProjectionLightService projectionLightService;
 
     // ==================== 锁对象 ====================
 
@@ -59,6 +63,8 @@ public class ServiceManager {
     private final Object audioLock = new Object();
     private final Object robotStateLock = new Object();
     private final Object remoteCallLock = new Object();
+    private final Object uvLampLock = new Object();
+    private final Object projectionLightLock = new Object();
 
     /**
      * 私有构造函数
@@ -265,6 +271,42 @@ public class ServiceManager {
         return remoteCallService;
     }
 
+    /**
+     * 获取紫外灯服务
+     *
+     * @return 紫外灯服务实例
+     */
+    public IUVLampService getUVLampService() {
+        checkInitialized();
+        if (uvLampService == null) {
+            synchronized (uvLampLock) {
+                if (uvLampService == null) {
+                    uvLampService = new UVLampServiceImpl();
+                    Log.d(TAG, "UVLampService 已创建");
+                }
+            }
+        }
+        return uvLampService;
+    }
+
+    /**
+     * 获取投影灯服务
+     *
+     * @return 投影灯服务实例
+     */
+    public IProjectionLightService getProjectionLightService() {
+        checkInitialized();
+        if (projectionLightService == null) {
+            synchronized (projectionLightLock) {
+                if (projectionLightService == null) {
+                    projectionLightService = new ProjectionLightServiceImpl(context);
+                    Log.d(TAG, "ProjectionLightService 已创建");
+                }
+            }
+        }
+        return projectionLightService;
+    }
+
     // ==================== 生命周期管理 ====================
 
     /**
@@ -330,6 +372,24 @@ public class ServiceManager {
                 Log.e(TAG, "释放 AudioService 失败", e);
             }
             audioService = null;
+        }
+
+        if (uvLampService != null) {
+            try {
+                uvLampService.release();
+            } catch (Exception e) {
+                Log.e(TAG, "释放 UVLampService 失败", e);
+            }
+            uvLampService = null;
+        }
+
+        if (projectionLightService != null) {
+            try {
+                projectionLightService.release();
+            } catch (Exception e) {
+                Log.e(TAG, "释放 ProjectionLightService 失败", e);
+            }
+            projectionLightService = null;
         }
 
         // 3. 最后释放基础硬件服务 (被依赖的服务)

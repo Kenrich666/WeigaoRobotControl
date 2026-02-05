@@ -13,6 +13,8 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.SdkErrorCode;
 import com.weigao.robot.control.model.ChargerInfo;
 import com.weigao.robot.control.service.IChargerService;
+import com.weigao.robot.control.service.IUVLampService;
+import com.weigao.robot.control.service.ServiceManager;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -43,6 +45,9 @@ public class ChargerServiceImpl implements IChargerService {
 
     /** 是否正在充电 */
     private boolean isCharging = false;
+
+    /** 上一次充电状态，用于检测状态变化 */
+    private boolean wasCharging = false;
 
     public ChargerServiceImpl(Context context) {
         this.context = context.getApplicationContext();
@@ -78,6 +83,9 @@ public class ChargerServiceImpl implements IChargerService {
 
             // 判断充电状态
             isCharging = isChargingEvent(event);
+
+            // 检测充电状态变化，控制紫外灯
+            handleChargingStateChange(isCharging);
 
             // 更新充电信息
             if (sdkInfo != null) {
@@ -274,6 +282,33 @@ public class ChargerServiceImpl implements IChargerService {
         // 根据 SDK 充电事件判断
         // 参考 SdkErrorCode.CHARGER_EVENT_CHARGING (40011)
         return event == SdkErrorCode.CHARGER_EVENT_CHARGING;
+    }
+
+    /**
+     * 处理充电状态变化，控制紫外灯开关
+     * <p>
+     * 充电开始时自动开启所有紫外灯进行消毒，充电结束时自动关闭。
+     * </p>
+     */
+    private void handleChargingStateChange(boolean currentCharging) {
+        if (currentCharging != wasCharging) {
+            Log.i(TAG, "充电状态变化: " + wasCharging + " -> " + currentCharging);
+            try {
+                IUVLampService uvLampService = ServiceManager.getInstance().getUVLampService();
+                if (currentCharging) {
+                    // 充电开始，开启紫外灯消毒
+                    Log.i(TAG, "充电开始，开启仓内紫外灯进行自动消毒");
+                    uvLampService.setAllUVLampsSwitch(true);
+                } else {
+                    // 充电结束，关闭紫外灯
+                    Log.i(TAG, "充电结束，关闭仓内紫外灯");
+                    uvLampService.setAllUVLampsSwitch(false);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "控制紫外灯异常", e);
+            }
+            wasCharging = currentCharging;
+        }
     }
 
     private void notifySuccess(IResultCallback<Void> callback) {
