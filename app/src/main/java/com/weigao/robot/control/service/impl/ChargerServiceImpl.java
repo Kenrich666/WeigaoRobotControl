@@ -1,6 +1,7 @@
 package com.weigao.robot.control.service.impl;
 
 import android.content.Context;
+import android.os.CountDownTimer;
 import android.util.Log;
 
 import com.keenon.sdk.component.charger.PeanutCharger;
@@ -48,6 +49,12 @@ public class ChargerServiceImpl implements IChargerService {
 
     /** 上一次充电状态，用于检测状态变化 */
     private boolean wasCharging = false;
+
+    /** 消毒倒计时器 */
+    private CountDownTimer disinfectionTimer;
+
+    /** 消毒时长 (20分钟) */
+    private static final long DISINFECTION_DURATION_MS = 20 * 60 * 1000;
 
     public ChargerServiceImpl(Context context) {
         this.context = context.getApplicationContext();
@@ -287,7 +294,8 @@ public class ChargerServiceImpl implements IChargerService {
     /**
      * 处理充电状态变化，控制紫外灯开关
      * <p>
-     * 充电开始时自动开启所有紫外灯进行消毒，充电结束时自动关闭。
+     * 充电开始时自动开启所有紫外灯进行消毒，并启动20分钟倒计时。
+     * 倒计时结束时自动关闭紫外灯。充电结束时也会关闭紫外灯。
      * </p>
      */
     private void handleChargingStateChange(boolean currentCharging) {
@@ -296,18 +304,87 @@ public class ChargerServiceImpl implements IChargerService {
             try {
                 IUVLampService uvLampService = ServiceManager.getInstance().getUVLampService();
                 if (currentCharging) {
-                    // 充电开始，开启紫外灯消毒
-                    Log.i(TAG, "充电开始，开启仓内紫外灯进行自动消毒");
+                    // 充电开始，开启紫外灯消毒并启动倒计时
+                    Log.i(TAG, "充电开始，开启仓内紫外灯进行自动消毒 (20分钟)");
                     uvLampService.setAllUVLampsSwitch(true);
+                    startDisinfectionTimer();
                 } else {
-                    // 充电结束，关闭紫外灯
+                    // 充电结束，停止倒计时并关闭紫外灯
                     Log.i(TAG, "充电结束，关闭仓内紫外灯");
+                    stopDisinfectionTimer();
                     uvLampService.setAllUVLampsSwitch(false);
+                    notifyDisinfectionComplete();
                 }
             } catch (Exception e) {
                 Log.e(TAG, "控制紫外灯异常", e);
             }
             wasCharging = currentCharging;
+        }
+    }
+
+    /**
+     * 启动消毒倒计时
+     */
+    private void startDisinfectionTimer() {
+        stopDisinfectionTimer(); // 确保先取消已有的倒计时
+
+        Log.i(TAG, "启动消毒倒计时: " + (DISINFECTION_DURATION_MS / 1000 / 60) + "分钟");
+        disinfectionTimer = new CountDownTimer(DISINFECTION_DURATION_MS, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                // 每秒通知一次剩余时间
+                notifyDisinfectionTimerTick(millisUntilFinished);
+            }
+
+            @Override
+            public void onFinish() {
+                Log.i(TAG, "消毒倒计时结束，自动关闭紫外灯");
+                try {
+                    IUVLampService uvLampService = ServiceManager.getInstance().getUVLampService();
+                    uvLampService.setAllUVLampsSwitch(false);
+                } catch (Exception e) {
+                    Log.e(TAG, "关闭紫外灯异常", e);
+                }
+                notifyDisinfectionComplete();
+            }
+        };
+        disinfectionTimer.start();
+    }
+
+    /**
+     * 停止消毒倒计时
+     */
+    private void stopDisinfectionTimer() {
+        if (disinfectionTimer != null) {
+            disinfectionTimer.cancel();
+            disinfectionTimer = null;
+            Log.d(TAG, "消毒倒计时已停止");
+        }
+    }
+
+    /**
+     * 通知所有回调消毒倒计时更新
+     */
+    private void notifyDisinfectionTimerTick(long remainingMillis) {
+        for (IChargerCallback callback : callbacks) {
+            try {
+                callback.onDisinfectionTimerTick(remainingMillis);
+            } catch (Exception e) {
+                Log.e(TAG, "回调 onDisinfectionTimerTick 异常", e);
+            }
+        }
+    }
+
+    /**
+     * 通知所有回调消毒完成
+     */
+    private void notifyDisinfectionComplete() {
+        for (IChargerCallback callback : callbacks) {
+            try {
+                callback.onDisinfectionComplete();
+            } catch (Exception e) {
+                Log.e(TAG, "回调 onDisinfectionComplete 异常", e);
+            }
         }
     }
 

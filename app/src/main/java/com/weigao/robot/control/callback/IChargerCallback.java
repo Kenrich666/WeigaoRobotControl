@@ -34,4 +34,24 @@ public interface IChargerCallback {
      * @param errorCode 错误码，参见SDK电源错误码（203300-203317）
      */
     void onChargerError(int errorCode);
+
+    /**
+     * 消毒倒计时更新
+     * <p>
+     * 每秒回调一次，通知剩余消毒时间。
+     * </p>
+     *
+     * @param remainingMillis 剩余时间（毫秒）
+     */
+    default void onDisinfectionTimerTick(long remainingMillis) {
+    }
+
+    /**
+     * 消毒完成
+     * <p>
+     * 当消毒倒计时结束或充电停止时回调。
+     * </p>
+     */
+    default void onDisinfectionComplete() {
+    }
 }
