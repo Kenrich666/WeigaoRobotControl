@@ -20,6 +20,7 @@ import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 import com.weigao.robot.control.app.WeigaoApplication;
+
 // 循环配送的到达点位暂停页面
 public class CircularArrivalActivity extends AppCompatActivity {
     private static final String TAG = "CircularArrivalActivity";
@@ -67,30 +68,37 @@ public class CircularArrivalActivity extends AppCompatActivity {
     private void initViews() {
         btnOpenDoor = findViewById(R.id.btn_open_door);
         tvCurrentPoint = findViewById(R.id.tv_current_point); // Added
-        Button btnReturnHome = findViewById(R.id.btn_return_home);
+        // Button btnReturnHome = findViewById(R.id.btn_return_home);
         btnContinue = findViewById(R.id.btn_continue);
         Button btnFullReturn = findViewById(R.id.btn_full_return);
         tvArrivalMessage = findViewById(R.id.tv_arrival_message);
         Button btnBack = findViewById(R.id.btn_back);
 
-        btnBack.setOnClickListener(v -> {
-            Intent intent = new Intent(CircularArrivalActivity.this, PasswordActivity.class);
-            startActivityForResult(intent, REQUEST_CODE_PWD_BACK);
-        });
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> {
+                Intent intent = new Intent(CircularArrivalActivity.this, PasswordActivity.class);
+                startActivityForResult(intent, REQUEST_CODE_PWD_BACK);
+            });
+        }
 
         btnOpenDoor.setOnClickListener(v -> toggleDoor());
 
-        btnReturnHome.setOnClickListener(v -> {
-            Intent intent = new Intent(CircularArrivalActivity.this, PasswordActivity.class);
-            startActivityForResult(intent, REQUEST_CODE_PWD_RETURN_HOME);
-        });
+        /*
+         * if (btnReturnHome != null) {
+         * btnReturnHome.setOnClickListener(v -> {
+         * Intent intent = new Intent(CircularArrivalActivity.this,
+         * PasswordActivity.class);
+         * startActivityForResult(intent, REQUEST_CODE_PWD_RETURN_HOME);
+         * });
+         * }
+         */
 
         if (isLastPoint) {
             btnContinue.setEnabled(false);
             btnContinue.setAlpha(0.5f);
             btnContinue.setText("已是终点");
         }
-        
+
         btnContinue.setOnClickListener(v -> closeDoorAndFinish(RESULT_CONTINUE));
 
         btnFullReturn.setOnClickListener(v -> {
@@ -102,7 +110,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        
+
         // If the activity is finishing (e.g. timeout triggered), ignore the result
         if (isFinishing()) {
             return;
@@ -125,9 +133,9 @@ public class CircularArrivalActivity extends AppCompatActivity {
                     break;
             }
         } else {
-             if (requestCode == REQUEST_CODE_PWD_OPEN_DOOR) {
-                 updateDoorButtonState();
-             }
+            if (requestCode == REQUEST_CODE_PWD_OPEN_DOOR) {
+                updateDoorButtonState();
+            }
         }
     }
 
@@ -158,7 +166,8 @@ public class CircularArrivalActivity extends AppCompatActivity {
     }
 
     private void handleTimeout() {
-        if (isFinishing()) return;
+        if (isFinishing())
+            return;
 
         // Force close any open password activities
         finishActivity(REQUEST_CODE_PWD_BACK);
@@ -169,36 +178,38 @@ public class CircularArrivalActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             btnOpenDoor.setEnabled(false);
             btnContinue.setEnabled(false);
-            
+
             String msg = isLastPoint ? "倒计时结束，自动返航" : "倒计时结束，前往下一站";
             Toast.makeText(CircularArrivalActivity.this, msg, Toast.LENGTH_SHORT).show();
-            
+
             // Logic similar to processAutoDeparture in ConfirmReceiptActivity
             // Try to close doors and leave
             int resultCode = isLastPoint ? RESULT_RETURN_ORIGIN : RESULT_CONTINUE;
-            
+
             if (doorService != null) {
                 doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
                     @Override
                     public void onSuccess(Boolean allClosed) {
-                         if (allClosed) {
-                             closeDoorAndFinish(resultCode);
-                         } else {
-                             // Force close
-                             doorService.closeAllDoors(new IResultCallback<Void>() {
-                                 @Override
-                                 public void onSuccess(Void result) {
-                                     // Wait a bit then finish
-                                     closeDoorAndFinish(resultCode); 
-                                 }
-                                 @Override
-                                 public void onError(ApiError error) {
-                                     // Error closing, but time is up, force leave
-                                     closeDoorAndFinish(resultCode); 
-                                 }
-                             });
-                         }
+                        if (allClosed) {
+                            closeDoorAndFinish(resultCode);
+                        } else {
+                            // Force close
+                            doorService.closeAllDoors(new IResultCallback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    // Wait a bit then finish
+                                    closeDoorAndFinish(resultCode);
+                                }
+
+                                @Override
+                                public void onError(ApiError error) {
+                                    // Error closing, but time is up, force leave
+                                    closeDoorAndFinish(resultCode);
+                                }
+                            });
+                        }
                     }
+
                     @Override
                     public void onError(ApiError error) {
                         closeDoorAndFinish(resultCode);
@@ -212,10 +223,11 @@ public class CircularArrivalActivity extends AppCompatActivity {
     }
 
     private void toggleDoor() {
-        if (doorService == null) return;
+        if (doorService == null)
+            return;
         btnOpenDoor.setEnabled(false);
         // Do NOT reset timer here, strict 30s limit
-        
+
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
@@ -228,6 +240,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
                     }
                 });
             }
+
             @Override
             public void onError(ApiError error) {
                 handleDoorError("状态查询失败", error);
@@ -236,30 +249,38 @@ public class CircularArrivalActivity extends AppCompatActivity {
     }
 
     private void performOpenDoors() {
-        if (doorService == null) return;
+        if (doorService == null)
+            return;
         doorService.openAllDoors(false, new IResultCallback<Void>() {
-            @Override public void onSuccess(Void result) {
+            @Override
+            public void onSuccess(Void result) {
                 runOnUiThread(() -> {
                     Toast.makeText(CircularArrivalActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
                     updateDoorButtonState();
                 });
             }
-            @Override public void onError(ApiError error) {
+
+            @Override
+            public void onError(ApiError error) {
                 handleDoorError("开门失败", error);
             }
         });
     }
 
     private void performCloseDoors() {
-        if (doorService == null) return;
+        if (doorService == null)
+            return;
         doorService.closeAllDoors(new IResultCallback<Void>() {
-            @Override public void onSuccess(Void result) {
+            @Override
+            public void onSuccess(Void result) {
                 runOnUiThread(() -> {
                     Toast.makeText(CircularArrivalActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
                     updateDoorButtonState();
                 });
             }
-            @Override public void onError(ApiError error) {
+
+            @Override
+            public void onError(ApiError error) {
                 // handleDoorError("关门失败", error);
             }
         });
@@ -273,7 +294,8 @@ public class CircularArrivalActivity extends AppCompatActivity {
     }
 
     private void updateDoorButtonState() {
-        if (doorService == null) return;
+        if (doorService == null)
+            return;
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
@@ -282,6 +304,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
                     new Handler().postDelayed(() -> btnOpenDoor.setEnabled(true), 1000);
                 });
             }
+
             @Override
             public void onError(ApiError error) {
                 runOnUiThread(() -> btnOpenDoor.setEnabled(true));
@@ -290,8 +313,9 @@ public class CircularArrivalActivity extends AppCompatActivity {
     }
 
     private void closeDoorAndFinish(int resultCode) {
-        if (countDownTimer != null) countDownTimer.cancel();
-        
+        if (countDownTimer != null)
+            countDownTimer.cancel();
+
         if (doorService != null) {
             // First check door status
             doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
@@ -309,7 +333,8 @@ public class CircularArrivalActivity extends AppCompatActivity {
                                 @Override
                                 public void onSuccess(Void result) {
                                     runOnUiThread(() -> {
-                                        Toast.makeText(CircularArrivalActivity.this, "舱门已关闭，5秒后继续...", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(CircularArrivalActivity.this, "舱门已关闭，5秒后继续...",
+                                                Toast.LENGTH_SHORT).show();
                                         new Handler().postDelayed(() -> {
                                             setResult(resultCode);
                                             finish();
@@ -320,7 +345,8 @@ public class CircularArrivalActivity extends AppCompatActivity {
                                 @Override
                                 public void onError(ApiError error) {
                                     runOnUiThread(() -> {
-                                        // Toast.makeText(CircularArrivalActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                        // Toast.makeText(CircularArrivalActivity.this, "关门失败: " + error.getMessage(),
+                                        // Toast.LENGTH_SHORT).show();
                                         // Still finish to avoid blocking workflow
                                         setResult(resultCode);
                                         finish();
@@ -333,29 +359,32 @@ public class CircularArrivalActivity extends AppCompatActivity {
 
                 @Override
                 public void onError(ApiError error) {
-                     // Check failed, try to close blindly
-                     runOnUiThread(() -> {
-                         // Toast.makeText(CircularArrivalActivity.this, "查询状态失败，尝试关闭舱门...", Toast.LENGTH_SHORT).show();
-                         doorService.closeAllDoors(new IResultCallback<Void>() {
-                             @Override
-                             public void onSuccess(Void result) {
-                                 runOnUiThread(() -> {
-                                     Toast.makeText(CircularArrivalActivity.this, "舱门已关闭，5秒后继续...", Toast.LENGTH_SHORT).show();
-                                     new Handler().postDelayed(() -> {
-                                         setResult(resultCode);
-                                         finish();
-                                     }, 5000);
-                                 });
-                             }
-                             @Override
-                             public void onError(ApiError error) {
-                                 runOnUiThread(() -> {
-                                     setResult(resultCode);
-                                     finish();
-                                 });
-                             }
-                         });
-                     });
+                    // Check failed, try to close blindly
+                    runOnUiThread(() -> {
+                        // Toast.makeText(CircularArrivalActivity.this, "查询状态失败，尝试关闭舱门...",
+                        // Toast.LENGTH_SHORT).show();
+                        doorService.closeAllDoors(new IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(CircularArrivalActivity.this, "舱门已关闭，5秒后继续...", Toast.LENGTH_SHORT)
+                                            .show();
+                                    new Handler().postDelayed(() -> {
+                                        setResult(resultCode);
+                                        finish();
+                                    }, 5000);
+                                });
+                            }
+
+                            @Override
+                            public void onError(ApiError error) {
+                                runOnUiThread(() -> {
+                                    setResult(resultCode);
+                                    finish();
+                                });
+                            }
+                        });
+                    });
                 }
             });
         } else {
@@ -372,9 +401,18 @@ public class CircularArrivalActivity extends AppCompatActivity {
                 // removed startCountdown() to avoid resetting timer
             });
         }
-        @Override public void onDoorTypeChanged(DoorType type) {}
-        @Override public void onDoorTypeSettingResult(boolean success) {}
-        @Override public void onDoorError(int doorId, int errorCode) {}
+
+        @Override
+        public void onDoorTypeChanged(DoorType type) {
+        }
+
+        @Override
+        public void onDoorTypeSettingResult(boolean success) {
+        }
+
+        @Override
+        public void onDoorError(int doorId, int errorCode) {
+        }
     };
 
     @Override

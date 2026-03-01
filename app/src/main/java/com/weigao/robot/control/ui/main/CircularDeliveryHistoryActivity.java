@@ -43,14 +43,11 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
         // Initialize data
         loadData();
 
-        // Setup Toolbar
-        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        // Setup Top Bar Back Button
+        android.widget.ImageButton btnBack = findViewById(R.id.btn_back);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
         }
-        toolbar.setNavigationOnClickListener(v -> finish());
 
         btnClear.setOnClickListener(v -> showClearDialog());
     }
@@ -91,9 +88,11 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
 
     private static class RecordAdapter extends RecyclerView.Adapter<RecordAdapter.ViewHolder> {
         private List<CircularDeliveryRecord> data;
-        
-        // No DateFormat needed here as CircularDeliveryRecord has getFormattedStartTime(),
-        // but we might want uniform formatting. It uses getFormattedStartTime internally.
+
+        // No DateFormat needed here as CircularDeliveryRecord has
+        // getFormattedStartTime(),
+        // but we might want uniform formatting. It uses getFormattedStartTime
+        // internally.
 
         public RecordAdapter(List<CircularDeliveryRecord> data) {
             this.data = data;
@@ -113,9 +112,9 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
 
             // Use Header for Route Info (mimicking TaskGrouping)
             holder.layoutTaskHeader.setVisibility(View.VISIBLE);
-            
-            String routeInfo = String.format(Locale.getDefault(), "路线: %s (循环 %d 次)", 
-                record.getRouteName(), record.getLoopCount());
+
+            String routeInfo = String.format(Locale.getDefault(), "路线: %s (循环 %d 次)",
+                    record.getRouteName(), record.getLoopCount());
             holder.tvTaskId.setText(routeInfo);
             holder.tvTaskTime.setText("开始时间: " + record.getFormattedStartTime());
 
@@ -135,7 +134,7 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
                 statusColor = 0xFFF44336; // Red
             } else if (statusRaw == null) {
                 statusText = "进行中";
-                 statusColor = 0xFF2196F3; // Blue
+                statusColor = 0xFF2196F3; // Blue
             }
 
             holder.tvPointName.setText(statusText);
@@ -147,36 +146,41 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
                 durationStr = String.format(Locale.getDefault(), "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60);
                 durationStr = "总耗时: " + durationStr;
             } else {
-                 durationStr = "计算中...";
+                durationStr = "计算中...";
             }
             holder.tvDuration.setText(durationStr);
             holder.tvDuration.setTextColor(0xFF666666); // Normal text color for duration description
-            
+
             // Show End Time if available
-            // We need to calculate end time or format it if CircularDeliveryRecord exposes it, 
+            // We need to calculate end time or format it if CircularDeliveryRecord exposes
+            // it,
             // otherwise just re-show start or hide.
             // CircularDeliveryRecord has start and duration. End = Start + Duration*1000
             if (record.getDurationSeconds() > 0) {
-                 long endTime = record.getFormattedStartTime() != null ? 
-                     (System.currentTimeMillis()) : 0; // Fallback? 
-                 // Actually record has getStartTime(). Let's use simple math to show rough end time if needed
-                 // Or just hide it if not critical. 
-                 // ItemDeliveryRecord shows "Create Time" (Arrival Time).
-                 // Let's show "结束时间: ..."
-                 long endMs = 0;
-                 // We don't have access to raw start time long here easily unless we parse or add getter. 
-                 // CircularDeliveryRecord HAS getDurationSeconds.
-                 // Ideally we should add getEndTime() to CircularDeliveryRecord or use what we have.
-                 // Let's just use "结束于: [Calculated]" or just leave it blank if complex.
-                 // Actually, ItemDeliveryRecord uses "Create Time". 
-                 // Let's just put something static or formatted if possible.
-                 // Re-reading CircularDeliveryRecord in previous steps... it has private long endTime.
-                 // It does NOT expose getEndTime() public method in the snippet I saw (only complete sets it).
-                 // It has `toJson` which uses it.
-                 // Let's rely on what we have.
-                 holder.tvCreateTime.setVisibility(View.GONE);
+                long endTime = record.getFormattedStartTime() != null ? (System.currentTimeMillis()) : 0; // Fallback?
+                // Actually record has getStartTime(). Let's use simple math to show rough end
+                // time if needed
+                // Or just hide it if not critical.
+                // ItemDeliveryRecord shows "Create Time" (Arrival Time).
+                // Let's show "结束时间: ..."
+                long endMs = 0;
+                // We don't have access to raw start time long here easily unless we parse or
+                // add getter.
+                // CircularDeliveryRecord HAS getDurationSeconds.
+                // Ideally we should add getEndTime() to CircularDeliveryRecord or use what we
+                // have.
+                // Let's just use "结束于: [Calculated]" or just leave it blank if complex.
+                // Actually, ItemDeliveryRecord uses "Create Time".
+                // Let's just put something static or formatted if possible.
+                // Re-reading CircularDeliveryRecord in previous steps... it has private long
+                // endTime.
+                // It does NOT expose getEndTime() public method in the snippet I saw (only
+                // complete sets it).
+                // It has `toJson` which uses it.
+                // Let's rely on what we have.
+                holder.tvCreateTime.setVisibility(View.GONE);
             } else {
-                 holder.tvCreateTime.setVisibility(View.GONE);
+                holder.tvCreateTime.setVisibility(View.GONE);
             }
         }
 
@@ -188,7 +192,7 @@ public class CircularDeliveryHistoryActivity extends AppCompatActivity {
         static class ViewHolder extends RecyclerView.ViewHolder {
             View layoutTaskHeader;
             // Header views - unused here but bound
-            TextView tvTaskId, tvTaskTime; 
+            TextView tvTaskId, tvTaskTime;
 
             TextView tvPointName;
             TextView tvDuration;

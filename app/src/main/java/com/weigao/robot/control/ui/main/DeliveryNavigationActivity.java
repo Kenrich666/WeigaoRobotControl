@@ -64,7 +64,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private int pauseRetryCount = 0;
     private boolean isNavigating = false;
 
-
     private GestureDetector gestureDetector;
 
     /**
@@ -283,7 +282,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 playConfiguredVoice(false);
 
                 // 设置导航速度
-                int speed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getDeliverySpeed();
+                int speed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                        .getDeliverySpeed();
 
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
@@ -358,7 +358,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
-                    
+
                     startAutoResumeTimer();
 
                     // pauseBackgroundMusic(); // Modified: Keep music playing during pause
@@ -452,8 +452,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         });
     }
 
-
-
     /**
      * 更新任务文本
      */
@@ -469,8 +467,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         runOnUiThread(() -> {
             if (isMissionFinished)
                 return;
-
-
 
             if (currentUniqueTargetIndex < targetNodes.size()) {
                 NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
@@ -524,7 +520,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 case Navigation.STATE_RUNNING:
                     Log.d(TAG, "【导航回调】正在运行中");
                     hasRunningStateReceived = true;
-                    
+
                     // 如果处于暂停状态，忽略运行状态更新（参考循环配送）
                     if (isPaused) {
                         if (System.currentTimeMillis() - lastPauseTime > 1000) {
@@ -543,10 +539,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                             return;
                         }
                     }
-                    
+
                     // 更新状态文本
                     tvStatus.setText("配送中");
-                    
+
                     // 移除此处的语音播放调用 - 语音应该只在开始导航、恢复导航等特定时刻播放
                     // 原因：STATE_RUNNING 会被多次触发，导致不可预测的重复播放
                     break;
@@ -660,7 +656,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      */
     private void handleArrival() {
 
-
         Log.d(TAG, "【到达处理】当前唯一目标索引: " + currentUniqueTargetIndex + ", 总唯一目标数: " + targetNodes.size());
 
         // 无论是否是最后一个点，都跳转确认页面供用户取货
@@ -684,6 +679,16 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         }
 
         startActivityForResult(intent, REQUEST_CODE_CONFIRM_RECEIPT);
+    }
+
+    @Override
+    public void finish() {
+        Intent returnIntent = new Intent();
+        if (pairings != null) {
+            returnIntent.putExtra("remaining_pairings", pairings);
+        }
+        setResult(RESULT_OK, returnIntent);
+        super.finish();
     }
 
     @Override
@@ -765,7 +770,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 // 处理确认收货页面非正常返回的情况（超时、取消、异常等）
                 Log.w(TAG, "【ConfirmReceipt】返回非OK状态，resultCode=" + resultCode + "，可能是超时或用户取消");
                 waitingForNext = false;
-                
+
                 // 记录当前站点为失败状态
                 if (currentUniqueTargetIndex < targetNodes.size()) {
                     NavigationNode currentNode = targetNodes.get(currentUniqueTargetIndex);
@@ -773,7 +778,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                             ItemDeliveryRecord.STATUS_FAILED_TIMEOUT);
                     Log.d(TAG, "【数据更新】记录站点 " + currentNode.getName() + " 为超时失败");
                 }
-                
+
                 // 从配对关系中移除对应的层级（即使失败也要移除，避免重复尝试）
                 if (pairings != null && currentUniqueTargetIndex < uniqueDeliveryTasks.size()) {
                     List<Map.Entry<Integer, NavigationNode>> finishedTasks = uniqueDeliveryTasks
@@ -783,7 +788,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     }
                     Log.d(TAG, "【数据更新】已移除失败站点的配对关系");
                 }
-                
+
                 // 继续执行后续任务
                 if (currentUniqueTargetIndex < targetNodes.size() - 1) {
                     Log.d(TAG, "【导航控制】当前站点失败，继续前往下一站");
@@ -793,7 +798,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                             Log.d(TAG, "【导航控制】前往下一点成功");
                             runOnUiThread(() -> {
                                 tvStatus.setText("配送中");
-                                Toast.makeText(DeliveryNavigationActivity.this, 
+                                Toast.makeText(DeliveryNavigationActivity.this,
                                         "上一站点超时，继续下一站", Toast.LENGTH_SHORT).show();
                             });
                         }
@@ -840,11 +845,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     ItemDeliveryRecord.STATUS_CANCELLED);
         }
 
-        Intent returnIntent = new Intent();
-        if (pairings != null) {
-            returnIntent.putExtra("remaining_pairings", pairings);
-        }
-        setResult(RESULT_OK, returnIntent);
         stopNavigation();
         finish();
     }
@@ -856,7 +856,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
-                    if (config != null && config.isDeliveryMusicEnabled() && !android.text.TextUtils.isEmpty(config.getDeliveryMusicPath())) {
+                    if (config != null && config.isDeliveryMusicEnabled()
+                            && !android.text.TextUtils.isEmpty(config.getDeliveryMusicPath())) {
                         audioService.playBackgroundMusic(config.getDeliveryMusicPath(), true, null);
                     }
                 }
@@ -867,8 +868,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             });
         }
     }
-
-
 
     private void stopBackgroundMusic() {
         if (audioService != null) {
@@ -894,13 +893,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
                     if (config != null && config.isDeliveryVoiceEnabled()) {
-                        String path = isArrival ? config.getDeliveryArrivalVoicePath() : config.getDeliveryNavigatingVoicePath();
+                        String path = isArrival ? config.getDeliveryArrivalVoicePath()
+                                : config.getDeliveryNavigatingVoicePath();
                         if (!android.text.TextUtils.isEmpty(path)) {
                             audioService.playVoice(path, null);
                         }
                     }
                 }
-
 
                 @Override
                 public void onError(ApiError error) {

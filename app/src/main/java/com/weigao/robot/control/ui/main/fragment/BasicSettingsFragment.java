@@ -41,7 +41,8 @@ public class BasicSettingsFragment extends Fragment {
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_basic_settings, container, false);
 
         drawerLayout = view.findViewById(R.id.drawer_layout);
@@ -54,7 +55,7 @@ public class BasicSettingsFragment extends Fragment {
         EditText etCurrent = view.findViewById(R.id.et_current_password);
         EditText etNew = view.findViewById(R.id.et_new_password);
         View submitPasswordButton = view.findViewById(R.id.btn_submit_password);
-        
+
         submitPasswordButton.setOnClickListener(v -> {
             String currentInput = etCurrent.getText().toString().trim();
             String newInput = etNew.getText().toString().trim();
@@ -70,58 +71,66 @@ public class BasicSettingsFragment extends Fragment {
                 return;
             }
 
-            com.weigao.robot.control.service.ISecurityService securityService = 
-                    com.weigao.robot.control.service.ServiceManager.getInstance().getSecurityService();
+            com.weigao.robot.control.service.ISecurityService securityService = com.weigao.robot.control.service.ServiceManager
+                    .getInstance().getSecurityService();
 
             if (securityService != null) {
-                securityService.setPassword(currentInput, newInput, new com.weigao.robot.control.callback.IResultCallback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> {
-                                Toast.makeText(getContext(), "密码已修改", Toast.LENGTH_SHORT).show();
-                                // Clear inputs
-                                etCurrent.setText("");
-                                etNew.setText("");
-                                drawerLayout.closeDrawer(GravityCompat.END);
-                            });
-                        }
-                    }
+                securityService.setPassword(currentInput, newInput,
+                        new com.weigao.robot.control.callback.IResultCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        Toast.makeText(getContext(), "密码已修改", Toast.LENGTH_SHORT).show();
+                                        // Clear inputs
+                                        etCurrent.setText("");
+                                        etNew.setText("");
+                                        drawerLayout.closeDrawer(GravityCompat.END);
+                                    });
+                                }
+                            }
 
-                    @Override
-                    public void onError(com.weigao.robot.control.callback.ApiError error) {
-                        if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> {
-                                Toast.makeText(getContext(), "修改失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
-                        }
-                    }
-                });
+                            @Override
+                            public void onError(com.weigao.robot.control.callback.ApiError error) {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        Toast.makeText(getContext(), "修改失败: " + error.getMessage(), Toast.LENGTH_SHORT)
+                                                .show();
+                                    });
+                                }
+                            }
+                        });
             } else {
                 Toast.makeText(getContext(), "安全服务不可用", Toast.LENGTH_SHORT).show();
             }
         });
-        
+
         // --- 1. 普通配送速度设置 ---
         SeekBar itemSpeedSeekBar = view.findViewById(R.id.seekbar_item_delivery_speed);
         TextView itemSpeedValue = view.findViewById(R.id.tv_item_delivery_speed_value);
-        
-        int currentItemSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getDeliverySpeed();
+
+        int currentItemSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                .getDeliverySpeed();
         itemSpeedSeekBar.setProgress(currentItemSpeed);
         itemSpeedValue.setText(String.format("%d cm/s", currentItemSpeed));
-        
+
         itemSpeedSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (progress < 10) progress = 10;
+                if (progress < 10)
+                    progress = 10;
                 itemSpeedValue.setText(String.format("%d cm/s", progress));
             }
+
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 int progress = seekBar.getProgress();
-                if (progress < 10) progress = 10;
+                if (progress < 10)
+                    progress = 10;
                 com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setDeliverySpeed(progress);
             }
         });
@@ -130,22 +139,28 @@ public class BasicSettingsFragment extends Fragment {
         SeekBar itemReturnSeekBar = view.findViewById(R.id.seekbar_item_return_speed);
         TextView itemReturnSpeedValue = view.findViewById(R.id.tv_item_return_speed_value);
 
-        int currentItemReturnSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed();
+        int currentItemReturnSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                .getReturnSpeed();
         itemReturnSeekBar.setProgress(currentItemReturnSpeed);
         itemReturnSpeedValue.setText(String.format("%d cm/s", currentItemReturnSpeed));
 
         itemReturnSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (progress < 10) progress = 10;
+                if (progress < 10)
+                    progress = 10;
                 itemReturnSpeedValue.setText(String.format("%d cm/s", progress));
             }
+
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 int progress = seekBar.getProgress();
-                if (progress < 10) progress = 10;
+                if (progress < 10)
+                    progress = 10;
                 com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setReturnSpeed(progress);
             }
         });
@@ -155,16 +170,20 @@ public class BasicSettingsFragment extends Fragment {
         SeekBar seekBar = view.findViewById(R.id.seekbar_circular_speed);
         TextView speedValue = view.findViewById(R.id.tv_speed_value);
 
-        int currentSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getDeliverySpeed();
+        int currentSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                .getDeliverySpeed();
         seekBar.setProgress(currentSpeed);
         speedValue.setText(String.format("%d cm/s", currentSpeed));
 
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                // Ensure value is at least min if necessary, though min attribute handles it in API 26+
-                // If min attribute is not supported by target SDK, handle it here. Assuming API 26+ or valid min.
-                if (progress < 10) progress = 10; 
+                // Ensure value is at least min if necessary, though min attribute handles it in
+                // API 26+
+                // If min attribute is not supported by target SDK, handle it here. Assuming API
+                // 26+ or valid min.
+                if (progress < 10)
+                    progress = 10;
                 speedValue.setText(String.format("%d cm/s", progress));
             }
 
@@ -176,8 +195,10 @@ public class BasicSettingsFragment extends Fragment {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 int progress = seekBar.getProgress();
-                if (progress < 10) progress = 10;
-                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().setDeliverySpeed(progress);
+                if (progress < 10)
+                    progress = 10;
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                        .setDeliverySpeed(progress);
             }
         });
 
@@ -185,32 +206,37 @@ public class BasicSettingsFragment extends Fragment {
         SeekBar returnSeekBar = view.findViewById(R.id.seekbar_return_speed);
         TextView returnSpeedValue = view.findViewById(R.id.tv_return_speed_value);
 
-        int currentReturnSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed();
+        int currentReturnSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                .getReturnSpeed();
         returnSeekBar.setProgress(currentReturnSpeed);
         returnSpeedValue.setText(String.format("%d cm/s", currentReturnSpeed));
 
         returnSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (progress < 10) progress = 10;
+                if (progress < 10)
+                    progress = 10;
                 returnSpeedValue.setText(String.format("%d cm/s", progress));
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) { }
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 int progress = seekBar.getProgress();
-                if (progress < 10) progress = 10;
+                if (progress < 10)
+                    progress = 10;
                 com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().setReturnSpeed(progress);
             }
         });
-        
+
         // Fullscreen Switch
-        android.widget.Switch switchFullscreen = view.findViewById(R.id.switch_fullscreen);
+        androidx.appcompat.widget.SwitchCompat switchFullscreen = view.findViewById(R.id.switch_fullscreen);
         // Use AppSettingsManager instead of SharedPreferences
-        com.weigao.robot.control.manager.AppSettingsManager settingsManager = com.weigao.robot.control.manager.AppSettingsManager.getInstance();
+        com.weigao.robot.control.manager.AppSettingsManager settingsManager = com.weigao.robot.control.manager.AppSettingsManager
+                .getInstance();
         boolean isFullscreen = settingsManager.isFullScreen();
         switchFullscreen.setChecked(isFullscreen);
 
@@ -218,21 +244,22 @@ public class BasicSettingsFragment extends Fragment {
             settingsManager.setFullScreen(isChecked);
             applyFullScreen(isChecked);
         });
-        
+
         return view;
     }
 
     private void applyFullScreen(boolean enable) {
-        if (getActivity() == null) return;
+        if (getActivity() == null)
+            return;
         android.view.Window window = getActivity().getWindow();
         if (enable) {
             window.getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         } else {
             window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
         }

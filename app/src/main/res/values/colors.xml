@@ -28,6 +28,7 @@
     <color name="medical_success">#00C853</color>      <!-- Green -->
     <color name="medical_warning">#FFAB00</color>      <!-- Orange -->
     <color name="medical_error">#D32F2F</color>        <!-- Red -->
+    <color name="medical_scrim">#80000000</color>      <!-- Dimmed Background Overlay -->
     <color name="medical_grey_100">#F5F5F5</color>
     <color name="medical_grey_200">#EEEEEE</color>
     <color name="medical_grey_500">#9E9E9E</color>
