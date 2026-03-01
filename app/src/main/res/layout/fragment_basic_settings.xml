@@ -11,258 +11,258 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FAFAFA"
-        android:fillViewport="true">
+        android:background="@android:color/transparent"
+        android:fillViewport="true"
+        android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="24dp">
 
-            <!-- 物品配送速度 Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="物品配送速度"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="24dp"
+                android:text="基础设置"
+                android:textColor="@color/medical_text_primary"
+                android:textSize="32sp"
+                android:textStyle="bold" />
 
             <!-- Item Delivery Speed Card -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <!-- 配送速度 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="0dp"
-                        android:text="配送速度"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_item_delivery_speed"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="80"
-                        android:min="10"
-                        android:progress="50"
-                        android:progressTint="#4A90E2"
-                        android:thumbTint="#4A90E2" />
-
-                    <TextView
-                        android:id="@+id/tv_item_delivery_speed_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="15dp"
-                        android:gravity="end"
-                        android:minWidth="60dp"
-                        android:text="50 cm/s"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
-                <!-- 返航速度 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="0dp"
-                        android:text="返航速度"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_item_return_speed"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="80"
-                        android:min="10"
-                        android:progress="50"
-                        android:progressTint="#4A90E2"
-                        android:thumbTint="#4A90E2" />
-
-                    <TextView
-                        android:id="@+id/tv_item_return_speed_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="15dp"
-                        android:gravity="end"
-                        android:minWidth="60dp"
-                        android:text="50 cm/s"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
-            </androidx.cardview.widget.CardView>
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/medical_divider"
+                app:strokeWidth="1dp">
 
-            <!-- 循环配送速度 Section -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="循环配送速度"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:layout_marginBottom="16dp"/>
-
-            <!-- Speed Card -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <!-- 配送速度 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="12dp">
+                    android:orientation="vertical"
+                    android:padding="24dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="0dp"
-                        android:text="配送速度"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
+                        android:layout_marginBottom="24dp"
+                        android:text="物品配送速度"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                    <SeekBar
-                        android:id="@+id/seekbar_circular_speed"
-                        android:layout_width="0dp"
+                    <!-- 配送速度 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="80"
-                        android:min="10"
-                        android:progress="50"
-                        android:progressTint="#4A90E2"
-                        android:thumbTint="#4A90E2" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
 
-                    <TextView
-                        android:id="@+id/tv_speed_value"
-                        android:layout_width="wrap_content"
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="配送速度"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_item_delivery_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="80"
+                            android:min="10"
+                            android:progress="50"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_item_delivery_speed_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <!-- 返航速度 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="15dp"
-                        android:gravity="end"
-                        android:minWidth="60dp"
-                        android:text="50 cm/s"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="返航速度"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_item_return_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="80"
+                            android:min="10"
+                            android:progress="50"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_item_return_speed_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
                 </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                <!-- 循环返航速度 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="0dp"
-                        android:text="返航速度"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
-
-                    <SeekBar
-                        android:id="@+id/seekbar_return_speed"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="80"
-                        android:min="10"
-                        android:progress="50"
-                        android:progressTint="#4A90E2"
-                        android:thumbTint="#4A90E2" />
-
-                    <TextView
-                        android:id="@+id/tv_return_speed_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="15dp"
-                        android:gravity="end"
-                        android:minWidth="60dp"
-                        android:text="50 cm/s"
-                        android:textColor="#666666"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <androidx.cardview.widget.CardView
+            <!-- Circular Delivery Speed Card -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/medical_divider"
+                app:strokeWidth="1dp">
 
-            </androidx.cardview.widget.CardView>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
 
-            <!-- 密码 Section -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="密码"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:layout_marginBottom="16dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="24dp"
+                        android:text="循环配送速度"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <!-- 配送速度 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="配送速度"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_circular_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="80"
+                            android:min="10"
+                            android:progress="50"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_speed_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <!-- 循环返航速度 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="返航速度"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_return_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="80"
+                            android:min="10"
+                            android:progress="50"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_return_speed_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Password Settings Card -->
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/medical_divider"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="安全设置"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:padding="24dp"/>
+
                     <!-- 修改密码 -->
                     <RelativeLayout
                         android:id="@+id/layout_change_password"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:padding="16dp"
+                        android:padding="24dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true">
@@ -271,127 +271,55 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="修改密码"
-                            android:textColor="#333333"
-                            android:textSize="14sp"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
                             android:layout_centerVertical="true"
                             android:layout_alignParentStart="true"/>
 
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
-                            android:src="@android:drawable/ic_media_play"
-                            app:tint="#999999"/>
-
+                            android:src="@drawable/ic_play_circle"
+                            android:rotation="0"
+                            app:tint="@color/medical_text_secondary"/>
                     </RelativeLayout>
-
-                    <!-- Divider -->
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="#D0D8DD"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"/>
-
-                    <!-- 支持密码的场景 -->
-<!--                    <RelativeLayout-->
-<!--                        android:id="@+id/layout_password_scenarios"-->
-<!--                        android:layout_width="match_parent"-->
-<!--                        android:layout_height="wrap_content"-->
-<!--                        android:padding="16dp"-->
-<!--                        android:background="?attr/selectableItemBackground"-->
-<!--                        android:clickable="true"-->
-<!--                        android:focusable="true">-->
-
-<!--                        <TextView-->
-<!--                            android:layout_width="wrap_content"-->
-<!--                            android:layout_height="wrap_content"-->
-<!--                            android:text="支持密码的场景（待开发）"-->
-<!--                            android:textColor="#333333"-->
-<!--                            android:textSize="14sp"-->
-<!--                            android:layout_centerVertical="true"-->
-<!--                            android:layout_alignParentStart="true"/>-->
-
-<!--                        <ImageView-->
-<!--                            android:layout_width="20dp"-->
-<!--                            android:layout_height="20dp"-->
-<!--                            android:layout_alignParentEnd="true"-->
-<!--                            android:layout_centerVertical="true"-->
-<!--                            android:src="@android:drawable/ic_media_play"-->
-<!--                            app:tint="#999999"/>-->
-
-<!--                    </RelativeLayout>-->
-
-                    <!-- Divider -->
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="#D0D8DD"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"/>
-
-                    <!-- 更多设置 -->
-<!--                    <RelativeLayout-->
-<!--                        android:id="@+id/layout_more_settings"-->
-<!--                        android:layout_width="match_parent"-->
-<!--                        android:layout_height="wrap_content"-->
-<!--                        android:padding="16dp"-->
-<!--                        android:background="?attr/selectableItemBackground"-->
-<!--                        android:clickable="true"-->
-<!--                        android:focusable="true">-->
-
-<!--                        <TextView-->
-<!--                            android:layout_width="wrap_content"-->
-<!--                            android:layout_height="wrap_content"-->
-<!--                            android:text="更多设置（待开发）"-->
-<!--                            android:textColor="#333333"-->
-<!--                            android:textSize="14sp"-->
-<!--                            android:layout_centerVertical="true"-->
-<!--                            android:layout_alignParentStart="true"/>-->
-
-<!--                        <ImageView-->
-<!--                            android:layout_width="20dp"-->
-<!--                            android:layout_height="20dp"-->
-<!--                            android:layout_alignParentEnd="true"-->
-<!--                            android:layout_centerVertical="true"-->
-<!--                            android:src="@android:drawable/ic_media_play"-->
-<!--                            app:tint="#999999"/>-->
-
-<!--                    </RelativeLayout>-->
-
                 </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- 应用设置 Section -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="应用设置"
-                android:textColor="#333333"
-                android:textSize="16sp"
-                android:layout_marginBottom="16dp"/>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- App Settings Card -->
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/medical_divider"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:paddingTop="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="应用设置"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:paddingHorizontal="24dp"
+                        android:layout_marginBottom="8dp"/>
 
                     <!-- 全屏开关 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:padding="16dp"
+                        android:padding="24dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
@@ -400,33 +328,28 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="应用全屏"
-                            android:textColor="#333333"
-                            android:textSize="14sp"/>
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"/>
 
-                        <Switch
+                        <androidx.appcompat.widget.SwitchCompat
                             android:id="@+id/switch_fullscreen"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:thumbTint="#4A90E2"
-                            android:trackTint="#B0C4DE"/>
-
+                            app:thumbTint="@color/medical_primary"
+                            app:trackTint="@color/medical_divider"/>
                     </LinearLayout>
-
                 </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
-
     </ScrollView>
 
     <!-- Right Drawer for Password Modification -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view_password"
-        android:layout_width="320dp"
+        android:layout_width="360dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
-        android:background="#FFFFFF"
+        android:background="@color/white"
         android:fitsSystemWindows="true">
 
         <LinearLayout
@@ -439,78 +362,70 @@
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="32dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
+                    android:layout_centerVertical="true"
                     android:text="修改密码"
-                    android:textColor="#333333"
-                    android:textSize="18sp"
+                    android:textColor="@color/medical_text_primary"
+                    android:textSize="24sp"
                     android:textStyle="bold" />
 
                 <ImageButton
                     android:id="@+id/btn_close_drawer"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_alignParentEnd="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    app:tint="#666666" />
-
+                    app:tint="@color/medical_text_primary" />
             </RelativeLayout>
 
             <!-- Current Password -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:text="当前密码"
-                android:textColor="#333333"
-                android:textSize="14sp" />
-
-            <EditText
-                android:id="@+id/et_current_password"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
-                android:layout_height="35dp"
-                android:layout_marginTop="0dp"
-                android:background="@android:drawable/editbox_background"
-                android:hint="请输入当前密码"
-                android:inputType="numberPassword"
-                android:padding="12dp"
-                android:textSize="8sp" />
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="当前密码"
+                app:boxBackgroundColor="@color/white"
+                app:boxStrokeColor="@color/medical_primary"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_current_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberPassword" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- New Password -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:text="新密码"
-                android:textColor="#333333"
-                android:textSize="14sp" />
-
-            <EditText
-                android:id="@+id/et_new_password"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
-                android:layout_height="35dp"
-                android:layout_marginTop="0dp"
-                android:background="@android:drawable/editbox_background"
-                android:hint="请输入新密码"
-                android:inputType="numberPassword"
-                android:padding="12dp"
-                android:textSize="8sp" />
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="32dp"
+                android:hint="新密码"
+                app:boxBackgroundColor="@color/white"
+                app:boxStrokeColor="@color/medical_primary"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_new_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberPassword" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Submit Button -->
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_submit_password"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:layout_marginTop="15dp"
-                android:background="#4A90E2"
+                android:layout_height="64dp"
                 android:text="确认修改"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:textSize="18sp"
+                app:cornerRadius="32dp"
+                app:backgroundTint="@color/medical_primary" />
 
         </LinearLayout>
 

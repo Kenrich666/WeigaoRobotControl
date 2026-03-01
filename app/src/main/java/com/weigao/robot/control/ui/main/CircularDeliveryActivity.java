@@ -108,16 +108,14 @@ public class CircularDeliveryActivity extends AppCompatActivity {
     private static final String TAG = "CircularDeliveryAct";
     private static final String PREFS_NAME = "CircularRoutesPrefs";
     private static final String KEY_ROUTES = "SavedRoutes";
-    
+
     // 密码验证请求码
     private static final int REQUEST_PASSWORD_FOR_BACK = 3001;
-    private static final int REQUEST_PASSWORD_FOR_DOOR = 3002;
     private static final int REQUEST_PASSWORD_FOR_RETURN = 3003;
     private static final int REQUEST_PASSWORD_FOR_HISTORY = 3004;
 
     private IDoorService doorService;
     private IRobotStateService robotStateService;
-    private Button openDoorButton;
 
     private RecyclerView routesRecyclerView;
     private RouteAdapter routeAdapter;
@@ -132,30 +130,44 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         setContentView(R.layout.activity_circular_delivery);
 
         // Core Services
-        doorService = ServiceManager.getInstance().getDoorService();
-        robotStateService = ServiceManager.getInstance().getRobotStateService();
+        try {
+            doorService = ServiceManager.getInstance().getDoorService();
+            robotStateService = ServiceManager.getInstance().getRobotStateService();
+        } catch (IllegalStateException e) {
+            Log.e(TAG, "ServiceManager 未初始化，尝试重新初始化", e);
+            // 如果是在后台被杀恢复，可以跳回 MainActivity 或者尝试重新初始化
+            Toast.makeText(this, "服务未准备好，请重新进入应用", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         // 1. Header Buttons
         // 返回按钮需要密码验证
-        findViewById(R.id.back_button).setOnClickListener(v -> {
-            Intent intent = new Intent(this, PasswordActivity.class);
-            startActivityForResult(intent, REQUEST_PASSWORD_FOR_BACK);
-        });
-        
-        // 返航按钮需要密码验证
-        findViewById(R.id.return_sc_button).setOnClickListener(v -> {
-            Intent intent = new Intent(this, PasswordActivity.class);
-            startActivityForResult(intent, REQUEST_PASSWORD_FOR_RETURN);
-        });
+        View backBtn = findViewById(R.id.back_button);
+        if (backBtn != null) {
+            backBtn.setOnClickListener(v -> {
+                Intent intent = new Intent(this, PasswordActivity.class);
+                startActivityForResult(intent, REQUEST_PASSWORD_FOR_BACK);
+            });
+        }
 
-        openDoorButton = findViewById(R.id.open_door_button);
-        setupDoorButton();
+        // 返航按钮需要密码验证
+        View returnScBtn = findViewById(R.id.return_sc_button);
+        if (returnScBtn != null) {
+            returnScBtn.setOnClickListener(v -> {
+                Intent intent = new Intent(this, PasswordActivity.class);
+                startActivityForResult(intent, REQUEST_PASSWORD_FOR_RETURN);
+            });
+        }
 
         // 历史记录按钮需要密码验证
-        findViewById(R.id.history_button).setOnClickListener(v -> {
-            Intent intent = new Intent(this, PasswordActivity.class);
-            startActivityForResult(intent, REQUEST_PASSWORD_FOR_HISTORY);
-        });
+        View historyBtn = findViewById(R.id.history_button);
+        if (historyBtn != null) {
+            historyBtn.setOnClickListener(v -> {
+                Intent intent = new Intent(this, PasswordActivity.class);
+                startActivityForResult(intent, REQUEST_PASSWORD_FOR_HISTORY);
+            });
+        }
 
         // 2. Routes List
         routesRecyclerView = findViewById(R.id.routes_recycler_view);
@@ -173,136 +185,13 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         loadMapNodes();
 
         // 3. New Route Button
-        ImageButton newRouteBtn = findViewById(R.id.new_route_button);
-        newRouteBtn.setOnClickListener(v -> openRouteEditor(null, -1));
+        View newRouteBtn = findViewById(R.id.new_route_button);
+        if (newRouteBtn != null)
+            newRouteBtn.setOnClickListener(v -> openRouteEditor(null, -1));
 
         // 4. Start Navigation
         Button startNavBtn = findViewById(R.id.start_navigation_button);
         startNavBtn.setOnClickListener(v -> startNavigation());
-
-        // Register door callback
-        if (doorService != null) {
-            doorService.registerCallback(doorCallback);
-        }
-    }
-
-    private void setupDoorButton() {
-        if (doorService == null)
-            return;
-        updateDoorButtonState();
-        
-        // 开门按钮：开门需要密码验证，关门不需要
-        openDoorButton.setOnClickListener(v -> {
-            // 先查询当前舱门状态
-            doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
-                @Override
-                public void onSuccess(Boolean allClosed) {
-                    runOnUiThread(() -> {
-                        if (allClosed) {
-                            // 当前门是关闭的，要执行开门操作 -> 需要密码验证
-                            Intent intent = new Intent(CircularDeliveryActivity.this, PasswordActivity.class);
-                            startActivityForResult(intent, REQUEST_PASSWORD_FOR_DOOR);
-                        } else {
-                            // 当前门是打开的，要执行关门操作 -> 不需要密码，直接关门
-                            performDoorOperation();
-                        }
-                    });
-                }
-
-                @Override
-                public void onError(ApiError error) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(CircularDeliveryActivity.this,
-                                "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
-        });
-    }
-
-    private void updateDoorButtonState() {
-        if (doorService == null)
-            return;
-        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
-            @Override
-            public void onSuccess(Boolean allClosed) {
-                runOnUiThread(() -> {
-                    openDoorButton.setText(allClosed ? "开门" : "关门");
-                    new Handler().postDelayed(() -> openDoorButton.setEnabled(true), 2000);
-                });
-            }
-
-            @Override
-            public void onError(ApiError error) {
-            }
-        });
-    }
-
-    /**
-     * 执行开门或关门操作
-     */
-    private void performDoorOperation() {
-        // 禁用按钮防止重复点击
-        openDoorButton.setEnabled(false);
-        
-        // 动态查询当前舱门状态
-        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
-            @Override
-            public void onSuccess(Boolean allClosed) {
-                runOnUiThread(() -> {
-                    if (allClosed) {
-                        // 当前门是关闭的，执行开门操作
-                        doorService.openAllDoors(false, new IResultCallback<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                runOnUiThread(() -> {
-                                    Toast.makeText(CircularDeliveryActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
-                                    updateDoorButtonState();
-                                });
-                            }
-
-                            @Override
-                            public void onError(ApiError error) {
-                                runOnUiThread(() -> {
-                                    Toast.makeText(CircularDeliveryActivity.this,
-                                            "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                                    openDoorButton.setEnabled(true);
-                                });
-                            }
-                        });
-                    } else {
-                        // 当前门是打开的，执行关门操作
-                        doorService.closeAllDoors(new IResultCallback<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                runOnUiThread(() -> {
-                                    Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭", Toast.LENGTH_SHORT).show();
-                                    updateDoorButtonState();
-                                });
-                            }
-
-                            @Override
-                            public void onError(ApiError error) {
-                                runOnUiThread(() -> {
-                                    Toast.makeText(CircularDeliveryActivity.this,
-                                            "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                                    openDoorButton.setEnabled(true);
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-
-            @Override
-            public void onError(ApiError error) {
-                runOnUiThread(() -> {
-                    Toast.makeText(CircularDeliveryActivity.this,
-                            "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    openDoorButton.setEnabled(true);
-                });
-            }
-        });
     }
 
     /**
@@ -319,7 +208,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        
+
         // 处理密码验证结果
         if (resultCode == RESULT_OK) {
             switch (requestCode) {
@@ -327,17 +216,12 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                     // 密码验证成功,执行返回操作
                     finish();
                     break;
-                    
-                case REQUEST_PASSWORD_FOR_DOOR:
-                    // 密码验证成功,执行开门操作
-                    performDoorOperation();
-                    break;
-                    
+
                 case REQUEST_PASSWORD_FOR_RETURN:
                     // 密码验证成功,执行返航操作
                     performReturnOperation();
                     break;
-                    
+
                 case REQUEST_PASSWORD_FOR_HISTORY:
                     // 密码验证成功,跳转到历史记录页面
                     startActivity(new Intent(CircularDeliveryActivity.this, CircularDeliveryHistoryActivity.class));
@@ -345,7 +229,6 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             }
         }
     }
-
 
     private void loadMapNodes() {
         if (robotStateService == null)
@@ -535,10 +418,9 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(Void result) {
                                 runOnUiThread(() -> {
-                                    Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭，5秒后开始导航...", Toast.LENGTH_SHORT).show();
-                                    // Update button state just in case
-                                    updateDoorButtonState();
-                                    
+                                    Toast.makeText(CircularDeliveryActivity.this, "舱门已关闭，5秒后开始导航...",
+                                            Toast.LENGTH_SHORT).show();
+
                                     new Handler().postDelayed(() -> {
                                         proceedToNavigation();
                                         if (btn != null)
@@ -650,7 +532,8 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         // ((FrameLayout)createRouteOverlay).getChildAt(0);
         // tvDialogTitle = (TextView) ll.getChildAt(0);
 
-        LinearLayout ll = (LinearLayout) ((android.widget.FrameLayout) createRouteOverlay).getChildAt(0);
+        ViewGroup card = (ViewGroup) ((android.widget.FrameLayout) createRouteOverlay).getChildAt(0);
+        ViewGroup ll = (ViewGroup) card.getChildAt(0);
         tvDialogTitle = (TextView) ll.getChildAt(0);
 
         RecyclerView rvNodes = createRouteOverlay.findViewById(R.id.rv_node_selection);
@@ -740,7 +623,8 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             root.setFocusable(true);
 
             TextView tv = new TextView(parent.getContext());
-            tv.setTextColor(Color.BLACK);
+            tv.setTextColor(
+                    androidx.core.content.ContextCompat.getColor(parent.getContext(), R.color.medical_text_primary));
             tv.setTextSize(20);
             tv.setTypeface(null, android.graphics.Typeface.BOLD);
             root.addView(tv);
@@ -756,10 +640,12 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             boolean isSelected = (selectedRoute == route);
             if (isSelected) {
                 holder.itemView.setBackgroundResource(R.drawable.bg_selection_item_checked);
-                holder.text.setTextColor(Color.WHITE);
+                holder.text.setTextColor(
+                        androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(), R.color.white));
             } else {
                 holder.itemView.setBackgroundResource(R.drawable.bg_selection_item_normal);
-                holder.text.setTextColor(Color.BLACK);
+                holder.text.setTextColor(androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(),
+                        R.color.medical_text_primary));
             }
 
             holder.itemView.setOnClickListener(v -> listener.onClick(route));
@@ -840,7 +726,8 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             tv.setLayoutParams(params);
 
             tv.setGravity(android.view.Gravity.CENTER);
-            tv.setTextColor(Color.BLACK);
+            tv.setTextColor(
+                    androidx.core.content.ContextCompat.getColor(parent.getContext(), R.color.medical_text_primary));
             tv.setTextSize(16);
             tv.setBackgroundResource(R.drawable.bg_selection_item_normal);
 
@@ -855,10 +742,12 @@ public class CircularDeliveryActivity extends AppCompatActivity {
             boolean isSelected = selectedNodes.contains(node);
             if (isSelected) {
                 holder.text.setBackgroundResource(R.drawable.bg_selection_item_checked);
-                holder.text.setTextColor(Color.WHITE);
+                holder.text.setTextColor(
+                        androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(), R.color.white));
             } else {
                 holder.text.setBackgroundResource(R.drawable.bg_selection_item_normal);
-                holder.text.setTextColor(Color.BLACK);
+                holder.text.setTextColor(androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(),
+                        R.color.medical_text_primary));
             }
 
             holder.itemView.setOnClickListener(v -> {
@@ -886,27 +775,6 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         }
     }
 
-    private final IDoorCallback doorCallback = new IDoorCallback() {
-        @Override
-        public void onDoorStateChanged(int doorId, int state) {
-            runOnUiThread(() -> updateDoorButtonState());
-        }
-
-        @Override
-        public void onDoorTypeChanged(DoorType type) {
-        }
-
-        @Override
-        public void onDoorTypeSettingResult(boolean success) {
-        }
-
-        @Override
-        public void onDoorError(int doorId, int errorCode) {
-            runOnUiThread(() -> Toast.makeText(CircularDeliveryActivity.this, "舱门错误: " + errorCode, Toast.LENGTH_SHORT)
-                    .show());
-        }
-    };
-
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -918,8 +786,5 @@ public class CircularDeliveryActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (doorService != null) {
-            doorService.unregisterCallback(doorCallback);
-        }
     }
 }

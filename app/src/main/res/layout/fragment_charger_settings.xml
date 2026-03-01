@@ -1,154 +1,162 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="@android:color/transparent"
+    android:scrollbars="none">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:text="充电器设置"
+            android:textColor="@color/medical_text_primary"
+            android:textSize="32sp"
+            android:textStyle="bold" />
 
         <!-- Battery Status Card -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            android:elevation="2dp"
-            android:radius="12dp">
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/medical_divider"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="24dp"
+                android:padding="32dp"
                 android:gravity="center">
 
-                <!-- Battery Icon with Progress -->
-                <RelativeLayout
-                    android:layout_width="140dp"
-                    android:layout_height="140dp"
-                    android:layout_marginBottom="20dp">
+                <!-- Battery Icon and Percentage -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
 
-                    <!-- Circular Progress Background -->
-                    <ProgressBar
-                        android:id="@+id/batteryProgressBackground"
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:indeterminate="false"
-                        android:max="100"
-                        android:progress="100"
-                        android:progressDrawable="@android:drawable/progress_horizontal"
-                        android:progressTint="#E0E0E0"
-                        android:background="@android:drawable/dialog_holo_light_frame" />
+                    <ImageView
+                        android:id="@+id/batteryIcon"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@android:drawable/ic_lock_power_off"
+                        android:contentDescription="电池图标"
+                        app:tint="@color/medical_primary" />
 
-                    <!-- Circular Progress Indicator -->
-                    <ProgressBar
-                        android:id="@+id/batteryProgress"
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:indeterminate="false"
-                        android:max="100"
-                        android:progress="79"
-                        android:progressDrawable="@android:drawable/progress_horizontal"
-                        android:progressTint="#4CAF50" />
-
-                    <!-- Battery Icon Center -->
-                    <LinearLayout
-                        android:layout_width="100dp"
+                    <TextView
+                        android:id="@+id/batteryPercentage"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_centerInParent="true"
-                        android:background="@android:drawable/dialog_holo_light_frame"
-                        android:backgroundTint="#FFFFFF"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="10dp">
+                        android:layout_marginStart="16dp"
+                        android:text="79%"
+                        android:textSize="48sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/medical_text_primary" />
+                </LinearLayout>
 
-                        <!-- Battery Icon -->
-                        <ImageView
-                            android:id="@+id/batteryIcon"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:src="@android:drawable/ic_lock_power_off"
-                            android:contentDescription="电池图标"
-                            app:tint="#4CAF50" />
+                <!-- Battery Progress Indicator -->
+                <com.google.android.material.progressindicator.LinearProgressIndicator
+                    android:id="@+id/batteryProgress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:max="100"
+                    android:progress="79"
+                    app:indicatorColor="@color/medical_primary"
+                    app:trackColor="@color/medical_secondary"
+                    app:trackCornerRadius="12dp"
+                    app:trackThickness="24dp"
+                    app:indicatorDirectionCircular="clockwise" />
 
-                        <!-- Battery Percentage Text -->
-                        <TextView
-                            android:id="@+id/batteryPercentage"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="79%"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:textColor="#333333" />
+                <!-- Charging Status Text -->
+                <TextView
+                    android:id="@+id/tvChargingStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="32dp"
+                    android:text="正在充电"
+                    android:textColor="@color/medical_primary"
+                    android:textSize="18sp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
 
-                        <!-- Charging Status Text -->
-                        <TextView
-                            android:id="@+id/tvChargingStatus"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="正在充电"
-                            android:textColor="#4CAF50"
-                            android:textSize="14sp"
-                            android:visibility="gone" />
-                    </LinearLayout>
-                </RelativeLayout>
-
-                <!-- Auto Charge Button -->
-                <Button
+                <!-- Auto Charge Button (Primary) -->
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/chargeNowButton"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:text="自动回充 (Auto)"
-                    android:textSize="16sp"
-                    android:textColor="#FFFFFF"
-                    android:background="@android:drawable/dialog_holo_light_frame"
-                    android:backgroundTint="#2196F3"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_height="64dp"
+                    android:text="自动回充 (AUTO)"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"
+                    app:cornerRadius="32dp"
+                    app:backgroundTint="@color/medical_primary"
+                    app:icon="@drawable/ic_home_return"
+                    app:iconGravity="textStart"
+                    app:iconPadding="12dp" />
 
-                <!-- Manual Charge Button -->
-                <Button
+                <!-- Manual Charge Button (Tonal Secondary) -->
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/manualChargeButton"
+                    style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:text="手动充电 (Manual)"
-                    android:textSize="16sp"
-                    android:textColor="#FFFFFF"
-                    android:background="@android:drawable/dialog_holo_light_frame"
-                    android:backgroundTint="#FF9800"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_height="64dp"
+                    android:text="手动推入 (Manual)"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/medical_primary"
+                    android:layout_marginBottom="16dp"
+                    app:cornerRadius="32dp"
+                    app:backgroundTint="@color/medical_secondary"
+                    app:icon="@drawable/ic_settings_gear"
+                    app:iconTint="@color/medical_primary"
+                    app:iconGravity="textStart"
+                    app:iconPadding="12dp"/>
 
-                <!-- Stop Charge Button -->
-                <Button
+                <!-- Stop Charge Button (Neutral Outlined) -->
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/stopChargeButton"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:text="停止充电"
-                    android:textSize="16sp"
-                    android:textColor="#FFFFFF"
-                    android:background="@android:drawable/dialog_holo_light_frame"
-                    android:backgroundTint="#F44336"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_height="64dp"
+                    android:text="停止充电 (Stop)"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/medical_text_secondary"
+                    android:layout_marginBottom="24dp"
+                    app:strokeColor="@color/medical_divider"
+                    app:strokeWidth="1dp"
+                    app:cornerRadius="32dp"
+                    app:icon="@drawable/ic_stop_circle"
+                    app:iconTint="@color/medical_text_secondary"
+                    app:iconGravity="textStart"
+                    app:iconPadding="12dp"
+                    app:backgroundTint="@android:color/transparent"/>
 
                 <!-- Help Text -->
                 <TextView
                     android:id="@+id/helpText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="自动充电出故障，试试手动推至充电桩?"
-                    android:textSize="12sp"
-                    android:textColor="#2196F3"
-                    android:gravity="end"
-                    android:layout_gravity="end" />
+                    android:text="如果自动回充失败，请手动将机器人推入充电桩"
+                    android:textSize="14sp"
+                    android:textColor="@color/medical_text_secondary"
+                    android:gravity="center" />
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 </ScrollView>

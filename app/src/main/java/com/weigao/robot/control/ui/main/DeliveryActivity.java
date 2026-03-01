@@ -48,7 +48,7 @@ public class DeliveryActivity extends AppCompatActivity {
     private Button selectedLayerButton;
     // 存储配对关系
     private final HashMap<Integer, NavigationNode> pairings = new HashMap<>();
-    
+
     // 密码验证请求码
     private static final int REQUEST_PASSWORD_FOR_BACK = 2001;
     private static final int REQUEST_PASSWORD_FOR_DOOR = 2002;
@@ -219,7 +219,9 @@ public class DeliveryActivity extends AppCompatActivity {
             }
             // Then, select the new button.
             selectedLayerButton = clickedButton;
-            selectedLayerButton.setBackgroundResource(R.drawable.rounded_button_selected);
+            selectedLayerButton.setBackgroundResource(R.drawable.bg_shelf_selected);
+            selectedLayerButton
+                    .setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.medical_primary));
         };
 
         l1Button.setOnClickListener(layerClickListener);
@@ -383,13 +385,15 @@ public class DeliveryActivity extends AppCompatActivity {
 
     /**
      * 只有在切换层级或取消选中时调用：
-     * 如果有配对则显示绿色，没配对则显示原始灰色
+     * 根据是否配对设置对应医疗主题的背景色和对应字色
      */
     private void refreshLayerStyle(Button button) {
         if (pairings.containsKey(button.getId())) {
-            button.setBackgroundResource(R.drawable.rounded_button_paired); // 绿色
+            button.setBackgroundResource(R.drawable.bg_shelf_paired);
+            button.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.white));
         } else {
-            button.setBackgroundResource(R.drawable.rounded_button); // 灰色
+            button.setBackgroundResource(R.drawable.selector_shelf_item);
+            button.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.medical_text_primary));
         }
     }
 
@@ -511,8 +515,8 @@ public class DeliveryActivity extends AppCompatActivity {
             Log.e(TAG, "onDoorError: doorId=" + doorId + ", errorCode=" + errorCode);
             runOnUiThread(() -> {
                 // Toast.makeText(DeliveryActivity.this,
-                //         "舱门错误 (ID: " + doorId + ", 错误码: " + errorCode + ")",
-                //         Toast.LENGTH_SHORT).show();
+                // "舱门错误 (ID: " + doorId + ", 错误码: " + errorCode + ")",
+                // Toast.LENGTH_SHORT).show();
             });
         }
     };
@@ -520,7 +524,7 @@ public class DeliveryActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        
+
         // 处理密码验证结果
         if (resultCode == RESULT_OK) {
             switch (requestCode) {
@@ -528,22 +532,22 @@ public class DeliveryActivity extends AppCompatActivity {
                     // 密码验证成功,执行返回操作
                     finish();
                     break;
-                    
+
                 case REQUEST_PASSWORD_FOR_DOOR:
                     // 密码验证成功,执行开/关门操作
                     performDoorOperation();
                     break;
-                    
+
                 case REQUEST_PASSWORD_FOR_RETURN:
                     // 密码验证成功,执行返航操作
                     performReturnOperation();
                     break;
-                    
+
                 case REQUEST_PASSWORD_FOR_HISTORY:
                     // 密码验证成功,跳转到配送记录页面
                     startActivity(new Intent(DeliveryActivity.this, ItemDeliveryHistoryActivity.class));
                     break;
-                    
+
                 case 1002:
                     // 配送任务结束返回
                     Log.d(TAG, "配送任务结束返回");
@@ -766,6 +770,7 @@ public class DeliveryActivity extends AppCompatActivity {
             doorService.unregisterCallback(doorCallback);
         }
     }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);

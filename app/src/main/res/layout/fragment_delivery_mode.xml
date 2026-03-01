@@ -1,171 +1,254 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:background="@android:color/transparent"
+    android:fillViewport="true"
+    android:scrollbars="none">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="24dp">
 
-        <!-- 时间设置标题 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="时间设置"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="24dp"
+            android:text="配送任务设置"
+            android:textColor="@color/medical_text_primary"
+            android:textSize="32sp"
+            android:textStyle="bold" />
 
-        <!-- 取餐停留时长 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="取餐停留时长"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
-
-        <LinearLayout
+        <!-- Time Settings Card -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/medical_divider"
+            app:strokeWidth="1dp">
 
-            <SeekBar
-                android:id="@+id/seekbar_meal_pickup_duration"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:max="300"
-                android:progress="0"
-                android:progressTint="#4A90E2"
-                android:thumbTint="#4A90E2" />
+                android:orientation="vertical"
+                android:padding="24dp">
 
-            <TextView
-                android:id="@+id/tv_meal_pickup_duration"
-                android:layout_width="80dp"
-                android:layout_height="wrap_content"
-                android:text="0秒"
-                android:textSize="14sp"
-                android:gravity="end"
-                android:layout_marginStart="12dp" />
-        </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="时间设置"
+                    android:textColor="@color/medical_text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="24dp" />
 
-        <!-- 行走暂停时长 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="行走暂停时长"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
+                <!-- Meal Pickup Duration -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
 
-        <LinearLayout
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="取餐停留时长"
+                        android:textColor="@color/medical_text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="8dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <SeekBar
+                            android:id="@+id/seekbar_meal_pickup_duration"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="300"
+                            android:progress="0"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_meal_pickup_duration"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="0秒"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Walking Pause Duration -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="行走暂停时长"
+                        android:textColor="@color/medical_text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="8dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <SeekBar
+                            android:id="@+id/seekbar_walking_pause_duration"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="29"
+                            android:progress="0"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_walking_pause_duration"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="1秒"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Speed Settings Card -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="32dp">
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/medical_divider"
+            app:strokeWidth="1dp">
 
-            <SeekBar
-                android:id="@+id/seekbar_walking_pause_duration"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:max="29"
-                android:progress="0"
-                android:progressTint="#4A90E2"
-                android:thumbTint="#4A90E2" />
+                android:orientation="vertical"
+                android:padding="24dp">
 
-            <TextView
-                android:id="@+id/tv_walking_pause_duration"
-                android:layout_width="80dp"
-                android:layout_height="wrap_content"
-                android:text="1秒"
-                android:textSize="14sp"
-                android:gravity="end"
-                android:layout_marginStart="12dp" />
-        </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="速度设置"
+                    android:textColor="@color/medical_text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="24dp" />
 
-        <!-- 速度设置标题 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="速度设置"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
+                <!-- Delivery Speed -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
 
-        <!-- 送餐速度 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="送餐速度"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="送餐速度"
+                        android:textColor="@color/medical_text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="8dp" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="20dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-            <SeekBar
-                android:id="@+id/seekbar_delivery_speed"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:max="70"
-                android:progress="0"
-                android:progressTint="#4A90E2"
-                android:thumbTint="#4A90E2" />
+                        <SeekBar
+                            android:id="@+id/seekbar_delivery_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="70"
+                            android:progress="0"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
 
-            <TextView
-                android:id="@+id/tv_delivery_speed"
-                android:layout_width="80dp"
-                android:layout_height="wrap_content"
-                android:text="10cm/s"
-                android:textSize="14sp"
-                android:gravity="end"
-                android:layout_marginStart="12dp" />
-        </LinearLayout>
+                        <TextView
+                            android:id="@+id/tv_delivery_speed"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="10cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+                </LinearLayout>
 
-        <!-- 返航速度 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="返航速度"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
+                <!-- Return Speed -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="20dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="返航速度"
+                        android:textColor="@color/medical_text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="8dp" />
 
-            <SeekBar
-                android:id="@+id/seekbar_return_speed"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:max="70"
-                android:progress="0"
-                android:progressTint="#4A90E2"
-                android:thumbTint="#4A90E2" />
-            <TextView
-                android:id="@+id/tv_return_speed"
-                android:layout_width="80dp"
-                android:layout_height="wrap_content"
-                android:text="10cm/s"
-                android:textSize="14sp"
-                android:gravity="end"
-                android:layout_marginStart="12dp" />
-        </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <SeekBar
+                            android:id="@+id/seekbar_return_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="70"
+                            android:progress="0"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_return_speed"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="10cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 

@@ -24,6 +24,7 @@ import com.weigao.robot.control.ui.main.fragment.WifiNetworkFragment;
 
 import java.util.ArrayList;
 import java.util.List;
+
 //设置页面
 public class SettingsActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -69,37 +70,37 @@ public class SettingsActivity extends AppCompatActivity implements View.OnClickL
                 setSelectedButton((MaterialButton) v);
             }
             if (id == R.id.btn_basic_settings) {
-//               基础设置
+                // 基础设置
                 showFragment(new BasicSettingsFragment());
             } else if (id == R.id.btn_sound_settings) {
-//                声音设置
+                // 声音设置
                 showFragment(new SoundSettingsFragment());
             } else if (id == R.id.btn_scheduled_tasks) {
-//                定时任务
+                // 定时任务
                 showFragment(new ScheduledTasksFragment());
             } else if (id == R.id.btn_delivery_mode) {
-//                配送任务
+                // 配送任务
                 showFragment(new DeliveryModeFragment());
             } else if (id == R.id.btn_notification_settings) {
-//                通知铃设置
+                // 通知铃设置
                 showFragment(new NotificationSettingsFragment());
             } else if (id == R.id.btn_remote_settings) {
-//                远程设置
+                // 远程设置
                 showFragment(new RemoteSettingsFragment());
             } else if (id == R.id.btn_pager_settings) {
-//                呼叫器设置
+                // 呼叫器设置
                 showFragment(new PagerSettingsFragment());
             } else if (id == R.id.btn_charger_settings) {
-//                充电器设置
+                // 充电器设置
                 showFragment(new ChargerSettingsFragment());
             } else if (id == R.id.btn_wifi_network) {
-//                wifi设置
+                // wifi设置
                 showFragment(new WifiNetworkFragment());
             } else if (id == R.id.btn_scene_settings) {
-//                场景设置
+                // 场景设置
                 showFragment(new SceneSettingsFragment());
             } else if (id == R.id.btn_about_me) {
-//                了解我
+                // 了解我
                 showFragment(new AboutMeFragment());
             }
         }
@@ -113,9 +114,9 @@ public class SettingsActivity extends AppCompatActivity implements View.OnClickL
 
     private void setSelectedButton(MaterialButton button) {
         if (selectedButton != null) {
-            selectedButton.setBackgroundColor(Color.parseColor("#2196F3")); // unselected color
+            selectedButton.setSelected(false);
         }
-        button.setBackgroundColor(Color.parseColor("#0D47A1")); // selected color
+        button.setSelected(true);
         selectedButton = button;
     }
 

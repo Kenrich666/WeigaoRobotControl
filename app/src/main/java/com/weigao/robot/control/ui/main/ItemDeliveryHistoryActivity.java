@@ -43,13 +43,10 @@ public class ItemDeliveryHistoryActivity extends AppCompatActivity {
         loadData();
 
         // 设置返回按钮
-        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        android.widget.ImageButton btnBack = findViewById(R.id.btn_back);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
         }
-        toolbar.setNavigationOnClickListener(v -> finish());
 
         btnClear.setOnClickListener(v -> showClearDialog());
     }
