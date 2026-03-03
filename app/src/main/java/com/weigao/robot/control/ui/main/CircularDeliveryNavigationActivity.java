@@ -24,6 +24,9 @@ import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.IDoorService;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.app.WeigaoApplication;
 
 import java.util.ArrayList;
@@ -53,6 +56,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private GestureDetector gestureDetector;
     private INavigationService navigationService;
     private com.weigao.robot.control.service.IAudioService audioService; // Audio Service
+    private android.app.Dialog doorOperationDialog;
 
     private String routeName;
     private int loopCount;
@@ -63,8 +67,6 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         setContentView(R.layout.activity_circular_delivery_navigation); // Use separate layout
 
         initViews();
-
-
 
         navigationService = ServiceManager.getInstance().getNavigationService();
         audioService = ServiceManager.getInstance().getAudioService(); // Init AudioService
@@ -106,6 +108,12 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
         updateTaskText();
         startNavigation();
+
+        // 如果启用了投影灯开关门，使用单例服务
+        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().setDoorActionListener(this::showDoorOperationDialog);
+            Log.d(TAG, "【投影灯】功能已启用");
+        }
     }
 
     private void initViews() {
@@ -259,7 +267,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     llPauseControls.setVisibility(View.VISIBLE);
                     // btnReturnOrigin.setVisibility(View.VISIBLE); // Removed as per user request
                     tvHint.setVisibility(View.INVISIBLE);
-                    
+
                     startAutoResumeTimer();
 
                     // pauseBackgroundMusic(); // Modified: Keep music playing during pause
@@ -309,12 +317,14 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                         startPilotNext();
                     });
                 }
+
                 @Override
                 public void onError(ApiError error) {
                     runOnUiThread(() -> {
-                        // Toast.makeText(CircularDeliveryNavigationActivity.this, "关门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        // Toast.makeText(CircularDeliveryNavigationActivity.this, "关门失败: " +
+                        // error.getMessage(), Toast.LENGTH_SHORT).show();
                         // 即使关门失败，也尝试继续导航？或者让用户决定？这里选择继续尝试导航
-                         startPilotNext();
+                        startPilotNext();
                     });
                 }
             });
@@ -341,7 +351,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
             @Override
             public void onError(ApiError error) {
-                runOnUiThread(() -> Toast.makeText(CircularDeliveryNavigationActivity.this, "无法前往下一站: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(CircularDeliveryNavigationActivity.this,
+                        "无法前往下一站: " + error.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -424,7 +435,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     Log.w(TAG, "【导航回调】阻挡超时");
                     Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
                     // speak("长时间被阻挡，请检查路径");
-                    
+
                     // 记录导航失败状态
                     if (currentRecord != null && currentTaskIndex < targetNodes.size()) {
                         currentRecord.complete("NAV_FAILED");
@@ -444,7 +455,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                             // 如果暂停后超过1秒仍收到运行状态，说明暂停失败或已被覆盖，强制同步UI
                             isPaused = false;
                             stopAutoResumeTimer();
-                            Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT)
+                                    .show();
                         } else {
                             // 暂停指令发出不久，忽略短暂的运行状态回调（避免UI闪烁）
                             return;
@@ -456,6 +468,11 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     llPauseControls.setVisibility(View.GONE);
                     btnReturnOrigin.setVisibility(View.GONE);
                     tvHint.setVisibility(View.VISIBLE);
+
+                    // 机器人移动中：暂停投影灯检测
+                    if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                        ProjectionDoorService.getInstance().pauseForMovement();
+                    }
                     break;
                 default:
                     break;
@@ -475,20 +492,13 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean isReturning = false;
 
     private void handleArrival() {
-        // isReturning logic is handled by jumping to ReturnActivity
-        /*
-         * if (isReturning) {
-         * Toast.makeText(this, "已返回出餐口，任务结束", Toast.LENGTH_LONG).show();
-         * if (currentRecord != null) {
-         * currentRecord.complete("COMPLETED");
-         * CircularDeliveryHistoryManager.getInstance(this).addRecord(currentRecord);
-         * }
-         * finish();
-         * return;
-         * }
-         */
-
         isWaitingAtNode = true;
+
+        // 检查是否启用了投影灯开关门功能
+        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            Log.d(TAG, "【投影灯】到达目标点，恢复投影灯检测");
+            ProjectionDoorService.getInstance().resumeAfterMovement();
+        }
 
         Intent intent = new Intent(this, CircularArrivalActivity.class);
         boolean isLastPoint = (currentTaskIndex >= targetNodes.size() - 1);
@@ -497,6 +507,36 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             intent.putExtra("current_point_name", targetNodes.get(currentTaskIndex).getName());
         }
         startActivityForResult(intent, REQUEST_CODE_ARRIVAL);
+    }
+
+    // ==================== 投影灯开关门功能 ====================
+
+    /**
+     * 显示开关门操作提示弹窗（3秒后自动消失）
+     */
+    private void showDoorOperationDialog(boolean isOpening) {
+        dismissDoorOperationDialog();
+
+        doorOperationDialog = new android.app.Dialog(this, android.R.style.Theme_Translucent_NoTitleBar);
+        doorOperationDialog.setContentView(R.layout.dialog_door_operation);
+        doorOperationDialog.setCancelable(true);
+
+        TextView tvTitle = doorOperationDialog.findViewById(R.id.tv_door_operation_title);
+        tvTitle.setText(isOpening ? "开门中" : "关门中");
+
+        TextView tvSubtitle = doorOperationDialog.findViewById(R.id.tv_door_operation_subtitle);
+        tvSubtitle.setText("请当心");
+
+        doorOperationDialog.show();
+
+        new android.os.Handler().postDelayed(this::dismissDoorOperationDialog, 3000);
+    }
+
+    private void dismissDoorOperationDialog() {
+        if (doorOperationDialog != null && doorOperationDialog.isShowing()) {
+            doorOperationDialog.dismiss();
+        }
+        doorOperationDialog = null;
     }
 
     @Override
@@ -599,6 +639,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     protected void onDestroy() {
         super.onDestroy();
         stopAutoResumeTimer();
+        // 移除弹窗监听器，但不停止单例服务（投影灯由设置开关全局管控）
+        ProjectionDoorService.getInstance().removeDoorActionListener();
+        dismissDoorOperationDialog();
         if (navigationService != null) {
             stopNavigation();
             navigationService.unregisterCallback(this);
@@ -621,7 +664,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             audioService.getAudioConfig(new IResultCallback<com.weigao.robot.control.model.AudioConfig>() {
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
-                    if (config != null && config.isLoopMusicEnabled() && !android.text.TextUtils.isEmpty(config.getLoopMusicPath())) {
+                    if (config != null && config.isLoopMusicEnabled()
+                            && !android.text.TextUtils.isEmpty(config.getLoopMusicPath())) {
                         Log.d(TAG, "【音频】播放循环配送背景音乐 (Loop=true)");
                         audioService.playBackgroundMusic(config.getLoopMusicPath(), true, null);
                     }
@@ -633,8 +677,6 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             });
         }
     }
-
-
 
     private void stopBackgroundMusic() {
         if (audioService != null) {
@@ -660,7 +702,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
                     if (config != null && config.isLoopVoiceEnabled()) {
-                        String path = isArrival ? config.getLoopArrivalVoicePath() : config.getLoopNavigatingVoicePath();
+                        String path = isArrival ? config.getLoopArrivalVoicePath()
+                                : config.getLoopNavigatingVoicePath();
                         if (!android.text.TextUtils.isEmpty(path)) {
                             audioService.playVoice(path, null);
                         }
@@ -679,9 +722,9 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void startAutoResumeTimer() {
         stopAutoResumeTimer();
-        
+
         tvCountdown.setVisibility(View.VISIBLE);
-        
+
         autoResumeTimer = new android.os.CountDownTimer(30000, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -695,7 +738,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 if (!isFinishing() && isPaused) {
                     // 关键：如果密码页面还在显示，强制关闭它 (参考 ConfirmReceiptActivity)
                     finishActivity(REQUEST_CODE_END_NAVIGATION_PASSWORD);
-                    
+
                     tvCountdown.setVisibility(View.GONE);
                     Toast.makeText(CircularDeliveryNavigationActivity.this, "暂停超时，自动继续", Toast.LENGTH_SHORT).show();
                     resumeNavigation();

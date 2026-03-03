@@ -43,6 +43,11 @@ import java.util.Map;
 import android.util.Log;
 import android.os.Handler;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 public class DeliveryActivity extends AppCompatActivity {
     private static final String TAG = "DeliveryActivity";
     private Button selectedLayerButton;
@@ -84,6 +89,11 @@ public class DeliveryActivity extends AppCompatActivity {
 
         // 注册舱门状态回调
         doorService.registerCallback(doorCallback);
+
+        // 注册投影灯脚踩门状态变化广播
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+                doorBroadcastReceiver,
+                new IntentFilter("com.weigao.robot.DOOR_STATE_CHANGED"));
 
         // --- 1. 基础按钮 ---
         // 返回按钮需要密码验证
@@ -769,7 +779,18 @@ public class DeliveryActivity extends AppCompatActivity {
         if (doorService != null) {
             doorService.unregisterCallback(doorCallback);
         }
+        // 注销广播接收器
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(doorBroadcastReceiver);
     }
+
+    /** 监听投影灯脚踩引起的门状态变化 */
+    private final BroadcastReceiver doorBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, android.content.Intent intent) {
+            Log.d(TAG, "收到门状态变化广播，刷新按钮");
+            updateDoorButtonState();
+        }
+    };
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {

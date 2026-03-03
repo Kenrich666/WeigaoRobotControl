@@ -14,6 +14,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+
+import com.weigao.robot.control.manager.UVDisinfectionManager;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
@@ -54,6 +56,12 @@ public class ChargerSettingsFragment extends Fragment {
     // private ProgressBar batteryProgressBackground;
     private TextView tvChargingStatus;
 
+    // 紫外灯消毒UI控件
+    private com.google.android.material.card.MaterialCardView cardUvDisinfection;
+    private TextView tvUvStatus;
+    private TextView tvUvCountdown;
+    private Button btnStopUv;
+
     private IChargerService chargerService;
 
     private int currentBatteryLevel = 0;
@@ -85,16 +93,42 @@ public class ChargerSettingsFragment extends Fragment {
             chargerService.registerCallback(chargerCallback);
             refreshBatteryStatus();
         }
+        // 注册紫外灯消毒状态监听
+        UVDisinfectionManager.getInstance().setStateChangeListener(uvStateListener);
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        // 页面暂停时取消注册，避免内存泄漏以及不必要的后台 UI 更新
         if (chargerService != null) {
             chargerService.unregisterCallback(chargerCallback);
         }
+        UVDisinfectionManager.getInstance().removeStateChangeListener();
     }
+
+    /** 紫外灯消毒状态监听：更新UI */
+    private final UVDisinfectionManager.OnStateChangeListener uvStateListener = (isDisinfecting, remainingMs) -> {
+        if (getActivity() == null || getActivity().isFinishing())
+            return;
+        getActivity().runOnUiThread(() -> {
+            if (isDisinfecting) {
+                cardUvDisinfection.setVisibility(View.VISIBLE);
+                tvUvStatus.setText("紫外灯消毒中");
+                int minutes = (int) (remainingMs / 1000 / 60);
+                int seconds = (int) (remainingMs / 1000 % 60);
+                tvUvCountdown.setText(String.format("剩余 %02d:%02d", minutes, seconds));
+            } else {
+                tvUvStatus.setText("消毒已完成");
+                tvUvCountdown.setText("");
+                // 2秒后隐藏
+                new android.os.Handler().postDelayed(() -> {
+                    if (cardUvDisinfection != null) {
+                        cardUvDisinfection.setVisibility(View.GONE);
+                    }
+                }, 2000);
+            }
+        });
+    };
 
     // 充电服务回调接口实现，用于监听底层充电状态变化
     private final IChargerCallback chargerCallback = new IChargerCallback() {
@@ -167,6 +201,12 @@ public class ChargerSettingsFragment extends Fragment {
         stopChargeButton = view.findViewById(R.id.stopChargeButton);
         helpText = view.findViewById(R.id.helpText);
         tvChargingStatus = view.findViewById(R.id.tvChargingStatus);
+
+        // 紫外灯消毒控件
+        cardUvDisinfection = view.findViewById(R.id.card_uv_disinfection);
+        tvUvStatus = view.findViewById(R.id.tv_uv_status);
+        tvUvCountdown = view.findViewById(R.id.tv_uv_countdown);
+        btnStopUv = view.findViewById(R.id.btn_stop_uv);
     }
 
     private void setupListeners() {
@@ -268,6 +308,11 @@ public class ChargerSettingsFragment extends Fragment {
             }
         });
 
+        // "停止消毒" 按钮点击事件
+        btnStopUv.setOnClickListener(v -> {
+            UVDisinfectionManager.getInstance().stopDisinfection();
+            Toast.makeText(getContext(), "已手动停止紫外灯消毒", Toast.LENGTH_SHORT).show();
+        });
     }
 
     /**
@@ -301,6 +346,8 @@ public class ChargerSettingsFragment extends Fragment {
 
         batteryIcon.setColorFilter(color);
         batteryProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(color));
+
+        // 注意：紫外灯消毒逻辑已由 UVDisinfectionManager 全局管理，此处无需处理
 
         if (isCharging) {
             // 充电中禁用“自动回充”和“手动充电”按钮

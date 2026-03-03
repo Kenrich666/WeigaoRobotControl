@@ -37,9 +37,11 @@ public class AppSettingsManager {
     private static final String SETTINGS_FILE = "app_settings.json";
 
     private static final String KEY_FULLSCREEN = "is_fullscreen";
+    private static final String KEY_PROJECTION_DOOR = "projection_door_enabled";
 
     private static AppSettingsManager instance;
     private boolean isFullScreen = true;
+    private boolean projectionDoorEnabled = false;
 
     private AppSettingsManager() {
         // Delayed loading? Or just handle exception in loadSettings.
@@ -68,6 +70,14 @@ public class AppSettingsManager {
         saveSettings();
     }
 
+    public boolean isProjectionDoorEnabled() {
+        return projectionDoorEnabled;
+    }
+
+    public void setProjectionDoorEnabled(boolean enabled) {
+        this.projectionDoorEnabled = enabled;
+        saveSettings();
+    }
 
     /**
      * Reload settings from file. Useful after permissions are granted.
@@ -98,10 +108,12 @@ public class AppSettingsManager {
                 if (sb.length() > 0) {
                     JSONObject json = new JSONObject(sb.toString());
                     this.isFullScreen = json.optBoolean(KEY_FULLSCREEN, true);
+                    this.projectionDoorEnabled = json.optBoolean(KEY_PROJECTION_DOOR, false);
                 }
             }
         } catch (IOException | JSONException e) {
-            if (e.getMessage() != null && (e.getMessage().contains("EACCES") || e.getMessage().contains("Permission denied"))) {
+            if (e.getMessage() != null
+                    && (e.getMessage().contains("EACCES") || e.getMessage().contains("Permission denied"))) {
                 Log.w(TAG, "Permissions missing - unable to load app settings, using defaults.");
             } else {
                 Log.e(TAG, "Failed to load app settings", e);
@@ -119,6 +131,7 @@ public class AppSettingsManager {
         try {
             JSONObject json = new JSONObject();
             json.put(KEY_FULLSCREEN, isFullScreen);
+            json.put(KEY_PROJECTION_DOOR, projectionDoorEnabled);
 
             try (FileWriter writer = new FileWriter(file)) {
                 writer.write(json.toString());

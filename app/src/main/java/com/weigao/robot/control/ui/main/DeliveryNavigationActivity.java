@@ -23,6 +23,9 @@ import com.weigao.robot.control.model.ItemDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.IDoorService;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.app.WeigaoApplication;
 
 import android.content.Intent;
@@ -65,6 +68,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     private boolean isNavigating = false;
 
     private GestureDetector gestureDetector;
+    private android.app.Dialog doorOperationDialog;
 
     /**
      * 导航服务
@@ -138,6 +142,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
         // 开始导航
         startNavigation();
+
+        // 如果启用了投影灯开关门，使用单例服务
+        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().setDoorActionListener(this::showDoorOperationDialog);
+            // 任务刚开始，机器人即将移动，先不开灯（STATE_RUNNING会处理）
+            Log.d(TAG, "【投影灯】功能已启用");
+        }
     }
 
     /**
@@ -543,6 +554,11 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     // 更新状态文本
                     tvStatus.setText("配送中");
 
+                    // 机器人移动中：暂停投影灯检测
+                    if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                        ProjectionDoorService.getInstance().pauseForMovement();
+                    }
+
                     // 移除此处的语音播放调用 - 语音应该只在开始导航、恢复导航等特定时刻播放
                     // 原因：STATE_RUNNING 会被多次触发，导致不可预测的重复播放
                     break;
@@ -661,11 +677,16 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         // 无论是否是最后一个点，都跳转确认页面供用户取货
         waitingForNext = true;
 
+        // 检查是否启用了投影灯开关门功能
+        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            Log.d(TAG, "【投影灯】到达目标点，恢复投影灯检测");
+            ProjectionDoorService.getInstance().resumeAfterMovement();
+        }
+
         // 跳转到 ConfirmReceiptActivity
         Intent intent = new Intent(this, ConfirmReceiptActivity.class);
 
         // 传递配对信息(用于显示需要取货的层)
-        // ConfirmReceiptActivity 会根据当前节点ID自动筛选出对应的所有层级，所以传完整的pairings即可
         HashMap<Integer, NavigationNode> pairings = (HashMap<Integer, NavigationNode>) getIntent()
                 .getSerializableExtra("pairings");
         if (pairings != null) {
@@ -679,6 +700,38 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         }
 
         startActivityForResult(intent, REQUEST_CODE_CONFIRM_RECEIPT);
+    }
+
+    // ==================== 投影灯开关门功能 ====================
+
+    /**
+     * 显示开关门操作提示弹窗（3秒后自动消失）
+     *
+     * @param isOpening true=开门中，false=关门中
+     */
+    private void showDoorOperationDialog(boolean isOpening) {
+        dismissDoorOperationDialog();
+
+        doorOperationDialog = new android.app.Dialog(this, android.R.style.Theme_Translucent_NoTitleBar);
+        doorOperationDialog.setContentView(R.layout.dialog_door_operation);
+        doorOperationDialog.setCancelable(true);
+
+        TextView tvTitle = doorOperationDialog.findViewById(R.id.tv_door_operation_title);
+        tvTitle.setText(isOpening ? "开门中" : "关门中");
+
+        TextView tvSubtitle = doorOperationDialog.findViewById(R.id.tv_door_operation_subtitle);
+        tvSubtitle.setText("请当心");
+
+        doorOperationDialog.show();
+
+        new android.os.Handler().postDelayed(this::dismissDoorOperationDialog, 3000);
+    }
+
+    private void dismissDoorOperationDialog() {
+        if (doorOperationDialog != null && doorOperationDialog.isShowing()) {
+            doorOperationDialog.dismiss();
+        }
+        doorOperationDialog = null;
     }
 
     @Override
@@ -695,6 +748,9 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     protected void onDestroy() {
         super.onDestroy();
         stopAutoResumeTimer();
+        // 移除弹窗监听器，但不停止单例服务（投影灯由设置开关全局管控）
+        ProjectionDoorService.getInstance().removeDoorActionListener();
+        dismissDoorOperationDialog();
         Log.d(TAG, "【Activity】onDestroy - 销毁活动");
         // 停止导航
         if (navigationService != null) {

@@ -8,6 +8,11 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -53,6 +58,11 @@ public class CircularArrivalActivity extends AppCompatActivity {
         if (doorService != null) {
             doorService.registerCallback(doorCallback);
         }
+
+        // 注册投影灯脚踩门状态变化广播
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+                doorBroadcastReceiver,
+                new IntentFilter("com.weigao.robot.DOOR_STATE_CHANGED"));
 
         isLastPoint = getIntent().getBooleanExtra("is_last_point", false);
         String currentPointName = getIntent().getStringExtra("current_point_name");
@@ -424,7 +434,16 @@ public class CircularArrivalActivity extends AppCompatActivity {
         if (doorService != null) {
             doorService.unregisterCallback(doorCallback);
         }
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(doorBroadcastReceiver);
     }
+
+    /** 监听投影灯脚踩引起的门状态变化 */
+    private final BroadcastReceiver doorBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, android.content.Intent intent) {
+            updateDoorButtonState();
+        }
+    };
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
