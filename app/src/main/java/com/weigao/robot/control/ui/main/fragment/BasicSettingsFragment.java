@@ -8,6 +8,8 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.EditText;
 import android.widget.Toast;
+
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
@@ -243,6 +245,19 @@ public class BasicSettingsFragment extends Fragment {
         switchFullscreen.setOnCheckedChangeListener((buttonView, isChecked) -> {
             settingsManager.setFullScreen(isChecked);
             applyFullScreen(isChecked);
+        });
+
+        // 脚踩投影灯开关门 Switch
+        androidx.appcompat.widget.SwitchCompat switchProjectionDoor = view.findViewById(R.id.switch_projection_door);
+        switchProjectionDoor.setChecked(settingsManager.isProjectionDoorEnabled());
+        switchProjectionDoor.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            settingsManager.setProjectionDoorEnabled(isChecked);
+            // 立即控制投影灯和检测
+            if (isChecked) {
+                ProjectionDoorService.getInstance().startContinuousDetection();
+            } else {
+                ProjectionDoorService.getInstance().stopContinuousDetection();
+            }
         });
 
         return view;

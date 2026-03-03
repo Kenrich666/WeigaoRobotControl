@@ -35,6 +35,9 @@ public class WeigaoApplication extends Application {
      */
     private SdkInitListener sdkInitListener;
 
+    /** 当前前台 Activity 引用，用于全局弹窗显示 */
+    private android.app.Activity currentActivity;
+
     // ==================== 配置参数（可根据实际情况修改） ====================
 
     /**
@@ -75,11 +78,15 @@ public class WeigaoApplication extends Application {
 
             @Override
             public void onActivityResumed(android.app.Activity activity) {
+                currentActivity = activity;
                 applyGlobalSettings(activity);
             }
 
             @Override
             public void onActivityPaused(android.app.Activity activity) {
+                if (currentActivity == activity) {
+                    currentActivity = null;
+                }
             }
 
             @Override
@@ -104,8 +111,9 @@ public class WeigaoApplication extends Application {
      * Can be called from onWindowFocusChanged
      */
     public static void applyFullScreen(android.app.Activity activity) {
-        if (activity == null) return;
-        
+        if (activity == null)
+            return;
+
         // Use AppSettingsManager for persistent storage
         boolean isFullscreen = false;
         try {
@@ -118,28 +126,32 @@ public class WeigaoApplication extends Application {
             android.util.Log.d(TAG, "Applying Full Screen to: " + activity.getClass().getSimpleName());
             try {
                 androidx.core.view.WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), false);
-                androidx.core.view.WindowInsetsControllerCompat controller = 
-                        new androidx.core.view.WindowInsetsControllerCompat(activity.getWindow(), activity.getWindow().getDecorView());
+                androidx.core.view.WindowInsetsControllerCompat controller = new androidx.core.view.WindowInsetsControllerCompat(
+                        activity.getWindow(), activity.getWindow().getDecorView());
                 controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
-                controller.setSystemBarsBehavior(androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                controller.setSystemBarsBehavior(
+                        androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             } catch (Exception e) {
-                // Fallback for non-AndroidX or older contexts if needed (though project uses AndroidX)
+                // Fallback for non-AndroidX or older contexts if needed (though project uses
+                // AndroidX)
                 android.util.Log.e(TAG, "Error applying full screen", e);
             }
         } else {
-             // For non-fullscreen, we might want to reset, but usually we just leave it default
-             // or ensure system bars are shown if we supported switching back.
-             // For now, if not fullscreen, we do minimal interference or show bars explicitly if needed.
-             // activity.getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-             
-             try {
+            // For non-fullscreen, we might want to reset, but usually we just leave it
+            // default
+            // or ensure system bars are shown if we supported switching back.
+            // For now, if not fullscreen, we do minimal interference or show bars
+            // explicitly if needed.
+            // activity.getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+
+            try {
                 androidx.core.view.WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), true);
-                androidx.core.view.WindowInsetsControllerCompat controller = 
-                        new androidx.core.view.WindowInsetsControllerCompat(activity.getWindow(), activity.getWindow().getDecorView());
+                androidx.core.view.WindowInsetsControllerCompat controller = new androidx.core.view.WindowInsetsControllerCompat(
+                        activity.getWindow(), activity.getWindow().getDecorView());
                 controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars());
-             } catch (Exception e) {
+            } catch (Exception e) {
                 // Ignore
-             }
+            }
         }
     }
 
@@ -163,6 +175,15 @@ public class WeigaoApplication extends Application {
      */
     public static WeigaoApplication getInstance() {
         return instance;
+    }
+
+    /**
+     * 获取当前前台 Activity
+     *
+     * @return 当前前台 Activity，如果没有则返回 null
+     */
+    public android.app.Activity getCurrentActivity() {
+        return currentActivity;
     }
 
     /**
@@ -229,6 +250,9 @@ public class WeigaoApplication extends Application {
 
                 // [新增] 初始化并连接全局急停管理器
                 com.weigao.robot.control.manager.GlobalScramManager.getInstance().connectService();
+
+                // [新增] 初始化紫外灯消毒管理器（全局监听充电状态）
+                com.weigao.robot.control.manager.UVDisinfectionManager.getInstance().init();
 
                 // 启动 PeanutRuntime (参考 SampleApp)
                 PeanutRuntime.getInstance().start(new PeanutRuntime.Listener() {

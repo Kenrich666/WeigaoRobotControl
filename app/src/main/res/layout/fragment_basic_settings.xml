@@ -338,6 +338,37 @@
                             app:thumbTint="@color/medical_primary"
                             app:trackTint="@color/medical_divider"/>
                     </LinearLayout>
+
+                    <!-- 分隔线 -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginHorizontal="24dp"
+                        android:background="@color/medical_divider"/>
+
+                    <!-- 脚踩投影灯开关门 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="24dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="脚踩投影灯开关门"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"/>
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/switch_projection_door"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/medical_primary"
+                            app:trackTint="@color/medical_divider"/>
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
