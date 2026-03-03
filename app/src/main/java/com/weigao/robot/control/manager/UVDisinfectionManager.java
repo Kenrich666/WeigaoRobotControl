@@ -166,12 +166,15 @@ public class UVDisinfectionManager {
         Log.d(TAG, "充电状态更新: isCharging=" + isCharging + ", wasCharging=" + wasCharging);
 
         if (isCharging && !wasCharging) {
-            // 充电开始：取消待执行的关灯操作（如果有），立即开灯
+            // 充电开始：取消待执行的解锁操作（如果有）
             if (pendingStopRunnable != null) {
                 handler.removeCallbacks(pendingStopRunnable);
                 pendingStopRunnable = null;
                 Log.d(TAG, "【紫外灯】取消待执行的关灯操作（充电状态抖动）");
             }
+
+            // ====== 充电锁定：禁止开门和投影灯 ======
+            setChargingLock(true);
 
             // 充电前确保投影灯关闭
             ensureProjectionLightOff();
@@ -183,18 +186,45 @@ public class UVDisinfectionManager {
                 startUVDisinfection();
             }
         } else if (!isCharging && wasCharging) {
-            // 充电停止：延迟5秒再关灯（防抖）
+            // 充电停止：延迟5秒再解锁（防抖）
             Log.d(TAG, "【紫外灯】检测到充电停止信号，等待" + (CHARGING_STOP_DEBOUNCE_MS / 1000) + "秒确认...");
             if (pendingStopRunnable == null) {
                 pendingStopRunnable = () -> {
                     Log.d(TAG, "【紫外灯】确认充电已停止，关闭紫外灯");
                     stopUVDisinfection();
+
+                    // ====== 充电解锁：恢复开门和投影灯 ======
+                    setChargingLock(false);
+
                     pendingStopRunnable = null;
                 };
                 handler.postDelayed(pendingStopRunnable, CHARGING_STOP_DEBOUNCE_MS);
             }
         }
         wasCharging = isCharging;
+    }
+
+    /**
+     * 设置/解除充电锁定
+     * 锁定时：舱门禁止开门，投影灯禁止开启
+     * 解锁时：恢复正常操作
+     */
+    private void setChargingLock(boolean locked) {
+        Log.d(TAG, "【充电锁定】" + (locked ? "锁定舱门和投影灯" : "解锁舱门和投影灯"));
+
+        // 锁定/解锁投影灯
+        ProjectionDoorService.getInstance().setChargingLocked(locked);
+
+        // 如果解除锁定，且用户设置了投影灯常开，则恢复真实投影灯状态
+        if (!locked && com.weigao.robot.control.manager.AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().startContinuousDetection();
+        }
+
+        // 锁定/解锁舱门
+        IDoorService doorService = ServiceManager.getInstance().getDoorService();
+        if (doorService instanceof com.weigao.robot.control.service.impl.DoorServiceImpl) {
+            ((com.weigao.robot.control.service.impl.DoorServiceImpl) doorService).setChargingLocked(locked);
+        }
     }
 
     // ==================== 紫外灯消毒控制 ====================

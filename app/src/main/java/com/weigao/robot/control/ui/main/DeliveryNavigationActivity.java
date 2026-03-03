@@ -403,6 +403,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         if (waitingForNext) {
             Log.d(TAG, "【导航控制】恢复导航：处于等待跳转状态，立即前往下一目标");
             waitingForNext = false;
+            // 即将移动，确保投影灯关闭
+            if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                ProjectionDoorService.getInstance().pauseForMovement();
+            }
             navigationService.pilotNext(new IResultCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
@@ -774,6 +778,11 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     protected void onActivityResult(int requestCode, int resultCode, @Nullable android.content.Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_CONFIRM_RECEIPT) {
+            // 离开到达页面，立即关闭投影灯，防止移动过程中灯亮
+            if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                ProjectionDoorService.getInstance().pauseForMovement();
+            }
+
             if (resultCode == RESULT_OK) {
                 Log.d(TAG, "【ConfirmReceipt】返回确认，用户已完成收货");
                 waitingForNext = false;
