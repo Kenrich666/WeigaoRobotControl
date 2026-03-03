@@ -11,6 +11,7 @@ import com.keenon.sdk.component.charger.common.Charger;
 import com.weigao.robot.control.callback.IChargerCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.SdkErrorCode;
 import com.weigao.robot.control.model.ChargerInfo;
 import com.weigao.robot.control.service.IChargerService;
 
@@ -221,8 +222,14 @@ public class ChargerServiceImpl implements IChargerService {
                     default -> action;
                 };
                 peanutCharger.performAction(sdkAction);
+                if (action == CHARGE_ACTION_STOP) {
+                    isCharging = false;
+                    chargerInfo.setCharging(false);
+                    chargerInfo.setStatus(CHARGER_STATUS_IDLE);
+                    chargerInfo.setEvent(SdkErrorCode.CHARGER_EVENT_EXIT);
+                    notifyChargerInfoChanged(SdkErrorCode.CHARGER_EVENT_EXIT, chargerInfo);
+                }
 
-                // 用户主动发起充电操作时，清除启动保护标志
                 initResetPending = false;
             }
             notifySuccess(callback);
