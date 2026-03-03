@@ -278,6 +278,7 @@ public class UVDisinfectionManager {
 
     private void setAllUVLamps(boolean isOpen) {
         try {
+            SensorUVLamp.getInstance().setUSBDirect(true);
             SensorUVLamp.getInstance().setUVLampSwitch(ProtoDev.SENSOR_UV_LAMP_1, isOpen);
             SensorUVLamp.getInstance().setUVLampSwitch(ProtoDev.SENSOR_UV_LAMP_2, isOpen);
             SensorUVLamp.getInstance().setUVLampSwitch(ProtoDev.SENSOR_UV_LAMP_3, isOpen);
