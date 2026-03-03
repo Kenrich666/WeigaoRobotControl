@@ -437,11 +437,44 @@ public class CircularArrivalActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).unregisterReceiver(doorBroadcastReceiver);
     }
 
-    /** 监听投影灯脚踩引起的门状态变化 */
+    /**
+     * 监听投影灯脚踩引起的门状态变化
+     * - 收到"开门完成"广播：刷新按钮状态
+     * - 收到"关门完成"广播：自动前往下一站或返航
+     */
     private final BroadcastReceiver doorBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, android.content.Intent intent) {
-            updateDoorButtonState();
+            boolean isClosing = intent.getBooleanExtra("is_closing", false);
+            Log.d(TAG, "收到门状态变化广播, is_closing=" + isClosing);
+
+            if (isClosing) {
+                // 投影灯触发了关门操作 → 自动前往下一站
+                Log.d(TAG, "【投影灯关门】自动执行前往下一站流程");
+                if (countDownTimer != null) {
+                    countDownTimer.cancel();
+                }
+
+                runOnUiThread(() -> {
+                    btnOpenDoor.setEnabled(false);
+                    btnContinue.setEnabled(false);
+                    String msg = isLastPoint ? "舱门已关闭，即将返航..." : "舱门已关闭，即将前往下一站...";
+                    tvArrivalMessage.setText(msg);
+
+                    // 延迟3秒后自动离场
+                    new Handler().postDelayed(() -> {
+                        if (!isFinishing()) {
+                            int resultCode = isLastPoint ? RESULT_RETURN_ORIGIN : RESULT_CONTINUE;
+                            CircularArrivalActivity.this.setResult(resultCode);
+                            finish();
+                        }
+                    }, 3000);
+                });
+            } else {
+                // 投影灯触发了开门操作 → 刷新按钮状态
+                Log.d(TAG, "【投影灯开门】更新按钮状态");
+                updateDoorButtonState();
+            }
         }
     };
 
