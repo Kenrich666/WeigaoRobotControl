@@ -254,6 +254,15 @@ public class WeigaoApplication extends Application {
                 // [新增] 初始化紫外灯消毒管理器（全局监听充电状态）
                 com.weigao.robot.control.manager.UVDisinfectionManager.getInstance().init();
 
+                // [新增] 确保投影灯在启动时处于关闭状态（防止上次异常退出残留）
+                com.weigao.robot.control.service.impl.ProjectionDoorService.getInstance().ensureLightOff();
+
+                // 恢复投影灯设置状态：如果全局设置中启用了投影灯且未被锁定，自动开启
+                if (com.weigao.robot.control.manager.AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                    com.weigao.robot.control.service.impl.ProjectionDoorService.getInstance()
+                            .startContinuousDetection();
+                }
+
                 // 启动 PeanutRuntime (参考 SampleApp)
                 PeanutRuntime.getInstance().start(new PeanutRuntime.Listener() {
                     @Override
@@ -294,6 +303,13 @@ public class WeigaoApplication extends Application {
      */
     public void release() {
         Log.i(TAG, "开始释放资源...");
+
+        // [新增] 确保投影灯在退出时关闭
+        try {
+            com.weigao.robot.control.service.impl.ProjectionDoorService.getInstance().ensureLightOff();
+        } catch (Exception e) {
+            Log.e(TAG, "关闭投影灯异常", e);
+        }
 
         // 释放服务管理器
         ServiceManager.getInstance().release();

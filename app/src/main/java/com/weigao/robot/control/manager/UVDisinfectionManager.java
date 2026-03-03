@@ -14,7 +14,9 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.ChargerInfo;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IChargerService;
+import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 
 /**
  * 紫外灯消毒全局管理器（单例）
@@ -164,29 +166,65 @@ public class UVDisinfectionManager {
         Log.d(TAG, "充电状态更新: isCharging=" + isCharging + ", wasCharging=" + wasCharging);
 
         if (isCharging && !wasCharging) {
-            // 充电开始：取消待执行的关灯操作（如果有），立即开灯
+            // 充电开始：取消待执行的解锁操作（如果有）
             if (pendingStopRunnable != null) {
                 handler.removeCallbacks(pendingStopRunnable);
                 pendingStopRunnable = null;
                 Log.d(TAG, "【紫外灯】取消待执行的关灯操作（充电状态抖动）");
             }
+
+            // ====== 充电锁定：禁止开门和投影灯 ======
+            setChargingLock(true);
+
+            // 充电前确保投影灯关闭
+            ensureProjectionLightOff();
+            // 充电前确保舱门关闭
+            ensureDoorsClosed();
+
             if (!isDisinfecting) {
                 Log.d(TAG, "【紫外灯】检测到充电开始，启动紫外灯消毒");
                 startUVDisinfection();
             }
         } else if (!isCharging && wasCharging) {
-            // 充电停止：延迟5秒再关灯（防抖）
+            // 充电停止：延迟5秒再解锁（防抖）
             Log.d(TAG, "【紫外灯】检测到充电停止信号，等待" + (CHARGING_STOP_DEBOUNCE_MS / 1000) + "秒确认...");
             if (pendingStopRunnable == null) {
                 pendingStopRunnable = () -> {
                     Log.d(TAG, "【紫外灯】确认充电已停止，关闭紫外灯");
                     stopUVDisinfection();
+
+                    // ====== 充电解锁：恢复开门和投影灯 ======
+                    setChargingLock(false);
+
                     pendingStopRunnable = null;
                 };
                 handler.postDelayed(pendingStopRunnable, CHARGING_STOP_DEBOUNCE_MS);
             }
         }
         wasCharging = isCharging;
+    }
+
+    /**
+     * 设置/解除充电锁定
+     * 锁定时：舱门禁止开门，投影灯禁止开启
+     * 解锁时：恢复正常操作
+     */
+    private void setChargingLock(boolean locked) {
+        Log.d(TAG, "【充电锁定】" + (locked ? "锁定舱门和投影灯" : "解锁舱门和投影灯"));
+
+        // 锁定/解锁投影灯
+        ProjectionDoorService.getInstance().setChargingLocked(locked);
+
+        // 如果解除锁定，且用户设置了投影灯常开，则恢复真实投影灯状态
+        if (!locked && com.weigao.robot.control.manager.AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().startContinuousDetection();
+        }
+
+        // 锁定/解锁舱门
+        IDoorService doorService = ServiceManager.getInstance().getDoorService();
+        if (doorService instanceof com.weigao.robot.control.service.impl.DoorServiceImpl) {
+            ((com.weigao.robot.control.service.impl.DoorServiceImpl) doorService).setChargingLocked(locked);
+        }
     }
 
     // ==================== 紫外灯消毒控制 ====================
@@ -252,6 +290,46 @@ public class UVDisinfectionManager {
     private void notifyStateChanged() {
         if (stateChangeListener != null) {
             stateChangeListener.onDisinfectionStateChanged(isDisinfecting, remainingMs);
+        }
+    }
+
+    // ==================== 充电前置准备 ====================
+
+    /**
+     * 确保投影灯关闭（充电前调用）
+     */
+    private void ensureProjectionLightOff() {
+        try {
+            ProjectionDoorService.getInstance().ensureLightOff();
+            Log.d(TAG, "【充电前准备】投影灯已关闭");
+        } catch (Exception e) {
+            Log.e(TAG, "【充电前准备】关闭投影灯异常", e);
+        }
+    }
+
+    /**
+     * 确保所有舱门关闭（充电前调用）
+     */
+    private void ensureDoorsClosed() {
+        try {
+            IDoorService doorService = ServiceManager.getInstance().getDoorService();
+            if (doorService == null) {
+                Log.w(TAG, "【充电前准备】舱门服务不可用");
+                return;
+            }
+            doorService.closeAllDoors(new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    Log.d(TAG, "【充电前准备】所有舱门已关闭");
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    Log.e(TAG, "【充电前准备】关闭舱门失败: " + error.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "【充电前准备】关闭舱门异常", e);
         }
     }
 }

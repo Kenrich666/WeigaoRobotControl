@@ -59,6 +59,9 @@ public class DoorServiceImpl implements IDoorService {
     /** 是否已初始化 */
     private boolean initialized = false;
 
+    /** 充电锁定标志：充电期间禁止开门 */
+    private volatile boolean chargingLocked = false;
+
     /** 内部跟踪：所有门是否已打开 (用于 T3 SensorDoor 状态同步) */
     private boolean allDoorsOpen = false;
 
@@ -184,6 +187,11 @@ public class DoorServiceImpl implements IDoorService {
     @Override
     public void openDoor(int doorId, boolean single, IResultCallback<Void> callback) {
         Log.d(TAG, "openDoor: doorId=" + doorId + ", single=" + single);
+        if (chargingLocked) {
+            Log.w(TAG, "【充电锁定】充电中禁止开门");
+            notifyError(callback, -2, "充电中禁止开门");
+            return;
+        }
         try {
             if (isValidDoorId(doorId)) {
                 // T3 机器人使用 SensorDoor API
@@ -222,6 +230,11 @@ public class DoorServiceImpl implements IDoorService {
     @Override
     public void openAllDoors(boolean single, IResultCallback<Void> callback) {
         Log.d(TAG, "openAllDoors: single=" + single);
+        if (chargingLocked) {
+            Log.w(TAG, "【充电锁定】充电中禁止开门");
+            notifyError(callback, -2, "充电中禁止开门");
+            return;
+        }
         try {
             // T3 机器人使用 SensorDoor API 打开所有舱门
             SensorDoor.getInstance().setDoorSwitch(ProtoDev.SENSOR_DOOR_1, true);
@@ -506,6 +519,21 @@ public class DoorServiceImpl implements IDoorService {
             default:
                 return Door.SET_TYPE_FOUR;
         }
+    }
+
+    // ==================== 充电锁定 ====================
+
+    /**
+     * 设置充电锁定状态
+     * 充电时锁定，禁止开门；停止充电时解锁
+     */
+    public void setChargingLocked(boolean locked) {
+        this.chargingLocked = locked;
+        Log.d(TAG, "充电锁定状态: " + (locked ? "已锁定" : "已解锁"));
+    }
+
+    public boolean isChargingLocked() {
+        return chargingLocked;
     }
 
     // ==================== 辅助方法 ====================

@@ -80,12 +80,19 @@ public class ProjectionDoorService {
     private boolean isLightOn = false;
     private OnDoorActionListener doorActionListener;
 
+    /** 充电锁定标志：充电期间禁止开灯和检测 */
+    private volatile boolean chargingLocked = false;
+
     // ==================== 公开方法 ====================
 
     /**
      * 启动持续检测（开灯 + 循环检测）
      */
     public void startContinuousDetection() {
+        if (chargingLocked) {
+            Log.w(TAG, "【充电锁定】充电中禁止开启投影灯检测");
+            return;
+        }
         Log.d(TAG, "启动持续检测");
         turnOnLight();
         startDetectionLoop();
@@ -113,6 +120,10 @@ public class ProjectionDoorService {
      * 恢复检测（到达目标点调用：开灯 + 重启检测）
      */
     public void resumeAfterMovement() {
+        if (chargingLocked) {
+            Log.w(TAG, "【充电锁定】充电中禁止恢复投影灯检测");
+            return;
+        }
         Log.d(TAG, "恢复检测（到达目标点）");
         turnOnLight();
         startDetectionLoop();
@@ -132,6 +143,16 @@ public class ProjectionDoorService {
         this.doorActionListener = null;
     }
 
+    /**
+     * 强制确保投影灯关闭（应用启动/退出时调用）
+     * 无论当前检测状态如何，都会停止检测并关闭灯光
+     */
+    public void ensureLightOff() {
+        Log.d(TAG, "强制确保投影灯关闭");
+        stopDetection();
+        turnOffLight();
+    }
+
     public boolean isLightOn() {
         return isLightOn;
     }
@@ -140,9 +161,32 @@ public class ProjectionDoorService {
         return isDetecting;
     }
 
+    // ==================== 充电锁定 ====================
+
+    /**
+     * 设置充电锁定状态
+     * 充电时锁定，禁止开灯和检测；停止充电时解锁
+     */
+    public void setChargingLocked(boolean locked) {
+        this.chargingLocked = locked;
+        Log.d(TAG, "充电锁定状态: " + (locked ? "已锁定" : "已解锁"));
+        if (locked) {
+            // 锁定时立即关灯停止检测
+            ensureLightOff();
+        }
+    }
+
+    public boolean isChargingLocked() {
+        return chargingLocked;
+    }
+
     // ==================== 投影灯控制 ====================
 
     public void turnOnLight() {
+        if (chargingLocked) {
+            Log.w(TAG, "【充电锁定】充电中禁止开启投影灯");
+            return;
+        }
         setProjectionLight(true);
         isLightOn = true;
     }
@@ -310,6 +354,7 @@ public class ProjectionDoorService {
                 public void onSuccess(Boolean allClosed) {
                     handler.post(() -> {
                         boolean isOpening = allClosed;
+                        final boolean isClosing = !isOpening;
                         IResultCallback<Void> doorOpCallback = new IResultCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
@@ -318,10 +363,11 @@ public class ProjectionDoorService {
                                     try {
                                         android.content.Intent intent = new android.content.Intent(
                                                 "com.weigao.robot.DOOR_STATE_CHANGED");
+                                        intent.putExtra("is_closing", isClosing);
                                         androidx.localbroadcastmanager.content.LocalBroadcastManager
                                                 .getInstance(WeigaoApplication.getInstance())
                                                 .sendBroadcast(intent);
-                                        Log.d(TAG, "已发送门状态变化广播");
+                                        Log.d(TAG, "已发送门状态变化广播, is_closing=" + isClosing);
                                     } catch (Exception e) {
                                         Log.e(TAG, "发送广播异常", e);
                                     }

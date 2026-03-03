@@ -21,10 +21,16 @@ import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
 
 import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
 import android.os.CountDownTimer;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 import com.weigao.robot.control.app.WeigaoApplication;
+import com.weigao.robot.control.manager.AppSettingsManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -75,6 +81,11 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
         setupListeners();
         startDepartureTimer();
+
+        // 注册投影灯脚踩门状态变化广播
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+                doorBroadcastReceiver,
+                new IntentFilter("com.weigao.robot.DOOR_STATE_CHANGED"));
     }
 
     private void initViews() {
@@ -321,7 +332,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     Toast.makeText(ConfirmReceiptActivity.this, "关门指令失败: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show();
-                    
+
                     if (isManual) {
                         // 如果是手动触发，允许重试
                         btnOpenCabin.setEnabled(true);
@@ -353,7 +364,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 Toast.makeText(ConfirmReceiptActivity.this, "关门检测超时，5秒后自动离场", Toast.LENGTH_LONG).show();
                 btnOpenCabin.setEnabled(false);
                 tvCountdown.setText("检测超时，即将离场...");
-                
+
                 // 延迟5秒后强制结束，避免无限等待
                 new android.os.Handler().postDelayed(() -> {
                     if (!isFinishing()) {
@@ -412,19 +423,21 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             departureTimer.cancel();
             departureTimer = null;
         }
+        // 注销广播接收器
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(doorBroadcastReceiver);
         super.onDestroy();
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        
+
         // 如果Activity已经在结束过程中（例如超时触发了自动离场），忽略密码验证结果
         if (isFinishing()) {
             Log.d(TAG, "【密码验证】Activity正在结束，忽略密码验证结果");
             return;
         }
-        
+
         if (requestCode == REQUEST_CODE_VERIFY_PASSWORD && resultCode == RESULT_OK) {
             // 密码验证通过，执行开门
             performOpenCabin();
@@ -490,5 +503,79 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             WeigaoApplication.applyFullScreen(this);
         }
     }
+
+    // ==================== 投影灯脚踩门状态广播 ====================
+
+    /**
+     * 监听投影灯脚踩引起的门状态变化
+     * - 收到"开门完成"广播：更新按钮为"确认收货"状态
+     * - 收到"关门完成"广播：自动执行确认收货并离场，触发前往下一个点
+     */
+    private final BroadcastReceiver doorBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            boolean isClosing = intent.getBooleanExtra("is_closing", false);
+            Log.d(TAG, "收到门状态变化广播, is_closing=" + isClosing);
+
+            if (isClosing) {
+                // 投影灯触发了关门操作 -> 自动确认收货并离场
+                Log.d(TAG, "【投影灯关门】自动执行确认收货流程");
+
+                // 取消倒计时
+                if (departureTimer != null) {
+                    departureTimer.cancel();
+                }
+
+                // 如果之前已经开过门但还没确认收货，记录成功
+                if (isConfirmState) {
+                    // 已经记录过了，不重复记录
+                } else {
+                    // 投影灯直接完成了开→关循环，也记录为成功
+                    String pointName = currentNode != null ? currentNode.getName() : "未知点位";
+                    ItemDeliveryManager.getInstance().recordPointArrival(pointName,
+                            ItemDeliveryRecord.STATUS_SUCCESS);
+                }
+
+                runOnUiThread(() -> {
+                    btnOpenCabin.setEnabled(false);
+                    btnOpenCabin.setText("舱门已关闭");
+                    tvCountdown.setText("舱门已关闭，即将离场...");
+
+                    // 延迟3秒后自动离场（给门关闭动作留出时间）
+                    new android.os.Handler().postDelayed(() -> {
+                        if (!isFinishing()) {
+                            finishWithSuccess();
+                        }
+                    }, 3000);
+                });
+            } else {
+                // 投影灯触发了开门操作 -> 更新按钮为"确认收货"状态
+                Log.d(TAG, "【投影灯开门】更新按钮为确认收货状态");
+                runOnUiThread(() -> {
+                    if (!isConfirmState) {
+                        btnOpenCabin.setText("确认收货");
+                        isConfirmState = true;
+
+                        // 记录到达时间 (成功)
+                        String pointName = currentNode != null ? currentNode.getName() : "未知点位";
+                        ItemDeliveryRecord record = ItemDeliveryManager.getInstance().recordPointArrival(pointName,
+                                ItemDeliveryRecord.STATUS_SUCCESS);
+
+                        if (record != null) {
+                            tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
+                            tvArrivalDuration.setVisibility(View.VISIBLE);
+                        }
+
+                        // 延迟启用按钮
+                        new android.os.Handler().postDelayed(() -> {
+                            if (!isFinishing()) {
+                                btnOpenCabin.setEnabled(true);
+                            }
+                        }, 3000);
+                    }
+                });
+            }
+        }
+    };
 
 }

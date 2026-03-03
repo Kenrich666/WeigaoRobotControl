@@ -245,8 +245,15 @@ public class BasicSettingsFragment extends Fragment {
 
         // 脚踩投影灯开关门 Switch
         androidx.appcompat.widget.SwitchCompat switchProjectionDoor = view.findViewById(R.id.switch_projection_door);
-        switchProjectionDoor.setChecked(settingsManager.isProjectionDoorEnabled());
+
+        // 首次初始化优先反映硬件真实状态
+        boolean actualStatus = ProjectionDoorService.getInstance().isLightOn()
+                || ProjectionDoorService.getInstance().isDetecting();
+        switchProjectionDoor.setChecked(actualStatus);
+
         switchProjectionDoor.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed())
+                return; // 仅响应当用户主动点击，防止回调循环
             settingsManager.setProjectionDoorEnabled(isChecked);
             // 立即控制投影灯和检测
             if (isChecked) {
@@ -255,6 +262,23 @@ public class BasicSettingsFragment extends Fragment {
                 ProjectionDoorService.getInstance().stopContinuousDetection();
             }
         });
+
+        // 轮询检查投影灯实际状态，实现 实际状态 -> UI 的双向绑定同步
+        Runnable syncRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (getActivity() == null || getActivity().isFinishing() || !isVisible()
+                        || switchProjectionDoor == null)
+                    return;
+                boolean currentActual = ProjectionDoorService.getInstance().isLightOn()
+                        || ProjectionDoorService.getInstance().isDetecting();
+                if (switchProjectionDoor.isChecked() != currentActual) {
+                    switchProjectionDoor.setChecked(currentActual);
+                }
+                switchProjectionDoor.postDelayed(this, 1000);
+            }
+        };
+        switchProjectionDoor.postDelayed(syncRunnable, 1000);
 
         return view;
     }

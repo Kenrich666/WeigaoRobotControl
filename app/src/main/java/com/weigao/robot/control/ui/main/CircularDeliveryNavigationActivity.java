@@ -335,6 +335,10 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void startPilotNext() {
+        // 即将移动，确保投影灯关闭
+        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().pauseForMovement();
+        }
         navigationService.pilotNext(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
@@ -543,6 +547,11 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_ARRIVAL) {
+            // 离开到达页面，立即关闭投影灯，防止移动过程中灯亮
+            if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                ProjectionDoorService.getInstance().pauseForMovement();
+            }
+
             if (resultCode == CircularArrivalActivity.RESULT_CONTINUE) {
                 // Check if last one
                 if (currentTaskIndex >= targetNodes.size() - 1) {
