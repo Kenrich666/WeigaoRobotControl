@@ -147,6 +147,11 @@ public class ChargerServiceImpl implements IChargerService {
                 // 更新本地状态
                 if (action == CHARGE_ACTION_STOP) {
                     isCharging = false;
+                    chargerInfo.setCharging(false);
+                    chargerInfo.setEvent(SdkErrorCode.CHARGER_EVENT_EXIT);
+                    // Emergency stop/manual stop may not trigger an immediate new SDK charging event.
+                    // Push a local state callback so UI can exit "charging" without waiting.
+                    notifyChargerInfoChanged(SdkErrorCode.CHARGER_EVENT_EXIT, chargerInfo);
                 }
             }
             notifySuccess(callback);

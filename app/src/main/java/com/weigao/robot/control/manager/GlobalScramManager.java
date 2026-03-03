@@ -11,9 +11,12 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.weigao.robot.control.R;
+import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.IResultCallback;
 
 import com.weigao.robot.control.callback.IStateCallback;
 import com.weigao.robot.control.model.RobotState;
+import com.weigao.robot.control.service.IChargerService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 
@@ -116,6 +119,9 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
         Log.d(TAG, "收到急停状态: " + pressed);
 
         // 在主线程处理 UI
+        if (pressed) {
+            stopChargingOnScram();
+        }
         Activity activity = getCurrentActivity();
         if (activity != null) {
             activity.runOnUiThread(() -> {
@@ -129,6 +135,28 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
     }
 
     // ==================== UI 逻辑 ====================
+
+    private void stopChargingOnScram() {
+        try {
+            IChargerService chargerService = ServiceManager.getInstance().getChargerService();
+            if (chargerService == null) {
+                return;
+            }
+            chargerService.stopCharge(new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    Log.d(TAG, "Emergency stop triggered charge stop");
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    Log.w(TAG, "Emergency stop charge stop failed: " + error.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Emergency stop charge stop exception", e);
+        }
+    }
 
     private void showScramDialog(Activity activity) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
