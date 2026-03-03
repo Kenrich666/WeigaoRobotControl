@@ -76,7 +76,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:max="70"
+                            android:max="80"
+                            android:min="10"
                             android:progress="50"
                             android:progressTint="@color/medical_primary"
                             android:thumbTint="@color/medical_primary" />
@@ -111,7 +112,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:max="70"
+                            android:max="80"
+                            android:min="10"
                             android:progress="50"
                             android:progressTint="@color/medical_primary"
                             android:thumbTint="@color/medical_primary" />
@@ -175,7 +177,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:max="70"
+                            android:max="80"
+                            android:min="10"
                             android:progress="50"
                             android:progressTint="@color/medical_primary"
                             android:thumbTint="@color/medical_primary" />
@@ -210,7 +213,8 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:max="70"
+                            android:max="80"
+                            android:min="10"
                             android:progress="50"
                             android:progressTint="@color/medical_primary"
                             android:thumbTint="@color/medical_primary" />

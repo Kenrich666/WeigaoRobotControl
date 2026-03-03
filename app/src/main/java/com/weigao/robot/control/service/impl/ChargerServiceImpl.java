@@ -222,15 +222,8 @@ public class ChargerServiceImpl implements IChargerService {
                 };
                 peanutCharger.performAction(sdkAction);
 
-                // 更新本地状态
-                if (action == CHARGE_ACTION_STOP) {
-                    isCharging = false;
-                    chargerInfo.setCharging(false);
-                    chargerInfo.setEvent(SdkErrorCode.CHARGER_EVENT_EXIT);
-                    // Emergency stop/manual stop may not trigger an immediate new SDK charging event.
-                    // Push a local state callback so UI can exit "charging" without waiting.
-                    notifyChargerInfoChanged(SdkErrorCode.CHARGER_EVENT_EXIT, chargerInfo);
-                }
+                // 用户主动发起充电操作时，清除启动保护标志
+                initResetPending = false;
             }
             notifySuccess(callback);
         } catch (Exception e) {
