@@ -132,6 +132,16 @@ public class ProjectionDoorService {
         this.doorActionListener = null;
     }
 
+    /**
+     * 强制确保投影灯关闭（应用启动/退出时调用）
+     * 无论当前检测状态如何，都会停止检测并关闭灯光
+     */
+    public void ensureLightOff() {
+        Log.d(TAG, "强制确保投影灯关闭");
+        stopDetection();
+        turnOffLight();
+    }
+
     public boolean isLightOn() {
         return isLightOn;
     }

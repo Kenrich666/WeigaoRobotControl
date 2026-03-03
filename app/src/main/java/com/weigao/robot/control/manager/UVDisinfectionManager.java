@@ -14,7 +14,9 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.model.ChargerInfo;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IChargerService;
+import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 
 /**
  * 紫外灯消毒全局管理器（单例）
@@ -170,6 +172,12 @@ public class UVDisinfectionManager {
                 pendingStopRunnable = null;
                 Log.d(TAG, "【紫外灯】取消待执行的关灯操作（充电状态抖动）");
             }
+
+            // 充电前确保投影灯关闭
+            ensureProjectionLightOff();
+            // 充电前确保舱门关闭
+            ensureDoorsClosed();
+
             if (!isDisinfecting) {
                 Log.d(TAG, "【紫外灯】检测到充电开始，启动紫外灯消毒");
                 startUVDisinfection();
@@ -252,6 +260,46 @@ public class UVDisinfectionManager {
     private void notifyStateChanged() {
         if (stateChangeListener != null) {
             stateChangeListener.onDisinfectionStateChanged(isDisinfecting, remainingMs);
+        }
+    }
+
+    // ==================== 充电前置准备 ====================
+
+    /**
+     * 确保投影灯关闭（充电前调用）
+     */
+    private void ensureProjectionLightOff() {
+        try {
+            ProjectionDoorService.getInstance().ensureLightOff();
+            Log.d(TAG, "【充电前准备】投影灯已关闭");
+        } catch (Exception e) {
+            Log.e(TAG, "【充电前准备】关闭投影灯异常", e);
+        }
+    }
+
+    /**
+     * 确保所有舱门关闭（充电前调用）
+     */
+    private void ensureDoorsClosed() {
+        try {
+            IDoorService doorService = ServiceManager.getInstance().getDoorService();
+            if (doorService == null) {
+                Log.w(TAG, "【充电前准备】舱门服务不可用");
+                return;
+            }
+            doorService.closeAllDoors(new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    Log.d(TAG, "【充电前准备】所有舱门已关闭");
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    Log.e(TAG, "【充电前准备】关闭舱门失败: " + error.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "【充电前准备】关闭舱门异常", e);
         }
     }
 }
