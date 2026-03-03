@@ -39,10 +39,6 @@ import com.weigao.robot.control.R;
 // （若是新机则读取代码默认值），并立即调用 saveConfig() 将这些默认值（如密码 123456）写入本地文件 (/sdcard/WeigaoRobot/config/security_config.json)。
 public class BasicSettingsFragment extends Fragment {
 
-    private static final int SPEED_MIN = 10;
-    private static final int SPEED_MAX = 80;
-    private static final int SPEED_PROGRESS_MAX = SPEED_MAX - SPEED_MIN;
-
     private DrawerLayout drawerLayout;
 
     @Nullable
@@ -117,16 +113,15 @@ public class BasicSettingsFragment extends Fragment {
 
         int currentItemSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
                 .getDeliverySpeed();
-        currentItemSpeed = clampSpeed(currentItemSpeed);
-        itemSpeedSeekBar.setMax(SPEED_PROGRESS_MAX);
-        itemSpeedSeekBar.setProgress(toSeekBarProgress(currentItemSpeed));
+        itemSpeedSeekBar.setProgress(currentItemSpeed);
         itemSpeedValue.setText(String.format("%d cm/s", currentItemSpeed));
 
         itemSpeedSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                int speed = toSpeedValue(progress);
-                itemSpeedValue.setText(String.format("%d cm/s", speed));
+                if (progress < 10)
+                    progress = 10;
+                itemSpeedValue.setText(String.format("%d cm/s", progress));
             }
 
             @Override
@@ -135,8 +130,10 @@ public class BasicSettingsFragment extends Fragment {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                int speed = toSpeedValue(seekBar.getProgress());
-                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setDeliverySpeed(speed);
+                int progress = seekBar.getProgress();
+                if (progress < 10)
+                    progress = 10;
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setDeliverySpeed(progress);
             }
         });
 
@@ -146,16 +143,15 @@ public class BasicSettingsFragment extends Fragment {
 
         int currentItemReturnSpeed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
                 .getReturnSpeed();
-        currentItemReturnSpeed = clampSpeed(currentItemReturnSpeed);
-        itemReturnSeekBar.setMax(SPEED_PROGRESS_MAX);
-        itemReturnSeekBar.setProgress(toSeekBarProgress(currentItemReturnSpeed));
+        itemReturnSeekBar.setProgress(currentItemReturnSpeed);
         itemReturnSpeedValue.setText(String.format("%d cm/s", currentItemReturnSpeed));
 
         itemReturnSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                int speed = toSpeedValue(progress);
-                itemReturnSpeedValue.setText(String.format("%d cm/s", speed));
+                if (progress < 10)
+                    progress = 10;
+                itemReturnSpeedValue.setText(String.format("%d cm/s", progress));
             }
 
             @Override
@@ -164,8 +160,10 @@ public class BasicSettingsFragment extends Fragment {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                int speed = toSpeedValue(seekBar.getProgress());
-                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setReturnSpeed(speed);
+                int progress = seekBar.getProgress();
+                if (progress < 10)
+                    progress = 10;
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setReturnSpeed(progress);
             }
         });
 
@@ -176,16 +174,19 @@ public class BasicSettingsFragment extends Fragment {
 
         int currentSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
                 .getDeliverySpeed();
-        currentSpeed = clampSpeed(currentSpeed);
-        seekBar.setMax(SPEED_PROGRESS_MAX);
-        seekBar.setProgress(toSeekBarProgress(currentSpeed));
+        seekBar.setProgress(currentSpeed);
         speedValue.setText(String.format("%d cm/s", currentSpeed));
 
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                int speed = toSpeedValue(progress);
-                speedValue.setText(String.format("%d cm/s", speed));
+                // Ensure value is at least min if necessary, though min attribute handles it in
+                // API 26+
+                // If min attribute is not supported by target SDK, handle it here. Assuming API
+                // 26+ or valid min.
+                if (progress < 10)
+                    progress = 10;
+                speedValue.setText(String.format("%d cm/s", progress));
             }
 
             @Override
@@ -195,7 +196,9 @@ public class BasicSettingsFragment extends Fragment {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                int progress = toSpeedValue(seekBar.getProgress());
+                int progress = seekBar.getProgress();
+                if (progress < 10)
+                    progress = 10;
                 com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
                         .setDeliverySpeed(progress);
             }
@@ -207,16 +210,15 @@ public class BasicSettingsFragment extends Fragment {
 
         int currentReturnSpeed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
                 .getReturnSpeed();
-        currentReturnSpeed = clampSpeed(currentReturnSpeed);
-        returnSeekBar.setMax(SPEED_PROGRESS_MAX);
-        returnSeekBar.setProgress(toSeekBarProgress(currentReturnSpeed));
+        returnSeekBar.setProgress(currentReturnSpeed);
         returnSpeedValue.setText(String.format("%d cm/s", currentReturnSpeed));
 
         returnSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                int speed = toSpeedValue(progress);
-                returnSpeedValue.setText(String.format("%d cm/s", speed));
+                if (progress < 10)
+                    progress = 10;
+                returnSpeedValue.setText(String.format("%d cm/s", progress));
             }
 
             @Override
@@ -225,8 +227,10 @@ public class BasicSettingsFragment extends Fragment {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                int speed = toSpeedValue(seekBar.getProgress());
-                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().setReturnSpeed(speed);
+                int progress = seekBar.getProgress();
+                if (progress < 10)
+                    progress = 10;
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().setReturnSpeed(progress);
             }
         });
 
@@ -281,18 +285,6 @@ public class BasicSettingsFragment extends Fragment {
         switchProjectionDoor.postDelayed(syncRunnable, 1000);
 
         return view;
-    }
-
-    private int clampSpeed(int speed) {
-        return Math.max(SPEED_MIN, Math.min(SPEED_MAX, speed));
-    }
-
-    private int toSeekBarProgress(int speed) {
-        return clampSpeed(speed) - SPEED_MIN;
-    }
-
-    private int toSpeedValue(int progress) {
-        return clampSpeed(progress + SPEED_MIN);
     }
 
     private void applyFullScreen(boolean enable) {
