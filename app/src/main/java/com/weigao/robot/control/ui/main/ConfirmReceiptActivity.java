@@ -252,8 +252,14 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         }
 
         // 从设置中读取取物停留时间（秒）
-        int stayDurationSeconds = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
-                .getArrivalStayDuration();
+        int stayDurationSeconds;
+        if ("hospital".equals(recordMode)) {
+            stayDurationSeconds = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                    .getArrivalStayDuration();
+        } else {
+            stayDurationSeconds = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                    .getArrivalStayDuration();
+        }
         long stayDurationMs = stayDurationSeconds * 1000L;
 
         departureTimer = new CountDownTimer(stayDurationMs, 1000) {
