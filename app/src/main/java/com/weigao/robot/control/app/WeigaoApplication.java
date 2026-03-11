@@ -58,6 +58,7 @@ public class WeigaoApplication extends Application {
 
         // [新增] 注册全局急停监听
         com.weigao.robot.control.manager.GlobalScramManager.getInstance().init(this);
+        com.weigao.robot.control.manager.LowBatteryAutoChargeManager.getInstance().init(this);
 
         // [新增] 初始化设置管理器，确保开机时默认配置文件被写入本地
         // 移至权限获取后初始化
@@ -253,6 +254,7 @@ public class WeigaoApplication extends Application {
 
                 // [新增] 初始化紫外灯消毒管理器（全局监听充电状态）
                 com.weigao.robot.control.manager.UVDisinfectionManager.getInstance().init();
+                com.weigao.robot.control.manager.LowBatteryAutoChargeManager.getInstance().connectService();
 
                 // [新增] 确保投影灯在启动时处于关闭状态（防止上次异常退出残留）
                 com.weigao.robot.control.service.impl.ProjectionDoorService.getInstance().ensureLightOff();
@@ -262,6 +264,9 @@ public class WeigaoApplication extends Application {
                     com.weigao.robot.control.service.impl.ProjectionDoorService.getInstance()
                             .startContinuousDetection();
                 }
+
+                // [新增] 初始化工作时段调度服务
+                com.weigao.robot.control.manager.WorkScheduleService.getInstance().init(getApplicationContext());
 
                 // 启动 PeanutRuntime (参考 SampleApp)
                 PeanutRuntime.getInstance().start(new PeanutRuntime.Listener() {
@@ -311,7 +316,19 @@ public class WeigaoApplication extends Application {
             Log.e(TAG, "关闭投影灯异常", e);
         }
 
+        // [新增] 释放工作时段调度服务
+        try {
+            com.weigao.robot.control.manager.WorkScheduleService.getInstance().release();
+        } catch (Exception e) {
+            Log.e(TAG, "释放工作时段调度服务异常", e);
+        }
+
         // 释放服务管理器
+        try {
+            com.weigao.robot.control.manager.LowBatteryAutoChargeManager.getInstance().release();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to release low battery auto charge manager", e);
+        }
         ServiceManager.getInstance().release();
 
         // 释放 SDK 资源
@@ -341,11 +358,6 @@ public class WeigaoApplication extends Application {
      */
     public void setSdkInitListener(SdkInitListener listener) {
         this.sdkInitListener = listener;
-
-        // 如果 SDK 已初始化，立即回调
-        if (sdkInitialized && listener != null) {
-            listener.onSdkInitSuccess();
-        }
     }
 
     /**
