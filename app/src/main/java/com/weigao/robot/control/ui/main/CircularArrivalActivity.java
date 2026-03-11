@@ -42,7 +42,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
     private IDoorService doorService;
     private Button btnOpenDoor;
 
-    private static final long COUNTDOWN_TIME_MS = 30000; // 30 seconds
+    private long countdownTimeMs; // 从设置中动态读取
     private TextView tvArrivalMessage;
     private android.os.CountDownTimer countDownTimer;
     private boolean isLastPoint = false;
@@ -66,6 +66,11 @@ public class CircularArrivalActivity extends AppCompatActivity {
 
         isLastPoint = getIntent().getBooleanExtra("is_last_point", false);
         String currentPointName = getIntent().getStringExtra("current_point_name");
+
+        // 从设置中读取循环配送取物停留时间
+        int stayDurationSeconds = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                .getArrivalStayDuration();
+        countdownTimeMs = stayDurationSeconds * 1000L;
 
         initViews();
         if (currentPointName != null) {
@@ -153,7 +158,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
-        countDownTimer = new android.os.CountDownTimer(COUNTDOWN_TIME_MS, 1000) {
+        countDownTimer = new android.os.CountDownTimer(countdownTimeMs, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
                 if (!isFinishing()) {

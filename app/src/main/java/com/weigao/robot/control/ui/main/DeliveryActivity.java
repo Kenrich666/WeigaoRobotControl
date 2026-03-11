@@ -25,6 +25,8 @@ import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
+import com.weigao.robot.control.manager.TaskExecutionStateManager;
+import com.weigao.robot.control.manager.TaskType;
 
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 import com.keenon.sdk.component.navigation.route.RouteNode;
@@ -700,6 +702,7 @@ public class DeliveryActivity extends AppCompatActivity {
     private void startDelivery() {
         // 记录开始配送时间
         ItemDeliveryManager.getInstance().startDelivery();
+        TaskExecutionStateManager.getInstance().startTask(TaskType.ITEM_DELIVERY);
 
         Intent intent = new Intent(this, DeliveryNavigationActivity.class);
         intent.putExtra("pairings", pairings);

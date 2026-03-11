@@ -65,7 +65,7 @@
                         android:layout_marginBottom="16dp">
 
                         <TextView
-                            android:layout_width="80dp"
+                            android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:text="配送速度"
                             android:textColor="@color/medical_text_secondary"
@@ -97,10 +97,11 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
 
                         <TextView
-                            android:layout_width="80dp"
+                            android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:text="返航速度"
                             android:textColor="@color/medical_text_secondary"
@@ -122,6 +123,41 @@
                             android:layout_height="wrap_content"
                             android:gravity="end"
                             android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <!-- 取物停留时间 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="100dp"
+                            android:layout_height="wrap_content"
+                            android:text="取物停留时间"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_item_arrival_stay"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="110"
+                            android:progress="20"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_item_arrival_stay_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="30 秒"
                             android:textColor="@color/medical_text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold"/>
@@ -164,7 +200,7 @@
                         android:layout_marginBottom="16dp">
 
                         <TextView
-                            android:layout_width="80dp"
+                            android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:text="配送速度"
                             android:textColor="@color/medical_text_secondary"
@@ -196,10 +232,11 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
 
                         <TextView
-                            android:layout_width="80dp"
+                            android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:text="返航速度"
                             android:textColor="@color/medical_text_secondary"
@@ -221,6 +258,41 @@
                             android:layout_height="wrap_content"
                             android:gravity="end"
                             android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <!-- 取物停留时间 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="100dp"
+                            android:layout_height="wrap_content"
+                            android:text="取物停留时间"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_circular_arrival_stay"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="110"
+                            android:progress="20"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_circular_arrival_stay_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="30 秒"
                             android:textColor="@color/medical_text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold"/>

@@ -46,6 +46,11 @@ public class BasicSettingsFragment extends Fragment {
     private static final int SPEED_MAX = 80;
     private static final int SPEED_PROGRESS_MAX = SPEED_MAX - SPEED_MIN;
 
+    // 取物停留时间范围（秒）
+    private static final int STAY_MIN = 10;
+    private static final int STAY_MAX = 120;
+    private static final int STAY_PROGRESS_MAX = STAY_MAX - STAY_MIN;
+
     private DrawerLayout drawerLayout;
 
     @Nullable
@@ -190,6 +195,35 @@ public class BasicSettingsFragment extends Fragment {
             }
         });
 
+        // --- 物品配送取物停留时间设置 ---
+        SeekBar itemArrivalStaySeekBar = view.findViewById(R.id.seekbar_item_arrival_stay);
+        TextView itemArrivalStayValue = view.findViewById(R.id.tv_item_arrival_stay_value);
+
+        int currentItemStay = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                .getArrivalStayDuration();
+        currentItemStay = clampStay(currentItemStay);
+        itemArrivalStaySeekBar.setMax(STAY_PROGRESS_MAX);
+        itemArrivalStaySeekBar.setProgress(toStaySeekBarProgress(currentItemStay));
+        itemArrivalStayValue.setText(String.format("%d 秒", currentItemStay));
+
+        itemArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int stay = toStayValue(progress);
+                itemArrivalStayValue.setText(String.format("%d 秒", stay));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int stay = toStayValue(seekBar.getProgress());
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().setArrivalStayDuration(stay);
+            }
+        });
+
         // --- 2. 循环配送速度设置 ---
 
         SeekBar hospitalDeliverySeekBar = view.findViewById(R.id.seekbar_hospital_delivery_speed);
@@ -309,6 +343,35 @@ public class BasicSettingsFragment extends Fragment {
             }
         });
 
+        // --- 循环配送取物停留时间设置 ---
+        SeekBar circularArrivalStaySeekBar = view.findViewById(R.id.seekbar_circular_arrival_stay);
+        TextView circularArrivalStayValue = view.findViewById(R.id.tv_circular_arrival_stay_value);
+
+        int currentCircularStay = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                .getArrivalStayDuration();
+        currentCircularStay = clampStay(currentCircularStay);
+        circularArrivalStaySeekBar.setMax(STAY_PROGRESS_MAX);
+        circularArrivalStaySeekBar.setProgress(toStaySeekBarProgress(currentCircularStay));
+        circularArrivalStayValue.setText(String.format("%d 秒", currentCircularStay));
+
+        circularArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int stay = toStayValue(progress);
+                circularArrivalStayValue.setText(String.format("%d 秒", stay));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int stay = toStayValue(seekBar.getProgress());
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().setArrivalStayDuration(stay);
+            }
+        });
+
         // Fullscreen Switch
         androidx.appcompat.widget.SwitchCompat switchFullscreen = view.findViewById(R.id.switch_fullscreen);
         // Use AppSettingsManager instead of SharedPreferences
@@ -388,6 +451,17 @@ public class BasicSettingsFragment extends Fragment {
             }
         }
         return items;
+    // 取物停留时间转换方法
+    private int clampStay(int stay) {
+        return Math.max(STAY_MIN, Math.min(STAY_MAX, stay));
+    }
+
+    private int toStaySeekBarProgress(int stay) {
+        return clampStay(stay) - STAY_MIN;
+    }
+
+    private int toStayValue(int progress) {
+        return clampStay(progress + STAY_MIN);
     }
 
     private void applyFullScreen(boolean enable) {

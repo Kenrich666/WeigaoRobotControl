@@ -26,6 +26,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.manager.CircularDeliverySettingsManager;
 import com.weigao.robot.control.manager.ItemDeliverySettingsManager;
+import com.weigao.robot.control.manager.LowBatteryAutoChargeSettingsManager;
 import com.weigao.robot.control.manager.SoundSettingsManager;
 import com.weigao.robot.control.service.ISecurityService;
 import com.weigao.robot.control.service.ServiceManager;
@@ -46,12 +47,15 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private static final int REQUEST_CODE_PERMISSIONS = 101;
+    public static final String EXTRA_SKIP_POSITIONING = "extra_skip_positioning";
+    private boolean skipPositioningOnEntry;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "MainActivity onCreate - 启动应用");
         setContentView(R.layout.activity_main);
+        skipPositioningOnEntry = getIntent().getBooleanExtra(EXTRA_SKIP_POSITIONING, false);
 
         // 尝试应用全屏模式（基于上次保存的设置）
         if (AppSettingsManager.getInstance().isFullScreen()) {
@@ -264,33 +268,46 @@ public class MainActivity extends AppCompatActivity {
         com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().reloadSettings();
         com.weigao.robot.control.manager.HospitalItemPresetManager.getInstance().reloadSettings();
         SoundSettingsManager.getInstance().reloadSettings();
+        LowBatteryAutoChargeSettingsManager.getInstance().reloadSettings();
+        com.weigao.robot.control.manager.WorkScheduleSettingsManager.getInstance().reloadSettings();
 
         com.weigao.robot.control.app.WeigaoApplication app = com.weigao.robot.control.app.WeigaoApplication
                 .getInstance();
 
+        if (app.isSdkInitialized()) {
+            runOnUiThread(this::handleSdkInitSuccess);
+            return;
+        }
+
         app.setSdkInitListener(new com.weigao.robot.control.app.WeigaoApplication.SdkInitListener() {
             @Override
             public void onSdkInitSuccess() {
-                runOnUiThread(() -> {
-                    Log.i(TAG, "SDK 初始化成功！执行默认配置检查与写入...");
-
-                    // 2. 写入默认配置并应用（仅当配置缺失时）
-                    setupDefaultConfigurations();
-
-                    Log.i(TAG, "弹出定位窗口");
-                    Intent intent = new Intent(MainActivity.this,
-                            com.weigao.robot.control.ui.main.PositioningActivity.class);
-                    startActivity(intent);
-                });
+                runOnUiThread(MainActivity.this::handleSdkInitSuccess);
             }
 
             @Override
             public void onSdkInitError(int errorCode) {
-                Log.e(TAG, "SDK 初始化失败，错误码: " + errorCode);
+                Log.e(TAG, "SDK init failed, errorCode=" + errorCode);
             }
         });
 
         app.initializeSdk();
+    }
+
+    private void handleSdkInitSuccess() {
+        Log.i(TAG, "SDK init succeeded, apply default configuration if needed.");
+
+        setupDefaultConfigurations();
+
+        if (skipPositioningOnEntry) {
+            Log.i(TAG, "Skip positioning on entry and stay on main page.");
+            return;
+        }
+
+        Log.i(TAG, "Open positioning page");
+        Intent intent = new Intent(MainActivity.this,
+                com.weigao.robot.control.ui.main.PositioningActivity.class);
+        startActivity(intent);
     }
 
     /**
@@ -368,6 +385,14 @@ public class MainActivity extends AppCompatActivity {
             // 被创建，配置就会生成。
             // 显式调用 ServiceManager.getInstance().getAudioService() 可以确保 Service 初始化
             ServiceManager.getInstance().getAudioService();
+        }
+
+        // 6. 工作时段配置检查
+        File workScheduleFile = new File(Environment.getExternalStorageDirectory(),
+                "WeigaoRobot/config/work_schedule_settings.json");
+        if (!workScheduleFile.exists()) {
+            Log.i(TAG, "工作时段配置缺失，写入默认配置（全部禁用）");
+            com.weigao.robot.control.manager.WorkScheduleSettingsManager.getInstance().reloadSettings();
         }
     }
 

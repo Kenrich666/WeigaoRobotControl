@@ -20,6 +20,8 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.CircularDeliveryHistoryManager;
+import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
+import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
@@ -72,6 +74,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         audioService = ServiceManager.getInstance().getAudioService(); // Init AudioService
         if (navigationService == null) {
             Toast.makeText(this, "导航服务未初始化", Toast.LENGTH_SHORT).show();
+            cancelActiveTask();
             finish();
             return;
         }
@@ -85,6 +88,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
         if (rawNodes == null || rawNodes.isEmpty()) {
             Toast.makeText(this, "路线节点为空", Toast.LENGTH_SHORT).show();
+            cancelActiveTask();
             finish();
             return;
         }
@@ -173,6 +177,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         });
 
         btnReturnOrigin.setOnClickListener(v -> {
+            cancelActiveTask();
             stopNavigation();
             Intent intent = new Intent(this, ReturnActivity.class);
             intent.putExtra("return_speed",
@@ -376,6 +381,33 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         }
     }
 
+    private void cancelActiveTask() {
+        TaskExecutionStateManager.getInstance().cancelTask();
+        LowBatteryAutoChargeManager.getInstance().onTaskCancelled();
+    }
+
+    private boolean handoffToLowBatteryAutoChargeIfNeeded() {
+        if (!LowBatteryAutoChargeManager.getInstance().hasPendingTaskCompletionAutoCharge()) {
+            return false;
+        }
+        TaskExecutionStateManager.getInstance().finishTask();
+        LowBatteryAutoChargeManager.getInstance().onTaskCompletedAndReadyForPrompt();
+        showCompletedForLowBatteryAutoCharge();
+        LowBatteryAutoChargeManager.getInstance().maybeShowPendingDialog();
+        return true;
+    }
+
+    private void showCompletedForLowBatteryAutoCharge() {
+        isNavigating = false;
+        isWaitingAtNode = false;
+        tvStatus.setText("循环配送完成");
+        currentTaskTextView.setText("所有任务已完成");
+        llPauseControls.setVisibility(View.GONE);
+        btnReturnOrigin.setVisibility(View.GONE);
+        tvHint.setVisibility(View.VISIBLE);
+        tvHint.setText("电量过低，即将自动回充");
+    }
+
     private void updateTaskText() {
         runOnUiThread(() -> {
             if (currentTaskIndex < targetNodes.size()) {
@@ -566,6 +598,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     returnToOrigin();
                 } else {
                     // Jump to ReturnActivity as requested (Aborted/Early return)
+                    cancelActiveTask();
                     Toast.makeText(this, "任务终止，开始返航", Toast.LENGTH_SHORT).show();
                     Intent returnIntent = new Intent(this, ReturnActivity.class);
                     returnIntent.putExtra("return_source_mode", 2);
@@ -574,6 +607,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                 }
             } else if (resultCode == CircularArrivalActivity.RESULT_CANCEL || resultCode == RESULT_CANCELED) {
                 // Cancelled
+                cancelActiveTask();
                 Toast.makeText(this, "循环任务已取消", Toast.LENGTH_SHORT).show();
                 stopNavigation();
                 finish();
@@ -582,6 +616,7 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             // 无论验证是否成功，都不需要显式停止密码计时器了（因为它不存在了）
             // 也不需要重启自动恢复计时器（因为它没停过）
             if (resultCode == RESULT_OK) {
+                cancelActiveTask();
                 stopNavigation();
                 finish();
             }
@@ -595,6 +630,11 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
             CircularDeliveryHistoryManager.getInstance(this).addRecord(currentRecord);
             // Nullify to prevent onDestroy from marking it as cancelled
             currentRecord = null;
+        }
+
+        if (handoffToLowBatteryAutoChargeIfNeeded()) {
+            Toast.makeText(this, "电量过低，即将自动回充", Toast.LENGTH_SHORT).show();
+            return;
         }
 
         // Use ReturnActivity for consistent return logic
