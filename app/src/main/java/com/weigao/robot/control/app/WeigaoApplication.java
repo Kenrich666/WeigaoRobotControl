@@ -9,6 +9,7 @@ import com.keenon.common.constant.PeanutConstants;
 import com.keenon.common.external.PeanutConfig;
 
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.ui.common.status.GlobalStatusBarController;
 
 /**
  * 威高机器人控制系统应用入口
@@ -69,17 +70,21 @@ public class WeigaoApplication extends Application {
             @Override
             public void onActivityCreated(android.app.Activity activity, android.os.Bundle savedInstanceState) {
                 applyGlobalSettings(activity);
+                GlobalStatusBarController.attach(activity);
             }
 
             @Override
             public void onActivityStarted(android.app.Activity activity) {
                 applyGlobalSettings(activity);
+                GlobalStatusBarController.attach(activity);
             }
 
             @Override
             public void onActivityResumed(android.app.Activity activity) {
                 currentActivity = activity;
                 applyGlobalSettings(activity);
+                GlobalStatusBarController.attach(activity);
+                GlobalStatusBarController.refreshNow(activity);
             }
 
             @Override
@@ -99,6 +104,7 @@ public class WeigaoApplication extends Application {
 
             @Override
             public void onActivityDestroyed(android.app.Activity activity) {
+                GlobalStatusBarController.detach(activity);
             }
         });
 
