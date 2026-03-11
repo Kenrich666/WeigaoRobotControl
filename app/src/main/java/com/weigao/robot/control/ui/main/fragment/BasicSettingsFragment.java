@@ -19,6 +19,9 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 
 import com.weigao.robot.control.R;
+
+import java.util.ArrayList;
+import java.util.List;
 // 如果是新机（首次运行）： APP 启动时会检查本地存储是否存在配置文件。如果不存在（!file.exists()），会立即调用 
 // saveSettings()
 // ，将代码中定义的默认值（例如 50 cm/s）写入到本地 JSON 文件中。
@@ -117,6 +120,24 @@ public class BasicSettingsFragment extends Fragment {
         });
 
         // --- 1. 普通配送速度设置 ---
+        EditText hospitalPresetEditText = view.findViewById(R.id.et_hospital_item_presets);
+        View saveHospitalPresetsButton = view.findViewById(R.id.btn_save_hospital_item_presets);
+
+        hospitalPresetEditText.setText(
+                com.weigao.robot.control.manager.HospitalItemPresetManager.getInstance().getPresetItemsText());
+
+        saveHospitalPresetsButton.setOnClickListener(v -> {
+            List<String> presetItems = parsePresetItems(hospitalPresetEditText.getText().toString());
+            if (presetItems.isEmpty()) {
+                Toast.makeText(getContext(), "请至少保留一个预设物品", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            com.weigao.robot.control.manager.HospitalItemPresetManager.getInstance().savePresetItems(presetItems);
+            hospitalPresetEditText.setText(
+                    com.weigao.robot.control.manager.HospitalItemPresetManager.getInstance().getPresetItemsText());
+            Toast.makeText(getContext(), "医院预设物品已保存", Toast.LENGTH_SHORT).show();
+        });
+
         SeekBar itemSpeedSeekBar = view.findViewById(R.id.seekbar_item_delivery_speed);
         TextView itemSpeedValue = view.findViewById(R.id.tv_item_delivery_speed_value);
 
@@ -204,6 +225,64 @@ public class BasicSettingsFragment extends Fragment {
         });
 
         // --- 2. 循环配送速度设置 ---
+
+        SeekBar hospitalDeliverySeekBar = view.findViewById(R.id.seekbar_hospital_delivery_speed);
+        TextView hospitalDeliveryValue = view.findViewById(R.id.tv_hospital_delivery_speed_value);
+
+        int currentHospitalDeliverySpeed = com.weigao.robot.control.manager.HospitalDeliverySettingsManager
+                .getInstance().getDeliverySpeed();
+        currentHospitalDeliverySpeed = clampSpeed(currentHospitalDeliverySpeed);
+        hospitalDeliverySeekBar.setMax(SPEED_PROGRESS_MAX);
+        hospitalDeliverySeekBar.setProgress(toSeekBarProgress(currentHospitalDeliverySpeed));
+        hospitalDeliveryValue.setText(String.format("%d cm/s", currentHospitalDeliverySpeed));
+
+        hospitalDeliverySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int speed = toSpeedValue(progress);
+                hospitalDeliveryValue.setText(String.format("%d cm/s", speed));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int speed = toSpeedValue(seekBar.getProgress());
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                        .setDeliverySpeed(speed);
+            }
+        });
+
+        SeekBar hospitalReturnSeekBar = view.findViewById(R.id.seekbar_hospital_return_speed);
+        TextView hospitalReturnValue = view.findViewById(R.id.tv_hospital_return_speed_value);
+
+        int currentHospitalReturnSpeed = com.weigao.robot.control.manager.HospitalDeliverySettingsManager
+                .getInstance().getReturnSpeed();
+        currentHospitalReturnSpeed = clampSpeed(currentHospitalReturnSpeed);
+        hospitalReturnSeekBar.setMax(SPEED_PROGRESS_MAX);
+        hospitalReturnSeekBar.setProgress(toSeekBarProgress(currentHospitalReturnSpeed));
+        hospitalReturnValue.setText(String.format("%d cm/s", currentHospitalReturnSpeed));
+
+        hospitalReturnSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int speed = toSpeedValue(progress);
+                hospitalReturnValue.setText(String.format("%d cm/s", speed));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int speed = toSpeedValue(seekBar.getProgress());
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                        .setReturnSpeed(speed);
+            }
+        });
 
         SeekBar seekBar = view.findViewById(R.id.seekbar_circular_speed);
         TextView speedValue = view.findViewById(R.id.tv_speed_value);
@@ -358,6 +437,20 @@ public class BasicSettingsFragment extends Fragment {
         return clampSpeed(progress + SPEED_MIN);
     }
 
+    private List<String> parsePresetItems(String rawText) {
+        List<String> items = new ArrayList<>();
+        if (rawText == null) {
+            return items;
+        }
+
+        String[] lines = rawText.split("\\r?\\n");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty() && !items.contains(trimmed)) {
+                items.add(trimmed);
+            }
+        }
+        return items;
     // 取物停留时间转换方法
     private int clampStay(int stay) {
         return Math.max(STAY_MIN, Math.min(STAY_MAX, stay));

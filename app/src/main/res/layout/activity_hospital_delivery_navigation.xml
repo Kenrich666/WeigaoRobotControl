@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/medical_background"
+    android:padding="32dp">
+
+    <ImageView
+        android:id="@+id/iv_robot"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="Robot"
+        android:scaleType="fitCenter"
+        android:src="@drawable/qinglang"
+        app:layout_constraintBottom_toTopOf="@+id/control_area"
+        app:layout_constraintEnd_toStartOf="@+id/guideline_vertical_center"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_percent="0.40" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_vertical_center"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.45" />
+
+    <LinearLayout
+        android:id="@+id/status_layout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/control_area"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/guideline_vertical_center"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="前往消毒间"
+            android:textColor="@color/medical_primary"
+            android:textSize="68sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/current_task_textview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
+            android:text="正在前往消毒间"
+            android:textColor="@color/medical_text_secondary"
+            android:textSize="30sp" />
+
+        <LinearLayout
+            android:id="@+id/layout_task_summary_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_medical_info_panel"
+            android:orientation="vertical"
+            android:padding="18dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_task_summary_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="本次配送任务"
+                android:textColor="@color/medical_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TableLayout
+                android:id="@+id/table_task_summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:shrinkColumns="*"
+                android:stretchColumns="*" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
+            android:lineSpacingExtra="6dp"
+            android:text="双击屏幕可暂停导航"
+            android:textColor="@color/medical_text_secondary"
+            android:textSize="22sp" />
+
+        <TextView
+            android:id="@+id/tv_countdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="30s 后自动继续"
+            android:textColor="@color/medical_warning"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/control_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:id="@+id/ll_pause_controls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_pause_end"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="84dp"
+                    android:layout_marginEnd="12dp"
+                    android:layout_weight="1"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="结束任务"
+                    android:textColor="@color/medical_error"
+                    android:textSize="24sp"
+                    app:backgroundTint="@android:color/white"
+                    app:cornerRadius="26dp"
+                    app:icon="@drawable/ic_stop_circle"
+                    app:iconPadding="10dp"
+                    app:iconTint="@color/medical_error"
+                    app:rippleColor="@color/medical_secondary"
+                    app:strokeColor="@color/medical_error"
+                    app:strokeWidth="2dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_continue"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="84dp"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="继续导航"
+                    android:textColor="@color/medical_primary"
+                    android:textSize="24sp"
+                    app:backgroundTint="@android:color/white"
+                    app:cornerRadius="26dp"
+                    app:icon="@drawable/ic_play_circle"
+                    app:iconPadding="10dp"
+                    app:iconTint="@color/medical_primary"
+                    app:rippleColor="@color/medical_primary_light"
+                    app:strokeColor="@color/medical_primary"
+                    app:strokeWidth="2dp" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_return"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_toggle_door"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="match_parent"
+                android:layout_height="76dp"
+                android:layout_marginTop="14dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="舱门控制"
+                android:textColor="@color/medical_primary"
+                android:textSize="22sp"
+                android:visibility="gone"
+                app:backgroundTint="@android:color/white"
+                app:cornerRadius="26dp"
+                app:strokeColor="@color/medical_primary"
+                app:strokeWidth="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -9,9 +9,6 @@
     android:padding="24dp"
     tools:context=".ui.main.MainActivity">
 
-    <!-- Header Section: Centered Logo and Title -->
-
-    <!-- Main Content: Dashboard Cards -->
     <LinearLayout
         android:id="@+id/header_container"
         android:layout_width="wrap_content"
@@ -20,7 +17,6 @@
         android:gravity="center"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.501"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -47,24 +43,25 @@
 
     <LinearLayout
         android:id="@+id/card_container"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal"
+        android:weightSum="3"
         app:layout_constraintBottom_toTopOf="@+id/footer_container"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/header_container">
 
-        <!-- Card 1: Item Delivery -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_item_delivery"
-            android:layout_width="400dp"
-            android:layout_height="300dp"
-            android:layout_marginEnd="32dp"
+            android:layout_width="0dp"
+            android:layout_height="240dp"
+            android:layout_marginEnd="12dp"
+            android:layout_weight="1"
             android:clickable="true"
-            android:focusable="true"
             android:clipToOutline="true"
+            android:focusable="true"
             android:outlineProvider="background"
             app:cardBackgroundColor="@color/white"
             app:cardCornerRadius="32dp"
@@ -72,9 +69,9 @@
             app:cardMaxElevation="16dp"
             app:cardPreventCornerOverlap="false"
             app:cardUseCompatPadding="true"
+            app:rippleColor="@color/medical_secondary"
             app:strokeColor="#E0E0E0"
-            app:strokeWidth="1dp"
-            app:rippleColor="@color/medical_secondary">
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -85,8 +82,8 @@
 
                 <ImageView
                     android:id="@+id/icon_delivery"
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
                     android:adjustViewBounds="true"
                     android:src="@drawable/ic_delivery_robot"
                     app:tint="@color/medical_primary" />
@@ -95,26 +92,23 @@
                     android:id="@+id/text_delivery_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
+                    android:layout_marginTop="24dp"
                     android:text="物品配送"
                     android:textColor="@color/medical_primary"
-                    android:textSize="36sp"
+                    android:textSize="28sp"
                     android:textStyle="bold" />
-
-                <!-- The card natively handles clicks, no hidden button needed. -->
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Card 2: Loop Delivery -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_loop_delivery"
-            android:layout_width="400dp"
-            android:layout_height="300dp"
-            android:layout_marginStart="32dp"
+            android:layout_width="0dp"
+            android:layout_height="240dp"
+            android:layout_marginHorizontal="12dp"
+            android:layout_weight="1"
             android:clickable="true"
-            android:focusable="true"
             android:clipToOutline="true"
+            android:focusable="true"
             android:outlineProvider="background"
             app:cardBackgroundColor="@color/white"
             app:cardCornerRadius="32dp"
@@ -122,9 +116,9 @@
             app:cardMaxElevation="16dp"
             app:cardPreventCornerOverlap="false"
             app:cardUseCompatPadding="true"
+            app:rippleColor="@color/medical_secondary"
             app:strokeColor="#E0E0E0"
-            app:strokeWidth="1dp"
-            app:rippleColor="@color/medical_secondary">
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -135,8 +129,8 @@
 
                 <ImageView
                     android:id="@+id/icon_loop"
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
                     android:src="@drawable/ic_loop_mode"
                     app:tint="@color/medical_primary" />
 
@@ -144,20 +138,59 @@
                     android:id="@+id/text_loop_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
+                    android:layout_marginTop="24dp"
                     android:text="循环配送"
                     android:textColor="@color/medical_primary"
-                    android:textSize="36sp"
+                    android:textSize="28sp"
                     android:textStyle="bold" />
-
-                <!-- The card natively handles clicks, no hidden button needed. -->
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_hospital_delivery"
+            android:layout_width="0dp"
+            android:layout_height="240dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:clipToOutline="true"
+            android:focusable="true"
+            android:outlineProvider="background"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="32dp"
+            app:cardElevation="12dp"
+            app:cardMaxElevation="16dp"
+            app:cardPreventCornerOverlap="false"
+            app:cardUseCompatPadding="true"
+            app:rippleColor="@color/medical_secondary"
+            app:strokeColor="#E0E0E0"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <ImageView
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:src="@drawable/ic_delivery_robot"
+                    app:tint="@color/medical_primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="医院配送"
+                    android:textColor="@color/medical_primary"
+                    android:textSize="28sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
-    <!-- Footer Container for Status and Settings -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/footer_container"
         android:layout_width="match_parent"
@@ -167,7 +200,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <!-- Status Strip -->
         <TextView
             android:id="@+id/tv_status_info"
             android:layout_width="wrap_content"
@@ -181,7 +213,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Settings Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_settings"
             style="@style/Widget.MaterialComponents.Button.TextButton"
@@ -193,8 +224,8 @@
             android:textSize="20sp"
             app:cornerRadius="12dp"
             app:icon="@drawable/ic_settings_gear"
-            app:iconTint="@color/medical_text_secondary"
             app:iconSize="24dp"
+            app:iconTint="@color/medical_text_secondary"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />

@@ -31,6 +31,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 import com.weigao.robot.control.app.WeigaoApplication;
 import com.weigao.robot.control.manager.AppSettingsManager;
+import com.weigao.robot.control.manager.HospitalDeliveryManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,6 +70,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     private HashMap<Integer, NavigationNode> pairings;
     // 当前到达的导航点
     private NavigationNode currentNode;
+    private String recordMode = "item";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -109,6 +111,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         try {
             pairings = (HashMap<Integer, NavigationNode>) getIntent().getSerializableExtra("pairings");
             currentNode = (NavigationNode) getIntent().getSerializableExtra("current_node");
+            recordMode = getIntent().getStringExtra("record_mode");
         } catch (Exception e) {
             Log.e(TAG, "获取Intent数据失败", e);
         }
@@ -124,6 +127,9 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             // currentNode = new NavigationNode();
             // currentNode.setName("测试点位");
             // currentNode.setId(1);
+        }
+        if (recordMode == null || recordMode.isEmpty()) {
+            recordMode = "item";
         }
     }
 
@@ -284,8 +290,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             // 如果门没开就自动离场，记录为超时失败
             if (!isConfirmState) {
                 String pointName = currentNode != null ? currentNode.getName() : "未知点位";
-                ItemDeliveryManager.getInstance().recordPointArrival(pointName,
-                        ItemDeliveryRecord.STATUS_FAILED_TIMEOUT);
+                recordArrival(pointName, ItemDeliveryRecord.STATUS_FAILED_TIMEOUT);
             }
         });
 
@@ -468,8 +473,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
                     // 记录到达时间 (成功)
                     String pointName = currentNode != null ? currentNode.getName() : "位置点位";
-                    ItemDeliveryRecord record = ItemDeliveryManager.getInstance().recordPointArrival(pointName,
-                            ItemDeliveryRecord.STATUS_SUCCESS);
+                    ItemDeliveryRecord record = recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
 
                     if (record != null) {
                         tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
@@ -494,8 +498,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
                     // 记录开门硬件失败
                     String pointName = currentNode != null ? currentNode.getName() : "位置点位";
-                    ItemDeliveryManager.getInstance().recordPointArrival(pointName,
-                            ItemDeliveryRecord.STATUS_FAILED_HARDWARE);
+                    recordArrival(pointName, ItemDeliveryRecord.STATUS_FAILED_HARDWARE);
                 });
             }
         });
@@ -537,8 +540,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 } else {
                     // 投影灯直接完成了开→关循环，也记录为成功
                     String pointName = currentNode != null ? currentNode.getName() : "未知点位";
-                    ItemDeliveryManager.getInstance().recordPointArrival(pointName,
-                            ItemDeliveryRecord.STATUS_SUCCESS);
+                    recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
                 }
 
                 runOnUiThread(() -> {
@@ -563,8 +565,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
                         // 记录到达时间 (成功)
                         String pointName = currentNode != null ? currentNode.getName() : "未知点位";
-                        ItemDeliveryRecord record = ItemDeliveryManager.getInstance().recordPointArrival(pointName,
-                                ItemDeliveryRecord.STATUS_SUCCESS);
+                        ItemDeliveryRecord record = recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
 
                         if (record != null) {
                             tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
@@ -582,5 +583,32 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             }
         }
     };
+
+    private ItemDeliveryRecord recordArrival(String pointName, int status) {
+        if ("hospital".equals(recordMode)) {
+            HospitalDeliveryManager.getInstance().recordPointArrival(
+                    pointName,
+                    mapHospitalStatus(status),
+                    com.weigao.robot.control.model.HospitalDeliveryRecord.STAGE_ROOM);
+            return null;
+        }
+        return ItemDeliveryManager.getInstance().recordPointArrival(pointName, status);
+    }
+
+    private int mapHospitalStatus(int itemStatus) {
+        switch (itemStatus) {
+            case ItemDeliveryRecord.STATUS_SUCCESS:
+                return com.weigao.robot.control.model.HospitalDeliveryRecord.STATUS_SUCCESS;
+            case ItemDeliveryRecord.STATUS_FAILED_TIMEOUT:
+                return com.weigao.robot.control.model.HospitalDeliveryRecord.STATUS_FAILED_TIMEOUT;
+            case ItemDeliveryRecord.STATUS_FAILED_HARDWARE:
+                return com.weigao.robot.control.model.HospitalDeliveryRecord.STATUS_FAILED_HARDWARE;
+            case ItemDeliveryRecord.STATUS_NAV_FAILED:
+                return com.weigao.robot.control.model.HospitalDeliveryRecord.STATUS_NAV_FAILED;
+            case ItemDeliveryRecord.STATUS_CANCELLED:
+            default:
+                return com.weigao.robot.control.model.HospitalDeliveryRecord.STATUS_CANCELLED;
+        }
+    }
 
 }

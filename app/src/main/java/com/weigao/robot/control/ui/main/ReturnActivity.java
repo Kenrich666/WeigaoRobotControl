@@ -208,8 +208,14 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
         // 确定目标点：直接返回原点
         NavigationNode targetNode = null;
-        if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
+        if (sourceMode == 3) {
+            if (HospitalDeliveryActivity.originPoints != null && !HospitalDeliveryActivity.originPoints.isEmpty()) {
+                targetNode = HospitalDeliveryActivity.originPoints.get(0);
+            }
+        } else if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
             targetNode = DeliveryActivity.originPoints.get(0);
+        }
+        if (targetNode != null) {
             Log.d(TAG, "选择返航目标: 原点 - " + targetNode.getName());
         }
 

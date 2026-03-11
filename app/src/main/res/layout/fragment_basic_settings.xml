@@ -300,6 +300,172 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/medical_divider"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="24dp"
+                        android:text="医院配送速度"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="配送速度"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_hospital_delivery_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="70"
+                            android:progress="50"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_hospital_delivery_speed_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:text="返航速度"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekbar_hospital_return_speed"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="70"
+                            android:progress="50"
+                            android:progressTint="@color/medical_primary"
+                            android:thumbTint="@color/medical_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_hospital_return_speed_value"
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:text="50 cm/s"
+                            android:textColor="@color/medical_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/medical_divider"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="医院预设物品"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="16dp"
+                        android:text="每行一个预设物品，保存后医院配送页会立即使用新的列表。"
+                        android:textColor="@color/medical_text_secondary"
+                        android:textSize="15sp" />
+
+                    <EditText
+                        android:id="@+id/et_hospital_item_presets"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_medical_info_panel"
+                        android:gravity="top|start"
+                        android:hint="例如：&#10;胃镜&#10;肠镜"
+                        android:inputType="textMultiLine"
+                        android:minHeight="140dp"
+                        android:minLines="4"
+                        android:padding="16dp"
+                        android:textColor="@color/medical_text_primary"
+                        android:textColorHint="@color/medical_text_secondary"
+                        android:textSize="16sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:gravity="end"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_save_hospital_item_presets"
+                            style="@style/Widget.MaterialComponents.Button"
+                            android:layout_width="wrap_content"
+                            android:layout_height="52dp"
+                            android:backgroundTint="@color/medical_primary"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="保存预设"
+                            android:textColor="@color/white"
+                            android:textSize="16sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Password Settings Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
