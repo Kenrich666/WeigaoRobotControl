@@ -92,6 +92,18 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.card_hospital_delivery).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent targetIntent = new Intent(MainActivity.this, HospitalDeliveryActivity.class);
+                targetIntent.putExtra("delivery_type", "医院配送");
+
+                Intent passwordIntent = new Intent(MainActivity.this, PasswordActivity.class);
+                passwordIntent.putExtra("target_intent", targetIntent);
+                startActivity(passwordIntent);
+            }
+        });
+
         requestPermission();
     }
 
@@ -249,6 +261,8 @@ public class MainActivity extends AppCompatActivity {
         AppSettingsManager.getInstance().reloadSettings();
         ItemDeliverySettingsManager.getInstance().reloadSettings();
         CircularDeliverySettingsManager.getInstance().reloadSettings();
+        com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().reloadSettings();
+        com.weigao.robot.control.manager.HospitalItemPresetManager.getInstance().reloadSettings();
         SoundSettingsManager.getInstance().reloadSettings();
 
         com.weigao.robot.control.app.WeigaoApplication app = com.weigao.robot.control.app.WeigaoApplication
@@ -318,6 +332,21 @@ public class MainActivity extends AppCompatActivity {
 
         // 4. 默认密码配置检查
         // SecurityServiceImpl 内部可能有自己的逻辑，但这里我们尽量做一下初次初始化
+        File hospitalSettingsFile = new File(Environment.getExternalStorageDirectory(),
+                "WeigaoRobot/config/hospital_delivery_settings.json");
+        if (!hospitalSettingsFile.exists()) {
+            Log.i(TAG, "配置缺失，写入默认医院配送速度: 50");
+            com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().setDeliverySpeed(50);
+            com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().setReturnSpeed(50);
+        }
+
+        File hospitalPresetFile = new File(Environment.getExternalStorageDirectory(),
+                "WeigaoRobot/config/hospital_item_presets.json");
+        if (!hospitalPresetFile.exists()) {
+            Log.i(TAG, "配置缺失，写入默认医院预设物品");
+            com.weigao.robot.control.manager.HospitalItemPresetManager.getInstance().resetToDefault();
+        }
+
         ISecurityService securityService = ServiceManager.getInstance().getSecurityService();
         if (securityService != null) {
             File securityConfigFile = new File(Environment.getExternalStorageDirectory(),
