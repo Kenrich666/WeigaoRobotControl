@@ -19,6 +19,9 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.LowBatteryAutoChargeHost;
+import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
+import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
@@ -31,7 +34,7 @@ import java.util.List;
  * 返航页面
  * 负责控制机器人返回充电桩或原点
  */
-public class ReturnActivity extends AppCompatActivity implements INavigationCallback {
+public class ReturnActivity extends AppCompatActivity implements INavigationCallback, LowBatteryAutoChargeHost {
 
     private static final String TAG = "ReturnActivity";
     private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1001;
@@ -54,6 +57,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     private int pauseRetryCount = 0;
     private com.weigao.robot.control.service.IAudioService audioService;
     private int sourceMode = 1; // 1: Delivery, 2: Loop
+    private boolean handoffToLowBatteryAutoCharge;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -67,6 +71,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
         // 获取源模式
         sourceMode = getIntent().getIntExtra("return_source_mode", 1);
+        TaskExecutionStateManager.getInstance().finishTask();
 
         // 延迟一点启动，给UI渲染时间
         rootLayout.postDelayed(this::startReturnNavigation, 500);
@@ -130,6 +135,14 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
      * 开始返航导航 (包含舱门检查)
      */
     private void startReturnNavigation() {
+        if (handoffToLowBatteryAutoCharge || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (LowBatteryAutoChargeManager.getInstance().hasPendingTaskCompletionAutoCharge()) {
+            LowBatteryAutoChargeManager.getInstance().onTaskCompletedAndReadyForPrompt();
+            handoffToLowBatteryAutoCharge();
+            return;
+        }
         if (isNavigating)
             return;
 
@@ -354,6 +367,42 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         });
     }
 
+    private void finishForLowBatteryAutoCharge() {
+        isNavigating = false;
+        if (audioService != null) {
+            audioService.stopBackgroundMusic(null);
+            audioService.stopVoice(null);
+        }
+        runOnUiThread(this::finish);
+    }
+
+    @Override
+    public void handoffToLowBatteryAutoCharge() {
+        if (handoffToLowBatteryAutoCharge) {
+            return;
+        }
+        handoffToLowBatteryAutoCharge = true;
+        stopAutoResumeTimer();
+        isPaused = false;
+
+        if (navigationService != null && isNavigating) {
+            navigationService.stop(new IResultCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    finishForLowBatteryAutoCharge();
+                }
+
+                @Override
+                public void onError(ApiError error) {
+                    finishForLowBatteryAutoCharge();
+                }
+            });
+            return;
+        }
+
+        finishForLowBatteryAutoCharge();
+    }
+
     private void handleError(String msg, ApiError error) {
         String detail = msg + ": " + (error != null ? error.getMessage() : "Unknown");
         Log.e(TAG, detail);
@@ -477,7 +526,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         stopAutoResumeTimer();
         if (navigationService != null) {
             // 退出页面时确保停止导航
-            if (isNavigating) {
+            if (isNavigating && !handoffToLowBatteryAutoCharge) {
                 navigationService.stop(null);
             }
             navigationService.unregisterCallback(this);

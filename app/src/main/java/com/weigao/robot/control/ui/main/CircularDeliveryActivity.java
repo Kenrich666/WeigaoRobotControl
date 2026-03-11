@@ -37,6 +37,8 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.TaskExecutionStateManager;
+import com.weigao.robot.control.manager.TaskType;
 import com.weigao.robot.control.model.CircularRoute;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.model.NavigationNode;
@@ -456,6 +458,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
     }
 
     private void proceedToNavigation() {
+        TaskExecutionStateManager.getInstance().startTask(TaskType.CIRCULAR_DELIVERY);
         Intent intent = new Intent(this, CircularDeliveryNavigationActivity.class);
         intent.putExtra("route_name", selectedRoute.getName());
         intent.putExtra("loop_count", selectedRoute.getLoopCount());

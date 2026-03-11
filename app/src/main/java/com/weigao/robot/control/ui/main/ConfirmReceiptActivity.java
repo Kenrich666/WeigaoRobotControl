@@ -238,14 +238,19 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     }
 
     /**
-     * 启动离场倒计时 (30秒)
+     * 启动离场倒计时（根据设置中的取物停留时间）
      */
     private void startDepartureTimer() {
         if (departureTimer != null) {
             departureTimer.cancel();
         }
 
-        departureTimer = new CountDownTimer(30000, 1000) {
+        // 从设置中读取取物停留时间（秒）
+        int stayDurationSeconds = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                .getArrivalStayDuration();
+        long stayDurationMs = stayDurationSeconds * 1000L;
+
+        departureTimer = new CountDownTimer(stayDurationMs, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
                 if (!isFinishing()) {
@@ -255,7 +260,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
             @Override
             public void onFinish() {
-                Log.d(TAG, "【倒计时】30秒结束，自动离场");
+                Log.d(TAG, "【倒计时】" + stayDurationSeconds + "秒结束，自动离场");
                 processAutoDeparture();
             }
         }.start();

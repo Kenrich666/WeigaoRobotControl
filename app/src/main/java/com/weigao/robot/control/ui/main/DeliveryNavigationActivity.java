@@ -19,6 +19,8 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
+import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
+import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.model.ItemDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
@@ -102,6 +104,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         if (navigationService == null) {
             Log.e(TAG, "【错误】无法获取导航服务");
             Toast.makeText(this, "导航服务未初始化", Toast.LENGTH_SHORT).show();
+            cancelActiveTask();
             finish();
             return;
         }
@@ -117,6 +120,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         if (pairings == null || pairings.isEmpty()) {
             Log.w(TAG, "【警告】没有配送任务");
             Toast.makeText(this, "没有配送任务", Toast.LENGTH_SHORT).show();
+            cancelActiveTask();
             finish();
             return;
         }
@@ -313,6 +317,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                                 runOnUiThread(() -> {
                                     Toast.makeText(DeliveryNavigationActivity.this,
                                             "准备路线失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                    cancelActiveTask();
                                     finish();
                                 });
                             }
@@ -332,6 +337,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 runOnUiThread(() -> {
                     Toast.makeText(DeliveryNavigationActivity.this,
                             "设置目标点失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    cancelActiveTask();
                     finish();
                 });
             }
@@ -510,6 +516,21 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         rootLayout.setOnTouchListener(null);
         isNavigating = false;
         Log.d(TAG, "【UI更新】所有任务已完成");
+    }
+
+    private boolean handoffToLowBatteryAutoChargeIfNeeded() {
+        if (!LowBatteryAutoChargeManager.getInstance().hasPendingTaskCompletionAutoCharge()) {
+            return false;
+        }
+        TaskExecutionStateManager.getInstance().finishTask();
+        LowBatteryAutoChargeManager.getInstance().onTaskCompletedAndReadyForPrompt();
+        LowBatteryAutoChargeManager.getInstance().maybeShowPendingDialog();
+        return true;
+    }
+
+    private void cancelActiveTask() {
+        TaskExecutionStateManager.getInstance().cancelTask();
+        LowBatteryAutoChargeManager.getInstance().onTaskCancelled();
     }
 
     /**
@@ -819,6 +840,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     // 标记配送任务完成
                     currentUniqueTargetIndex = targetNodes.size();
 
+                    if (handoffToLowBatteryAutoChargeIfNeeded()) {
+                        Log.d(TAG, "【导航控制】低电量待回充，任务完成后停留当前页面");
+                        updateTaskText();
+                        return;
+                    }
+
                     // 检查是否有原点数据，跳转到返航页面
                     if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
                         Log.d(TAG, "【导航控制】配送完成，跳转到返航页面");
@@ -827,6 +854,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         startActivity(intent);
                         finish();
                     } else {
+                        TaskExecutionStateManager.getInstance().finishTask();
                         Log.d(TAG, "【导航控制】无原点数据，直接结束");
                         updateTaskText();
                     }
@@ -880,6 +908,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     // 标记配送任务完成
                     currentUniqueTargetIndex = targetNodes.size();
 
+                    if (handoffToLowBatteryAutoChargeIfNeeded()) {
+                        Log.d(TAG, "【导航控制】低电量待回充，最后一站失败后停留当前页面");
+                        updateTaskText();
+                        return;
+                    }
+
                     // 检查是否有原点数据，跳转到返航页面
                     if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
                         Log.d(TAG, "【导航控制】最后一站失败，但仍跳转到返航页面");
@@ -888,6 +922,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         startActivity(intent);
                         finish();
                     } else {
+                        TaskExecutionStateManager.getInstance().finishTask();
                         Log.d(TAG, "【导航控制】无原点数据，直接结束");
                         updateTaskText();
                     }
@@ -910,6 +945,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     ItemDeliveryRecord.STATUS_CANCELLED);
         }
 
+        cancelActiveTask();
         stopNavigation();
         finish();
     }
