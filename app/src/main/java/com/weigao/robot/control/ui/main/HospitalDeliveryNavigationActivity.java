@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.keenon.sdk.component.navigation.common.Navigation;
@@ -32,6 +33,7 @@ import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.model.HospitalDeliveryRecord;
+import com.weigao.robot.control.model.HospitalDeliveryTask;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
@@ -40,9 +42,7 @@ import com.weigao.robot.control.ui.auth.PasswordActivity;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class HospitalDeliveryNavigationActivity extends AppCompatActivity implements INavigationCallback {
     private static final String TAG = "HospitalDeliveryNav";
@@ -50,6 +50,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private static final int REQUEST_CODE_END_PASSWORD = 2202;
     private static final int REQUEST_CODE_DOOR_PASSWORD = 2203;
     private static final int REQUEST_CODE_RETURN_PASSWORD = 2204;
+    private static final int DOOR_CLOSE_CHECK_RETRY_COUNT = 8;
+    private static final long DOOR_CLOSE_CHECK_INTERVAL_MS = 800L;
+    private static final long NAVIGATION_START_FALLBACK_DELAY_MS = 2500L;
 
     private enum FlowStage {
         TO_DISINFECTION,
@@ -72,11 +75,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     private INavigationService navigationService;
     private IDoorService doorService;
-    private HashMap<Integer, NavigationNode> pairings;
-    private HashMap<Integer, String> layerItems;
+    private ArrayList<HospitalDeliveryTask> hospitalTasks;
     private NavigationNode disinfectionNode;
-    private List<Map.Entry<Integer, NavigationNode>> deliveryTasks;
-    private List<List<Map.Entry<Integer, NavigationNode>>> uniqueDeliveryTasks;
+    private List<List<HospitalDeliveryTask>> groupedRoomTasks;
     private List<NavigationNode> targetNodes;
     private int currentUniqueTargetIndex = 0;
     private boolean isNavigating = false;
@@ -87,6 +88,19 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private GestureDetector gestureDetector;
     private CountDownTimer autoResumeTimer;
     private boolean handoffToLowBatteryAutoCharge;
+    private boolean hasStartCommandIssued;
+    private boolean routePreparedReceived;
+    private final Handler startHandler = new Handler();
+    private final Runnable delayedNavigationStartRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (routePreparedReceived || hasStartCommandIssued || isFinishing()) {
+                return;
+            }
+            Log.d(TAG, "delayedNavigationStartRunnable executing. flowStage=" + flowStage);
+            requestNavigationStart();
+        }
+    };
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -119,6 +133,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private void initServices() {
         navigationService = ServiceManager.getInstance().getNavigationService();
         doorService = ServiceManager.getInstance().getDoorService();
+        Log.d(TAG, "initServices. navigationService=" + (navigationService != null)
+                + ", doorService=" + (doorService != null));
         if (navigationService == null) {
             Toast.makeText(this, "导航服务未初始化", Toast.LENGTH_SHORT).show();
             finish();
@@ -132,22 +148,44 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     @SuppressWarnings("unchecked")
     private void initData() {
-        pairings = (HashMap<Integer, NavigationNode>) getIntent().getSerializableExtra("pairings");
-        layerItems = (HashMap<Integer, String>) getIntent().getSerializableExtra("layer_items");
+        hospitalTasks = (ArrayList<HospitalDeliveryTask>) getIntent().getSerializableExtra("hospital_tasks");
         disinfectionNode = (NavigationNode) getIntent().getSerializableExtra("disinfection_node");
-        if (pairings == null || pairings.isEmpty() || disinfectionNode == null) {
+        Log.d(TAG, "initData. taskCount=" + (hospitalTasks == null ? -1 : hospitalTasks.size())
+                + ", disinfectionNode=" + (disinfectionNode == null ? "null"
+                : disinfectionNode.getName() + "(" + disinfectionNode.getId() + ")"));
+        if (hospitalTasks == null || hospitalTasks.isEmpty() || disinfectionNode == null) {
             Toast.makeText(this, "医院配送任务无效", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
-        if (layerItems == null) {
-            layerItems = new HashMap<>();
-        }
-
-        deliveryTasks = new ArrayList<>(pairings.entrySet());
-        Collections.sort(deliveryTasks,
-                (o1, o2) -> Integer.compare(getLayerNumber(o1.getKey()), getLayerNumber(o2.getKey())));
+        groupedRoomTasks = new ArrayList<>();
+        targetNodes = new ArrayList<>();
         prepareRoomTargets();
+    }
+
+    private void prepareRoomTargets() {
+        groupedRoomTasks.clear();
+        targetNodes.clear();
+        List<Integer> addedIds = new ArrayList<>();
+
+        for (HospitalDeliveryTask task : hospitalTasks) {
+            NavigationNode node = task.getRoomNode();
+            if (node == null) {
+                continue;
+            }
+            int existingIndex = addedIds.indexOf(node.getId());
+            if (existingIndex == -1) {
+                addedIds.add(node.getId());
+                targetNodes.add(node);
+                List<HospitalDeliveryTask> group = new ArrayList<>();
+                group.add(task);
+                groupedRoomTasks.add(group);
+            } else {
+                groupedRoomTasks.get(existingIndex).add(task);
+            }
+        }
+        Log.d(TAG, "prepareRoomTargets finished. targetCount=" + targetNodes.size()
+                + ", groupedTaskCount=" + groupedRoomTasks.size());
     }
 
     private void setupGestureDetector() {
@@ -166,13 +204,16 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             return true;
         });
     }
-
     private void setupButtons() {
         btnPauseEnd.setOnClickListener(v -> startActivityForResult(
                 new Intent(this, PasswordActivity.class), REQUEST_CODE_END_PASSWORD));
 
         btnContinue.setOnClickListener(v -> {
             if (flowStage == FlowStage.WAIT_AT_DISINFECTION) {
+                if (!hasAllLayersAssigned()) {
+                    Toast.makeText(this, "请先为每个物品分配 L1/L2/L3", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 checkDoorsAndStartRoomNavigation();
             } else if (isPaused) {
                 resumeNavigation();
@@ -192,31 +233,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         }
     }
 
-    private void prepareRoomTargets() {
-        uniqueDeliveryTasks = new ArrayList<>();
-        targetNodes = new ArrayList<>();
-        List<Integer> addedIds = new ArrayList<>();
-
-        for (Map.Entry<Integer, NavigationNode> task : deliveryTasks) {
-            NavigationNode node = task.getValue();
-            if (node == null) {
-                continue;
-            }
-            int nodeId = node.getId();
-            int existingIndex = addedIds.indexOf(nodeId);
-            if (existingIndex == -1) {
-                addedIds.add(nodeId);
-                targetNodes.add(node);
-                List<Map.Entry<Integer, NavigationNode>> group = new ArrayList<>();
-                group.add(task);
-                uniqueDeliveryTasks.add(group);
-            } else {
-                uniqueDeliveryTasks.get(existingIndex).add(task);
-            }
-        }
-    }
-
     private void startToDisinfection() {
+        Log.d(TAG, "startToDisinfection. node=" + disinfectionNode.getName()
+                + "(" + disinfectionNode.getId() + ")");
         flowStage = FlowStage.TO_DISINFECTION;
         isPaused = false;
         stopAutoResumeTimer();
@@ -235,6 +254,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void startRoomNavigation() {
+        Log.d(TAG, "startRoomNavigation. targetCount=" + (targetNodes == null ? -1 : targetNodes.size()));
         if (targetNodes == null || targetNodes.isEmpty()) {
             Toast.makeText(this, "没有可配送的房间目标", Toast.LENGTH_SHORT).show();
             finish();
@@ -269,22 +289,35 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             targetIds.add(node.getId());
         }
 
+        Log.d(TAG, "configureAndPrepareNavigation. roomPhase=" + roomPhase
+                + ", flowStage=" + flowStage
+                + ", targetIds=" + targetIds);
         isNavigating = true;
+        hasStartCommandIssued = false;
+        routePreparedReceived = false;
+        cancelDelayedNavigationStart();
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "setTargets success. roomPhase=" + roomPhase + ", targetIds=" + targetIds);
                 int speed = HospitalDeliverySettingsManager.getInstance().getDeliverySpeed();
+                Log.d(TAG, "setSpeed requested. speed=" + speed + ", roomPhase=" + roomPhase);
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
+                        Log.d(TAG, "setSpeed success. speed=" + speed + ", roomPhase=" + roomPhase);
                         navigationService.prepare(new IResultCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
-                                Log.d(TAG, "Navigation prepared, roomPhase=" + roomPhase);
+                                Log.d(TAG, "prepare success. roomPhase=" + roomPhase
+                                        + ", flowStage=" + flowStage);
+                                scheduleDelayedNavigationStart();
                             }
 
                             @Override
                             public void onError(ApiError error) {
+                                Log.e(TAG, "prepare failed. roomPhase=" + roomPhase
+                                        + ", error=" + error.getMessage());
                                 handlePreparationError("准备路线失败", error, roomPhase);
                             }
                         });
@@ -292,6 +325,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
                     @Override
                     public void onError(ApiError error) {
+                        Log.e(TAG, "setSpeed failed. roomPhase=" + roomPhase
+                                + ", error=" + error.getMessage());
                         handlePreparationError("设置速度失败", error, roomPhase);
                     }
                 });
@@ -299,9 +334,47 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "setTargets failed. roomPhase=" + roomPhase
+                        + ", targetIds=" + targetIds
+                        + ", error=" + error.getMessage());
                 handlePreparationError("设置目标失败", error, roomPhase);
             }
         });
+    }
+
+    private void requestNavigationStart() {
+        if (hasStartCommandIssued || navigationService == null) {
+            Log.d(TAG, "requestNavigationStart skipped. hasStartCommandIssued=" + hasStartCommandIssued
+                    + ", navigationService=" + (navigationService != null));
+            return;
+        }
+        Log.d(TAG, "requestNavigationStart executing. flowStage=" + flowStage
+                + ", currentUniqueTargetIndex=" + currentUniqueTargetIndex);
+        hasStartCommandIssued = true;
+        ensureDoorsClosedBeforeMove(() -> navigationService.start(new IResultCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                Log.d(TAG, "navigationService.start success. flowStage=" + flowStage);
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                hasStartCommandIssued = false;
+                Log.e(TAG, "navigationService.start failed. flowStage=" + flowStage
+                        + ", error=" + error.getMessage());
+                runOnUiThread(() -> Toast.makeText(HospitalDeliveryNavigationActivity.this,
+                        "启动导航失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }), "启动导航前关门失败");
+    }
+
+    private void scheduleDelayedNavigationStart() {
+        cancelDelayedNavigationStart();
+        startHandler.postDelayed(delayedNavigationStartRunnable, NAVIGATION_START_FALLBACK_DELAY_MS);
+    }
+
+    private void cancelDelayedNavigationStart() {
+        startHandler.removeCallbacks(delayedNavigationStartRunnable);
     }
 
     private void handlePreparationError(String label, ApiError error, boolean roomPhase) {
@@ -410,7 +483,6 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             }
         }), "继续导航前关门失败");
     }
-
     private void showPauseControls(boolean visible) {
         llPauseControls.setVisibility(visible ? View.VISIBLE : View.GONE);
         hideTaskSummaryPanel();
@@ -429,15 +501,15 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void showWaitAtDisinfectionControls() {
         stopAutoResumeTimer();
+        cancelDelayedNavigationStart();
         tvCountdown.setVisibility(View.GONE);
         llPauseControls.setVisibility(View.VISIBLE);
         btnPauseEnd.setText("结束任务");
-        btnContinue.setText("继续导航");
+        btnContinue.setText("开始房间配送");
         if (layoutTaskSummaryPanel != null) {
             layoutTaskSummaryPanel.setVisibility(View.VISIBLE);
         }
-        tvHint.setVisibility(View.VISIBLE);
-        tvHint.setText("消毒完成后点击继续导航");
+        tvHint.setVisibility(View.GONE);
     }
 
     private void hideTaskSummaryPanel() {
@@ -501,6 +573,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void handleDisinfectionArrival() {
+        Log.d(TAG, "handleDisinfectionArrival. node=" + disinfectionNode.getName()
+                + "(" + disinfectionNode.getId() + ")");
         isNavigating = false;
         isPaused = false;
         flowStage = FlowStage.WAIT_AT_DISINFECTION;
@@ -517,35 +591,40 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 btnDoorToggle.setVisibility(View.VISIBLE);
                 updateDoorToggleButton();
             }
-            Toast.makeText(this, "已到达消毒间，等待继续导航", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "已到达消毒间，请分配 L1/L2/L3 后继续", Toast.LENGTH_SHORT).show();
         });
     }
 
     private void handleRoomArrival() {
+        Log.d(TAG, "handleRoomArrival. currentIndex=" + currentUniqueTargetIndex
+                + ", node=" + targetNodes.get(currentUniqueTargetIndex).getName()
+                + "(" + targetNodes.get(currentUniqueTargetIndex).getId() + ")");
         isNavigating = false;
         isPaused = false;
         stopAutoResumeTimer();
         Intent intent = new Intent(this, ConfirmReceiptActivity.class);
-        intent.putExtra("pairings", pairings);
+        intent.putExtra("hospital_tasks", hospitalTasks);
         intent.putExtra("current_node", targetNodes.get(currentUniqueTargetIndex));
         intent.putExtra("record_mode", "hospital");
         startActivityForResult(intent, REQUEST_CODE_CONFIRM_RECEIPT);
     }
 
     private void removeCurrentFinishedTasks() {
-        if (pairings != null && currentUniqueTargetIndex < uniqueDeliveryTasks.size()) {
-            List<Map.Entry<Integer, NavigationNode>> finishedTasks = uniqueDeliveryTasks.get(currentUniqueTargetIndex);
-            for (Map.Entry<Integer, NavigationNode> task : finishedTasks) {
-                pairings.remove(task.getKey());
-            }
+        if (currentUniqueTargetIndex >= groupedRoomTasks.size()) {
+            return;
         }
+        List<HospitalDeliveryTask> finishedTasks = groupedRoomTasks.get(currentUniqueTargetIndex);
+        hospitalTasks.removeAll(finishedTasks);
     }
 
     private void goNextRoomOrReturn() {
+        Log.d(TAG, "goNextRoomOrReturn. currentIndex=" + currentUniqueTargetIndex
+                + ", targetCount=" + targetNodes.size());
         if (currentUniqueTargetIndex < targetNodes.size() - 1) {
             ensureDoorsClosedBeforeMove(() -> navigationService.pilotNext(new IResultCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
+                    Log.d(TAG, "pilotNext success. nextIndex=" + (currentUniqueTargetIndex + 1));
                     isNavigating = true;
                     isPaused = false;
                     runOnUiThread(() -> {
@@ -558,11 +637,14 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
                 @Override
                 public void onError(ApiError error) {
+                    Log.e(TAG, "pilotNext failed. currentIndex=" + currentUniqueTargetIndex
+                            + ", error=" + error.getMessage());
                     runOnUiThread(() -> Toast.makeText(HospitalDeliveryNavigationActivity.this,
                             "继续下一房间失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
                 }
             }), "前往下一房间前关门失败");
         } else {
+            Log.d(TAG, "All room targets finished. preparing return flow");
             ensureDoorsClosedBeforeMove(() -> {
                 isMissionFinished = true;
                 if (handoffToLowBatteryAutoChargeIfNeeded()) {
@@ -591,15 +673,114 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         }
     }
 
+    private boolean hasAllLayersAssigned() {
+        for (HospitalDeliveryTask task : hospitalTasks) {
+            if (!task.hasAssignedLayer()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isLayerUsedByOtherTask(int layer, HospitalDeliveryTask currentTask) {
+        for (HospitalDeliveryTask task : hospitalTasks) {
+            if (task == currentTask) {
+                continue;
+            }
+            if (task.getAssignedLayer() == layer) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void showLayerAssignmentDialog(HospitalDeliveryTask task) {
+        String[] labels = {"L1", "L2", "L3", "清除分配"};
+        new AlertDialog.Builder(this)
+                .setTitle(task.getRoomNode().getName() + " - " + task.getItemName())
+                .setItems(labels, (dialog, which) -> {
+                    if (which == 3) {
+                        task.setAssignedLayer(HospitalDeliveryTask.UNASSIGNED_LAYER);
+                        populateTaskSummaryTable();
+                        return;
+                    }
+                    int selectedLayer = which + 1;
+                    if (isLayerUsedByOtherTask(selectedLayer, task)) {
+                        Toast.makeText(this, "该层已分配给其他物品", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    task.setAssignedLayer(selectedLayer);
+                    populateTaskSummaryTable();
+                })
+                .show();
+    }
+    private void populateTaskSummaryTable() {
+        if (tableTaskSummary == null) {
+            return;
+        }
+
+        tableTaskSummary.removeAllViews();
+        tableTaskSummary.addView(createSummaryHeaderRow());
+        for (HospitalDeliveryTask task : hospitalTasks) {
+            tableTaskSummary.addView(createSummaryRow(task, flowStage == FlowStage.WAIT_AT_DISINFECTION));
+        }
+    }
+
+    private TableRow createSummaryHeaderRow() {
+        TableRow row = new TableRow(this);
+        TableRow.LayoutParams params = new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f);
+        row.addView(createSummaryCell("房间", params, true));
+        row.addView(createSummaryCell("物品", params, true));
+        row.addView(createSummaryCell("层位", params, true));
+        return row;
+    }
+
+    private TableRow createSummaryRow(HospitalDeliveryTask task, boolean interactive) {
+        TableRow row = new TableRow(this);
+        TableRow.LayoutParams params = new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f);
+        row.addView(createSummaryCell(task.getRoomNode() == null ? "未设置" : task.getRoomNode().getName(), params, false));
+        row.addView(createSummaryCell(task.getItemName(), params, false));
+        String layerLabel = task.hasAssignedLayer() ? task.getAssignedLayerLabel() : "点击分配";
+        row.addView(createSummaryCell(layerLabel, params, false));
+        if (interactive) {
+            row.setClickable(true);
+            row.setOnClickListener(v -> showLayerAssignmentDialog(task));
+        }
+        return row;
+    }
+
+    private TextView createSummaryCell(String text, TableRow.LayoutParams params, boolean header) {
+        TextView cell = new TextView(this);
+        cell.setLayoutParams(params);
+        int horizontal = (int) (12 * getResources().getDisplayMetrics().density);
+        int vertical = (int) (10 * getResources().getDisplayMetrics().density);
+        cell.setPadding(horizontal, vertical, horizontal, vertical);
+        cell.setText(text);
+        cell.setMaxLines(2);
+        cell.setTextSize(header ? 18 : 16);
+        cell.setTextColor(getColor(header ? R.color.medical_primary : R.color.medical_text_primary));
+        if (header) {
+            cell.setTypeface(cell.getTypeface(), Typeface.BOLD);
+            cell.setBackgroundColor(getColor(R.color.medical_secondary));
+        } else {
+            cell.setBackgroundColor(getColor(R.color.white));
+        }
+        return cell;
+    }
+
     private void ensureDoorsClosedBeforeMove(Runnable onReadyToMove, String failureMessage) {
         if (doorService == null) {
+            Log.w(TAG, "ensureDoorsClosedBeforeMove: doorService is null, continue directly. msg=" + failureMessage);
             runOnUiThread(onReadyToMove);
             return;
         }
 
+        Log.d(TAG, "ensureDoorsClosedBeforeMove checking doors. msg=" + failureMessage);
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
+                Log.d(TAG, "ensureDoorsClosedBeforeMove isAllDoorsClosed success. allClosed=" + allClosed
+                        + ", msg=" + failureMessage);
                 if (Boolean.TRUE.equals(allClosed)) {
                     runOnUiThread(onReadyToMove);
                     return;
@@ -608,27 +789,84 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 doorService.closeAllDoors(new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
-                        runOnUiThread(() -> new Handler().postDelayed(onReadyToMove, 1500));
+                        Log.d(TAG, "ensureDoorsClosedBeforeMove closeAllDoors success. msg=" + failureMessage);
+                        verifyDoorsClosedThenProceed(onReadyToMove, failureMessage, DOOR_CLOSE_CHECK_RETRY_COUNT);
                     }
 
                     @Override
                     public void onError(ApiError error) {
-                        runOnUiThread(() -> Toast.makeText(
-                                HospitalDeliveryNavigationActivity.this,
-                                failureMessage + ": " + error.getMessage(),
-                                Toast.LENGTH_SHORT).show());
+                        Log.e(TAG, "ensureDoorsClosedBeforeMove closeAllDoors failed. msg=" + failureMessage
+                                + ", error=" + error.getMessage());
+                        runOnUiThread(() -> {
+                            restoreContinueButtonIfNeeded();
+                            Toast.makeText(
+                                    HospitalDeliveryNavigationActivity.this,
+                                    failureMessage + ": " + error.getMessage(),
+                                    Toast.LENGTH_SHORT).show();
+                        });
                     }
                 });
             }
 
             @Override
             public void onError(ApiError error) {
-                runOnUiThread(() -> Toast.makeText(
-                        HospitalDeliveryNavigationActivity.this,
-                        failureMessage + ": " + error.getMessage(),
-                        Toast.LENGTH_SHORT).show());
+                Log.e(TAG, "ensureDoorsClosedBeforeMove isAllDoorsClosed failed. msg=" + failureMessage
+                        + ", error=" + error.getMessage());
+                runOnUiThread(() -> {
+                    restoreContinueButtonIfNeeded();
+                    Toast.makeText(
+                            HospitalDeliveryNavigationActivity.this,
+                            failureMessage + ": " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
             }
         });
+    }
+
+    private void verifyDoorsClosedThenProceed(Runnable onReadyToMove, String failureMessage, int remainingRetries) {
+        if (doorService == null) {
+            runOnUiThread(onReadyToMove);
+            return;
+        }
+        if (remainingRetries <= 0) {
+            Log.e(TAG, "verifyDoorsClosedThenProceed timeout. msg=" + failureMessage);
+            runOnUiThread(() -> {
+                restoreContinueButtonIfNeeded();
+                Toast.makeText(
+                        HospitalDeliveryNavigationActivity.this,
+                        failureMessage + ": 舱门未完全关闭",
+                        Toast.LENGTH_SHORT).show();
+            });
+            return;
+        }
+
+        new Handler().postDelayed(() -> doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                Log.d(TAG, "verifyDoorsClosedThenProceed isAllDoorsClosed success. allClosed="
+                        + allClosed + ", remainingRetries=" + remainingRetries
+                        + ", msg=" + failureMessage);
+                if (Boolean.TRUE.equals(allClosed)) {
+                    runOnUiThread(onReadyToMove);
+                    return;
+                }
+                verifyDoorsClosedThenProceed(onReadyToMove, failureMessage, remainingRetries - 1);
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                Log.w(TAG, "verifyDoorsClosedThenProceed isAllDoorsClosed failed. remainingRetries="
+                        + remainingRetries + ", msg=" + failureMessage
+                        + ", error=" + error.getMessage());
+                verifyDoorsClosedThenProceed(onReadyToMove, failureMessage, remainingRetries - 1);
+            }
+        }), DOOR_CLOSE_CHECK_INTERVAL_MS);
+    }
+
+    private void restoreContinueButtonIfNeeded() {
+        if (flowStage == FlowStage.WAIT_AT_DISINFECTION && btnContinue != null) {
+            btnContinue.setEnabled(true);
+        }
     }
 
     private void toggleDoorState() {
@@ -707,85 +945,15 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         });
     }
 
-    private int getLayerNumber(int id) {
-        if (id == R.id.l1_button) {
-            return 1;
-        }
-        if (id == R.id.l2_button) {
-            return 2;
-        }
-        if (id == R.id.l3_button) {
-            return 3;
-        }
-        if (id == 1 || id == 2 || id == 3) {
-            return id;
-        }
-        return 0;
-    }
-
-    private String getLayerLabel(int id) {
-        int layerNumber = getLayerNumber(id);
-        return layerNumber > 0 ? "L" + layerNumber : "未知层";
-    }
-
-    private void populateTaskSummaryTable() {
-        if (tableTaskSummary == null) {
-            return;
-        }
-
-        tableTaskSummary.removeAllViews();
-        tableTaskSummary.addView(createSummaryRow("层", "物品", "房间", true));
-
-        if (deliveryTasks == null || deliveryTasks.isEmpty()) {
-            tableTaskSummary.addView(createSummaryRow("-", "未设置", "未设置", false));
-            return;
-        }
-
-        for (Map.Entry<Integer, NavigationNode> task : deliveryTasks) {
-            int layerId = task.getKey();
-            NavigationNode node = task.getValue();
-            String itemName = layerItems.get(layerId);
-            tableTaskSummary.addView(createSummaryRow(
-                    getLayerLabel(layerId),
-                    itemName == null || itemName.trim().isEmpty() ? "未设置物品" : itemName,
-                    node != null && node.getName() != null ? node.getName() : "未设置房间",
-                    false));
-        }
-    }
-
-    private TableRow createSummaryRow(String layer, String item, String room, boolean header) {
-        TableRow row = new TableRow(this);
-        TableRow.LayoutParams params = new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f);
-        row.addView(createSummaryCell(layer, params, header));
-        row.addView(createSummaryCell(item, params, header));
-        row.addView(createSummaryCell(room, params, header));
-        return row;
-    }
-
-    private TextView createSummaryCell(String text, TableRow.LayoutParams params, boolean header) {
-        TextView cell = new TextView(this);
-        cell.setLayoutParams(params);
-        int horizontal = (int) (12 * getResources().getDisplayMetrics().density);
-        int vertical = (int) (10 * getResources().getDisplayMetrics().density);
-        cell.setPadding(horizontal, vertical, horizontal, vertical);
-        cell.setText(text);
-        cell.setMaxLines(2);
-        cell.setTextSize(header ? 18 : 16);
-        cell.setTextColor(getColor(header ? R.color.medical_primary : R.color.medical_text_primary));
-        if (header) {
-            cell.setTypeface(cell.getTypeface(), Typeface.BOLD);
-            cell.setBackgroundColor(getColor(R.color.medical_secondary));
-        } else {
-            cell.setBackgroundColor(getColor(R.color.white));
-        }
-        return cell;
-    }
-
     @Override
     public void onStateChanged(int state, int schedule) {
+        Log.d(TAG, "onStateChanged. state=" + state + ", schedule=" + schedule
+                + ", flowStage=" + flowStage + ", isPaused=" + isPaused
+                + ", isNavigating=" + isNavigating);
         runOnUiThread(() -> {
             switch (state) {
                 case Navigation.STATE_RUNNING:
+                    cancelDelayedNavigationStart();
                     if (isPaused) {
                         return;
                     }
@@ -810,9 +978,11 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             }
         });
     }
-
     @Override
     public void onRouteNode(int index, NavigationNode node) {
+        Log.d(TAG, "onRouteNode. index=" + index + ", node="
+                + (node == null ? "null" : node.getName() + "(" + node.getId() + ")")
+                + ", flowStage=" + flowStage);
         if (flowStage == FlowStage.TO_ROOMS) {
             currentUniqueTargetIndex = index;
             runOnUiThread(this::updateRoomTaskText);
@@ -821,18 +991,18 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     @Override
     public void onRoutePrepared(List<NavigationNode> nodes) {
-        ensureDoorsClosedBeforeMove(() -> navigationService.start(new IResultCallback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
-                Log.d(TAG, "Hospital delivery navigation started");
+        routePreparedReceived = true;
+        cancelDelayedNavigationStart();
+        List<Integer> preparedIds = new ArrayList<>();
+        if (nodes != null) {
+            for (NavigationNode node : nodes) {
+                if (node != null) {
+                    preparedIds.add(node.getId());
+                }
             }
-
-            @Override
-            public void onError(ApiError error) {
-                runOnUiThread(() -> Toast.makeText(HospitalDeliveryNavigationActivity.this,
-                        "启动导航失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
-            }
-        }), "启动导航前关门失败");
+        }
+        Log.d(TAG, "onRoutePrepared. flowStage=" + flowStage + ", nodeIds=" + preparedIds);
+        requestNavigationStart();
     }
 
     @Override
@@ -841,6 +1011,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     @Override
     public void onNavigationError(int errorCode) {
+        Log.e(TAG, "onNavigationError. errorCode=" + errorCode + ", flowStage=" + flowStage
+                + ", currentUniqueTargetIndex=" + currentUniqueTargetIndex);
         if (flowStage == FlowStage.TO_ROOMS && currentUniqueTargetIndex < targetNodes.size()) {
             HospitalDeliveryManager.getInstance().recordPointArrival(
                     targetNodes.get(currentUniqueTargetIndex).getName(),
@@ -857,7 +1029,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     @Override
     public void onError(int errorCode, String message) {
-        Log.e(TAG, "Navigation generic error: " + errorCode + ", " + message);
+        Log.e(TAG, "onError. errorCode=" + errorCode + ", message=" + message
+                + ", flowStage=" + flowStage + ", isNavigating=" + isNavigating);
     }
 
     @Override
@@ -884,7 +1057,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         } else if (requestCode == REQUEST_CODE_RETURN_PASSWORD) {
             performReturnOperation();
         } else if (requestCode == REQUEST_CODE_DOOR_PASSWORD) {
-            Toast.makeText(this, "当前页面未开放舱门操作", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "当前页面未开放舱门密码操作", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -892,6 +1065,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     protected void onDestroy() {
         super.onDestroy();
         stopAutoResumeTimer();
+        cancelDelayedNavigationStart();
         if (isFinishing() && !isMissionFinished && !isReturning && !handoffToLowBatteryAutoCharge) {
             cancelActiveTask();
         }
@@ -966,4 +1140,3 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         }
     };
 }
-
