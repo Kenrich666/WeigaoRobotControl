@@ -22,6 +22,7 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeHost;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
+import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
@@ -136,6 +137,11 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
      */
     private void startReturnNavigation() {
         if (handoffToLowBatteryAutoCharge || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (WorkScheduleService.getInstance().hasDeferredWorkEnd()
+                && WorkScheduleService.getInstance().executeDeferredActionIfIdle()) {
+            finish();
             return;
         }
         if (LowBatteryAutoChargeManager.getInstance().hasPendingTaskCompletionAutoCharge()) {

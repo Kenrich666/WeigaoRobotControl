@@ -52,10 +52,19 @@ public class WorkScheduleService {
     private static final int REQUEST_CODE_BASE_END = 5100;
 
     private static WorkScheduleService instance;
+
+    private enum DeferredAction {
+        NONE,
+        WORK_START,
+        WORK_END
+    }
+
     private Context context;
     private AlarmManager alarmManager;
     private boolean isRegistered = false;
     private boolean pendingReturnToMainAfterWorkStart;
+    private DeferredAction deferredAction = DeferredAction.NONE;
+    private int deferredScheduleIndex = -1;
 
     private final INavigationCallback workStartNavigationCallback = new INavigationCallback() {
         @Override
@@ -282,6 +291,15 @@ public class WorkScheduleService {
      * 处理上班时间到达 → 导航到原点
      */
     private void handleWorkStart(int scheduleIndex) {
+        if (deferActionIfBusy(DeferredAction.WORK_START, scheduleIndex)) {
+            return;
+        }
+
+        executeWorkStart(scheduleIndex);
+    }
+
+    private void executeWorkStart(int scheduleIndex) {
+        Log.i(TAG, "执行上班动作: 时段 " + (scheduleIndex + 1) + " -> 自动前往原点");
         Log.i(TAG, "【上班时间】时段 " + (scheduleIndex + 1) + " 触发 → 自动前往原点");
 
         IChargerService chargerService = ServiceManager.getInstance().getChargerService();
@@ -495,6 +513,15 @@ public class WorkScheduleService {
     }
 
     private void handleWorkEnd(int scheduleIndex) {
+        if (deferActionIfBusy(DeferredAction.WORK_END, scheduleIndex)) {
+            return;
+        }
+
+        executeWorkEnd(scheduleIndex);
+    }
+
+    private void executeWorkEnd(int scheduleIndex) {
+        Log.i(TAG, "执行下班动作: 时段 " + (scheduleIndex + 1) + " -> 自动回充电桩");
         Log.i(TAG, "【下班时间】时段 " + (scheduleIndex + 1) + " 触发 → 自动回充电桩");
 
         IChargerService chargerService = ServiceManager.getInstance().getChargerService();
@@ -518,6 +545,47 @@ public class WorkScheduleService {
     /**
      * 释放资源
      */
+    private boolean deferActionIfBusy(DeferredAction action, int scheduleIndex) {
+        if (!TaskExecutionStateManager.getInstance().hasActiveTask()) {
+            return false;
+        }
+
+        synchronized (this) {
+            deferredAction = action;
+            deferredScheduleIndex = scheduleIndex;
+        }
+        Log.i(TAG, "检测到任务执行中，挂起工作时段动作: action=" + action + ", schedule=" + (scheduleIndex + 1));
+        return true;
+    }
+
+    public synchronized boolean hasDeferredWorkEnd() {
+        return deferredAction == DeferredAction.WORK_END;
+    }
+
+    public boolean executeDeferredActionIfIdle() {
+        DeferredAction actionToRun;
+        int scheduleIndexToRun;
+
+        synchronized (this) {
+            if (deferredAction == DeferredAction.NONE || TaskExecutionStateManager.getInstance().hasActiveTask()) {
+                return false;
+            }
+            actionToRun = deferredAction;
+            scheduleIndexToRun = deferredScheduleIndex;
+            deferredAction = DeferredAction.NONE;
+            deferredScheduleIndex = -1;
+        }
+
+        Log.i(TAG, "任务结束，执行挂起的工作时段动作: action=" + actionToRun
+                + ", schedule=" + (scheduleIndexToRun + 1));
+        if (actionToRun == DeferredAction.WORK_START) {
+            executeWorkStart(scheduleIndexToRun);
+        } else if (actionToRun == DeferredAction.WORK_END) {
+            executeWorkEnd(scheduleIndexToRun);
+        }
+        return true;
+    }
+
     public void release() {
         if (context != null && isRegistered) {
             try {
@@ -528,5 +596,8 @@ public class WorkScheduleService {
             isRegistered = false;
         }
         cancelAllAlarms();
+        deferredAction = DeferredAction.NONE;
+        deferredScheduleIndex = -1;
+        pendingReturnToMainAfterWorkStart = false;
     }
 }

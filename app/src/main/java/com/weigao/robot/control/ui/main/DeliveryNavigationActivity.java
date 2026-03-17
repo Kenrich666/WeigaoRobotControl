@@ -21,6 +21,7 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
+import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.model.ItemDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
@@ -848,6 +849,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
                     // 检查是否有原点数据，跳转到返航页面
                     if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
+                        if (WorkScheduleService.getInstance().hasDeferredWorkEnd()) {
+                            TaskExecutionStateManager.getInstance().finishTask();
+                            if (WorkScheduleService.getInstance().executeDeferredActionIfIdle()) {
+                                finish();
+                                return;
+                            }
+                        }
                         Log.d(TAG, "【导航控制】配送完成，跳转到返航页面");
                         Intent intent = new Intent(DeliveryNavigationActivity.this, ReturnActivity.class);
                         intent.putExtra("return_source_mode", 1); // 1: Delivery
@@ -855,6 +863,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         finish();
                     } else {
                         TaskExecutionStateManager.getInstance().finishTask();
+                        if (WorkScheduleService.getInstance().executeDeferredActionIfIdle()) {
+                            finish();
+                            return;
+                        }
                         Log.d(TAG, "【导航控制】无原点数据，直接结束");
                         updateTaskText();
                     }
@@ -916,6 +928,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
                     // 检查是否有原点数据，跳转到返航页面
                     if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
+                        if (WorkScheduleService.getInstance().hasDeferredWorkEnd()) {
+                            TaskExecutionStateManager.getInstance().finishTask();
+                            if (WorkScheduleService.getInstance().executeDeferredActionIfIdle()) {
+                                finish();
+                                return;
+                            }
+                        }
                         Log.d(TAG, "【导航控制】最后一站失败，但仍跳转到返航页面");
                         Intent intent = new Intent(DeliveryNavigationActivity.this, ReturnActivity.class);
                         intent.putExtra("return_source_mode", 1); // 1: Delivery
@@ -923,6 +942,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         finish();
                     } else {
                         TaskExecutionStateManager.getInstance().finishTask();
+                        if (WorkScheduleService.getInstance().executeDeferredActionIfIdle()) {
+                            finish();
+                            return;
+                        }
                         Log.d(TAG, "【导航控制】无原点数据，直接结束");
                         updateTaskText();
                     }

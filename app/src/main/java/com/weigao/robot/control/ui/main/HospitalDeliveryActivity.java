@@ -29,6 +29,8 @@ import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.HospitalDeliveryManager;
 import com.weigao.robot.control.manager.HospitalItemPresetManager;
+import com.weigao.robot.control.manager.TaskExecutionStateManager;
+import com.weigao.robot.control.manager.TaskType;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
@@ -674,6 +676,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
 
     private void startDelivery() {
         HospitalDeliveryManager.getInstance().startDelivery();
+        TaskExecutionStateManager.getInstance().startTask(TaskType.HOSPITAL_DELIVERY);
         Intent intent = new Intent(this, HospitalDeliveryNavigationActivity.class);
         intent.putExtra("pairings", pairings);
         intent.putExtra("layer_items", layerItems);

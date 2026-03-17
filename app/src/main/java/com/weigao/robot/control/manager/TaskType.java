@@ -5,5 +5,6 @@ package com.weigao.robot.control.manager;
  */
 public enum TaskType {
     ITEM_DELIVERY,
-    CIRCULAR_DELIVERY
+    CIRCULAR_DELIVERY,
+    HOSPITAL_DELIVERY
 }
