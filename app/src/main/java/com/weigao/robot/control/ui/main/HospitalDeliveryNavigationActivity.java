@@ -27,6 +27,9 @@ import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.HospitalDeliveryManager;
 import com.weigao.robot.control.manager.HospitalDeliverySettingsManager;
+import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
+import com.weigao.robot.control.manager.TaskExecutionStateManager;
+import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.model.HospitalDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
@@ -83,6 +86,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private FlowStage flowStage = FlowStage.TO_DISINFECTION;
     private GestureDetector gestureDetector;
     private CountDownTimer autoResumeTimer;
+    private boolean handoffToLowBatteryAutoCharge;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -313,9 +317,44 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     HospitalDeliveryRecord.STAGE_DISINFECTION);
         }
         runOnUiThread(() -> {
+            cancelActiveTask();
             Toast.makeText(this, label + ": " + error.getMessage(), Toast.LENGTH_SHORT).show();
             finish();
         });
+    }
+
+    private boolean handoffToLowBatteryAutoChargeIfNeeded() {
+        if (!LowBatteryAutoChargeManager.getInstance().hasPendingTaskCompletionAutoCharge()) {
+            return false;
+        }
+        TaskExecutionStateManager.getInstance().finishTask();
+        LowBatteryAutoChargeManager.getInstance().onTaskCompletedAndReadyForPrompt();
+        showCompletedForLowBatteryAutoCharge();
+        LowBatteryAutoChargeManager.getInstance().maybeShowPendingDialog();
+        return true;
+    }
+
+    private void showCompletedForLowBatteryAutoCharge() {
+        isMissionFinished = true;
+        isNavigating = false;
+        isPaused = false;
+        handoffToLowBatteryAutoCharge = true;
+        stopAutoResumeTimer();
+        hideTaskSummaryPanel();
+        if (btnDoorToggle != null) {
+            btnDoorToggle.setVisibility(View.GONE);
+        }
+        llPauseControls.setVisibility(View.GONE);
+        currentTaskTextView.setText("房间配送已完成");
+        tvStatus.setText("医院配送完成");
+        tvHint.setVisibility(View.VISIBLE);
+        tvHint.setText("电量过低，即将自动回充");
+        rootLayout.setOnTouchListener(null);
+    }
+
+    private void cancelActiveTask() {
+        TaskExecutionStateManager.getInstance().cancelTask();
+        LowBatteryAutoChargeManager.getInstance().onTaskCancelled();
     }
 
     private void pauseNavigation() {
@@ -526,6 +565,17 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         } else {
             ensureDoorsClosedBeforeMove(() -> {
                 isMissionFinished = true;
+                if (handoffToLowBatteryAutoChargeIfNeeded()) {
+                    Toast.makeText(this, "电量过低，即将自动回充", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (WorkScheduleService.getInstance().hasDeferredWorkEnd()) {
+                    TaskExecutionStateManager.getInstance().finishTask();
+                    if (WorkScheduleService.getInstance().executeDeferredActionIfIdle()) {
+                        finish();
+                        return;
+                    }
+                }
                 if (!HospitalDeliveryActivity.originPoints.isEmpty()) {
                     HospitalDeliveryManager.getInstance().recordPointArrival(
                             HospitalDeliveryActivity.originPoints.get(0).getName(),
@@ -829,6 +879,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             if (navigationService != null) {
                 navigationService.stop(null);
             }
+            cancelActiveTask();
             finish();
         } else if (requestCode == REQUEST_CODE_RETURN_PASSWORD) {
             performReturnOperation();
@@ -841,6 +892,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     protected void onDestroy() {
         super.onDestroy();
         stopAutoResumeTimer();
+        if (isFinishing() && !isMissionFinished && !isReturning && !handoffToLowBatteryAutoCharge) {
+            cancelActiveTask();
+        }
         if (navigationService != null) {
             navigationService.stop(null);
             navigationService.unregisterCallback(this);

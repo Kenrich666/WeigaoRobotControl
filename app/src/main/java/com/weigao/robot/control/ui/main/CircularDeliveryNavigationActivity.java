@@ -22,6 +22,7 @@ import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.CircularDeliveryHistoryManager;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
+import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
@@ -635,6 +636,14 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         if (handoffToLowBatteryAutoChargeIfNeeded()) {
             Toast.makeText(this, "电量过低，即将自动回充", Toast.LENGTH_SHORT).show();
             return;
+        }
+
+        if (WorkScheduleService.getInstance().hasDeferredWorkEnd()) {
+            TaskExecutionStateManager.getInstance().finishTask();
+            if (WorkScheduleService.getInstance().executeDeferredActionIfIdle()) {
+                finish();
+                return;
+            }
         }
 
         // Use ReturnActivity for consistent return logic

@@ -10,6 +10,10 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
+
+import android.text.TextUtils;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -70,7 +74,7 @@ public class BasicSettingsFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_basic_settings, container, false);
 
         drawerLayout = view.findViewById(R.id.drawer_layout);
@@ -784,6 +788,7 @@ public class BasicSettingsFragment extends Fragment {
         }
         return items;
     }
+
     // 取物停留时间转换方法
     private int clampStay(int stay) {
         return Math.max(STAY_MIN, Math.min(STAY_MAX, stay));
