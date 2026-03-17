@@ -166,15 +166,29 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
 
             v.setEnabled(false);
             if (robotStateService != null) {
+                Log.d(TAG, "【定位】医院配送开始前发起定位校验，pairings=" + pairings.size()
+                        + "，items=" + layerItems.size());
                 robotStateService.performLocalization(new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
-                        runOnUiThread(() -> checkDoorsAndStart(v));
+                        runOnUiThread(() -> {
+                            if (!isActivityAlive()) {
+                                Log.d(TAG, "【定位】医院配送定位成功回调到达，但页面已销毁，忽略");
+                                return;
+                            }
+                            Log.d(TAG, "【定位】医院配送定位校验成功，进入关门检查");
+                            checkDoorsAndStart(v);
+                        });
                     }
 
                     @Override
                     public void onError(ApiError error) {
                         runOnUiThread(() -> {
+                            if (!isActivityAlive()) {
+                                Log.d(TAG, "【定位】医院配送定位失败回调到达，但页面已销毁，忽略");
+                                return;
+                            }
+                            Log.e(TAG, "【定位】医院配送定位校验失败，跳转失败页: " + error.getMessage());
                             v.setEnabled(true);
                             startActivity(new Intent(
                                     HospitalDeliveryActivity.this,
@@ -543,6 +557,9 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    private boolean isActivityAlive() {
+        return !isFinishing() && !isDestroyed();
+    }
     private NavigationNode cloneNode(NavigationNode node) {
         NavigationNode copy = new NavigationNode();
         copy.setId(node.getId());

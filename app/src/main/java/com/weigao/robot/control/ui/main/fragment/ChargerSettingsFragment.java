@@ -26,22 +26,24 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
-import com.weigao.robot.control.callback.IChargerCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.callback.IStateCallback;
 import com.weigao.robot.control.callback.SdkErrorCode;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeSettingsManager;
 import com.weigao.robot.control.manager.UVDisinfectionManager;
 import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.manager.WorkScheduleSettingsManager;
-import com.weigao.robot.control.model.ChargerInfo;
+import com.weigao.robot.control.model.ChargingState;
+import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.model.WorkSchedule;
 import com.weigao.robot.control.service.IChargerService;
+import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 
 import java.util.List;
 
 /**
- * 充电设置页。
+ * 闂傚倷鑳堕…鍫㈡崲閹版澘绠犻柟鐗堟緲閺嬩線鏌涘┑鍕姕濠殿垰銈搁弻娑㈠箻濡も偓閹冲繘鎮楅鐔剁箚闁绘劦浜滈埀顒侇殜瀹曟垿鏁愭径濠勫姦?
  */
 public class ChargerSettingsFragment extends Fragment {
 
@@ -66,6 +68,7 @@ public class ChargerSettingsFragment extends Fragment {
     private Button btnStopUv;
 
     private IChargerService chargerService;
+    private IRobotStateService robotStateService;
     private int currentBatteryLevel = 0;
 
     private LinearLayout scheduleContainer;
@@ -83,10 +86,12 @@ public class ChargerSettingsFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_charger_settings, container, false);
 
         chargerService = ServiceManager.getInstance().getChargerService();
+        robotStateService = ServiceManager.getInstance().getRobotStateService();
         initViews(view);
         setupListeners();
         loadLowBatterySettings();
-        updateBatteryUI(null);
+        updateBatteryLevelUI(0);
+        updateChargingStateUI(null);
 
         return view;
     }
@@ -94,9 +99,10 @@ public class ChargerSettingsFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        if (chargerService != null) {
-            chargerService.registerCallback(chargerCallback);
-            refreshBatteryStatus();
+        if (robotStateService != null) {
+            robotStateService.registerCallback(stateCallback);
+            refreshChargingStatus();
+            refreshBatteryLevel();
         }
         UVDisinfectionManager.getInstance().setStateChangeListener(uvStateListener);
         loadLowBatterySettings();
@@ -105,8 +111,8 @@ public class ChargerSettingsFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        if (chargerService != null) {
-            chargerService.unregisterCallback(chargerCallback);
+        if (robotStateService != null) {
+            robotStateService.unregisterCallback(stateCallback);
         }
         UVDisinfectionManager.getInstance().removeStateChangeListener();
     }
@@ -119,12 +125,12 @@ public class ChargerSettingsFragment extends Fragment {
         getActivity().runOnUiThread(() -> {
             if (isDisinfecting) {
                 cardUvDisinfection.setVisibility(View.VISIBLE);
-                tvUvStatus.setText("紫外灯消毒中");
+                tvUvStatus.setText("\u7d2b\u5916\u706f\u6d88\u6bd2\u4e2d");
                 int minutes = (int) (remainingMs / 1000 / 60);
                 int seconds = (int) (remainingMs / 1000 % 60);
-                tvUvCountdown.setText(String.format("剩余 %02d:%02d", minutes, seconds));
+                tvUvCountdown.setText(String.format("\u5269\u4f59 %02d:%02d", minutes, seconds));
             } else {
-                tvUvStatus.setText("消毒已完成");
+                tvUvStatus.setText("\u6d88\u6bd2\u5df2\u5b8c\u6210");
                 tvUvCountdown.setText("");
                 new android.os.Handler().postDelayed(() -> {
                     if (cardUvDisinfection != null) {
@@ -135,49 +141,70 @@ public class ChargerSettingsFragment extends Fragment {
         });
     };
 
-    private final IChargerCallback chargerCallback = new IChargerCallback() {
+    private final IStateCallback stateCallback = new IStateCallback() {
         @Override
-        public void onChargerInfoChanged(int event, ChargerInfo chargerInfo) {
-            if (getActivity() != null && chargerInfo != null) {
-                getActivity().runOnUiThread(() -> updateBatteryUI(chargerInfo));
-            }
+        public void onStateChanged(RobotState newState) {
         }
 
         @Override
-        public void onChargerStatusChanged(int status) {
-            Log.d(TAG, "onChargerStatusChanged: " + status);
+        public void onLocationChanged(double x, double y) {
         }
 
         @Override
-        public void onChargerError(int errorCode) {
-            String errorDesc = SdkErrorCode.getErrorDescription(errorCode);
+        public void onBatteryLevelChanged(int level) {
             if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> {
-                    Toast.makeText(getContext(), "充电服务异常: " + errorDesc, Toast.LENGTH_SHORT).show();
-                    tvChargingStatus.setText("异常: " + errorDesc);
-                    tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-                    tvChargingStatus.setVisibility(View.VISIBLE);
-                });
+                getActivity().runOnUiThread(() -> updateBatteryLevelUI(level));
             }
+        }
+
+        @Override
+        public void onChargingStateChanged(ChargingState chargingState) {
+            if (getActivity() != null && chargingState != null) {
+                getActivity().runOnUiThread(() -> updateChargingStateUI(chargingState));
+            }
+        }
+
+        @Override
+        public void onScramButtonPressed(boolean pressed) {
         }
     };
 
-    private void refreshBatteryStatus() {
-        if (chargerService == null) {
+    private void refreshChargingStatus() {
+        if (robotStateService == null) {
             return;
         }
 
-        chargerService.getChargerInfo(new IResultCallback<ChargerInfo>() {
+        robotStateService.getChargingState(new IResultCallback<ChargingState>() {
             @Override
-            public void onSuccess(ChargerInfo result) {
+            public void onSuccess(ChargingState result) {
                 if (getActivity() != null && result != null) {
-                    getActivity().runOnUiThread(() -> updateBatteryUI(result));
+                    getActivity().runOnUiThread(() -> updateChargingStateUI(result));
                 }
             }
 
             @Override
             public void onError(ApiError error) {
-                Log.e(TAG, "获取充电信息失败: " + error.getMessage());
+                Log.e(TAG, "\u83b7\u53d6\u5145\u7535\u72b6\u6001\u5931\u8d25: " + error.getMessage());
+            }
+        });
+    }
+
+    private void refreshBatteryLevel() {
+        if (robotStateService == null) {
+            return;
+        }
+
+        robotStateService.getBatteryLevel(new IResultCallback<Integer>() {
+            @Override
+            public void onSuccess(Integer result) {
+                if (getActivity() != null && result != null) {
+                    getActivity().runOnUiThread(() -> updateBatteryLevelUI(result));
+                }
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                Log.e(TAG, "\u83b7\u53d6\u7535\u91cf\u5931\u8d25: " + error.getMessage());
             }
         });
     }
@@ -213,12 +240,12 @@ public class ChargerSettingsFragment extends Fragment {
 
         helpText.setOnClickListener(v -> Toast.makeText(
                 getContext(),
-                "如果自动回充失败，请手动将机器人推入充电桩",
+                "\u5982\u679c\u81ea\u52a8\u56de\u5145\u5931\u8d25\uff0c\u8bf7\u624b\u52a8\u5c06\u673a\u5668\u4eba\u63a8\u5165\u5145\u7535\u6869",
                 Toast.LENGTH_SHORT).show());
 
         btnStopUv.setOnClickListener(v -> {
             UVDisinfectionManager.getInstance().stopDisinfection();
-            Toast.makeText(getContext(), "已手动停止紫外灯消毒", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "\u5df2\u624b\u52a8\u505c\u6b62\u7d2b\u5916\u706f\u6d88\u6bd2", Toast.LENGTH_SHORT).show();
         });
 
         switchLowBatteryAutoCharge.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -281,8 +308,8 @@ public class ChargerSettingsFragment extends Fragment {
             public void onSuccess(Void result) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
-                        Toast.makeText(getContext(), "开始自动回充任务", Toast.LENGTH_SHORT).show();
-                        tvChargingStatus.setText("正在前往充电桩...");
+                        Toast.makeText(getContext(), "\u5f00\u59cb\u81ea\u52a8\u56de\u5145\u4efb\u52a1", Toast.LENGTH_SHORT).show();
+                        tvChargingStatus.setText("\\u5145\\u7535\\u5df2\\u505c\\u6b62");
                         tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark));
                         tvChargingStatus.setVisibility(View.VISIBLE);
                     });
@@ -293,7 +320,7 @@ public class ChargerSettingsFragment extends Fragment {
             public void onError(ApiError error) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> Toast
-                            .makeText(getContext(), "启动回充失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+                            .makeText(getContext(), "\u542f\u52a8\u81ea\u52a8\u56de\u5145\u5931\u8d25: " + error.getMessage(), Toast.LENGTH_SHORT).show());
                 }
             }
         });
@@ -309,8 +336,8 @@ public class ChargerSettingsFragment extends Fragment {
             public void onSuccess(Void result) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
-                        Toast.makeText(getContext(), "开始手动充电匹配", Toast.LENGTH_SHORT).show();
-                        tvChargingStatus.setText("正在匹配充电桩...");
+                        Toast.makeText(getContext(), "\u5f00\u59cb\u624b\u52a8\u5145\u7535\u5339\u914d", Toast.LENGTH_SHORT).show();
+                        tvChargingStatus.setText("\\u5145\\u7535\\u5df2\\u505c\\u6b62");
                         tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark));
                         tvChargingStatus.setVisibility(View.VISIBLE);
                     });
@@ -322,7 +349,7 @@ public class ChargerSettingsFragment extends Fragment {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> Toast.makeText(
                             getContext(),
-                            "启动手动充电失败: " + error.getMessage(),
+                            "\u542f\u52a8\u624b\u52a8\u5145\u7535\u5931\u8d25: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show());
                 }
             }
@@ -339,8 +366,8 @@ public class ChargerSettingsFragment extends Fragment {
             public void onSuccess(Void result) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
-                        Toast.makeText(getContext(), "已停止充电", Toast.LENGTH_SHORT).show();
-                        tvChargingStatus.setText("充电已停止");
+                        Toast.makeText(getContext(), "\u5df2\u505c\u6b62\u5145\u7535", Toast.LENGTH_SHORT).show();
+                        tvChargingStatus.setText("\u5145\u7535\u5df2\u505c\u6b62");
                         tvChargingStatus.setTextColor(getResources().getColor(android.R.color.darker_gray));
                         tvChargingStatus.setVisibility(View.VISIBLE);
                     });
@@ -352,18 +379,14 @@ public class ChargerSettingsFragment extends Fragment {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> Toast.makeText(
                             getContext(),
-                            "停止充电失败: " + error.getMessage(),
+                            "\u505c\u6b62\u5145\u7535\u5931\u8d25: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show());
                 }
             }
         });
     }
 
-    private void updateBatteryUI(@Nullable ChargerInfo info) {
-        int batteryLevel = info != null ? info.getPower() : 0;
-        boolean isCharging = info != null && info.isCharging();
-        int event = info != null ? info.getEvent() : 0;
-
+    private void updateBatteryLevelUI(int batteryLevel) {
         currentBatteryLevel = batteryLevel;
         batteryPercentage.setText(batteryLevel + "%");
         batteryProgress.setProgress(batteryLevel);
@@ -379,23 +402,27 @@ public class ChargerSettingsFragment extends Fragment {
 
         batteryIcon.setColorFilter(color);
         batteryProgress.setProgressTintList(ColorStateList.valueOf(color));
+    }
+
+    private void updateChargingStateUI(@Nullable ChargingState info) {
+        boolean isCharging = info != null && info.isCharging();
+        int event = info != null ? info.getEvent() : 0;
 
         if (isCharging) {
             chargeNowButton.setEnabled(false);
-            chargeNowButton.setText("充电中");
+            chargeNowButton.setText("\u5145\u7535\u4e2d");
             manualChargeButton.setEnabled(false);
-
-            tvChargingStatus.setText("正在充电");
+            tvChargingStatus.setText("\u6b63\u5728\u5145\u7535");
             tvChargingStatus.setTextColor(getResources().getColor(android.R.color.holo_green_light));
             tvChargingStatus.setVisibility(View.VISIBLE);
         } else {
             chargeNowButton.setEnabled(true);
-            chargeNowButton.setText("自动回充 (Auto)");
+            chargeNowButton.setText("\u81ea\u52a8\u56de\u5145 (Auto)");
             manualChargeButton.setEnabled(true);
 
-            String statusText = SdkErrorCode.getEventDescription(event);
+            String statusText = SdkErrorCode.isChargerError(event) ? SdkErrorCode.getErrorDescription(event) : SdkErrorCode.getEventDescription(event);
             if (statusText.isEmpty()) {
-                statusText = "未充电";
+                statusText = "\u672a\u5145\u7535";
             }
             tvChargingStatus.setText(statusText);
 
@@ -420,7 +447,7 @@ public class ChargerSettingsFragment extends Fragment {
             WorkScheduleSettingsManager manager = WorkScheduleSettingsManager.getInstance();
             int newIndex = manager.addSchedule();
             if (newIndex < 0) {
-                Toast.makeText(getContext(), "已达到最大时段数量", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "\u5df2\u8fbe\u5230\u6700\u5927\u65f6\u6bb5\u6570\u91cf", Toast.LENGTH_SHORT).show();
                 return;
             }
             addScheduleItemView(manager.getSchedule(newIndex));
@@ -669,3 +696,5 @@ public class ChargerSettingsFragment extends Fragment {
         void onTimeSet(int hour, int minute);
     }
 }
+
+

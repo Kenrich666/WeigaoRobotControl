@@ -15,6 +15,7 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 
 import com.weigao.robot.control.callback.IStateCallback;
+import com.weigao.robot.control.model.ChargingState;
 import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.service.IChargerService;
 import com.weigao.robot.control.service.IRobotStateService;
@@ -23,10 +24,10 @@ import com.weigao.robot.control.service.ServiceManager;
 import java.lang.ref.WeakReference;
 
 /**
- * 全局急停状态管理器
+ * 鍏ㄥ眬鎬ュ仠鐘舵€佺鐞嗗櫒
  * <p>
- * 负责监听全局急停按钮状态，并在任何 Activity 之上弹出急停警告对话框。
- * 通过 Application.ActivityLifecycleCallbacks 追踪当前最上层的 Activity。
+ * 璐熻矗鐩戝惉鍏ㄥ眬鎬ュ仠鎸夐挳鐘舵€侊紝骞跺湪浠讳綍 Activity 涔嬩笂寮瑰嚭鎬ュ仠璀﹀憡瀵硅瘽妗嗐€?
+ * 閫氳繃 Application.ActivityLifecycleCallbacks 杩借釜褰撳墠鏈€涓婂眰鐨?Activity銆?
  * </p>
  */
 public class GlobalScramManager implements Application.ActivityLifecycleCallbacks, IStateCallback {
@@ -49,30 +50,30 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
     }
 
     /**
-     * 初始化：注册 Activity 生命周期监听和服务监听
+     * 鍒濆鍖栵細娉ㄥ唽 Activity 鐢熷懡鍛ㄦ湡鐩戝惉鍜屾湇鍔＄洃鍚?
      *
-     * @param application Application 实例
+     * @param application Application 瀹炰緥
      */
     public void init(Application application) {
         application.registerActivityLifecycleCallbacks(this);
 
-        // 尝试注册 RobotStateService 监听
-        // 注意：ServiceLocator 可能还未准备好，这里放在延迟可能会更稳妥，
-        // 或者依靠外部（如 WeigaoApplication）在 Service 初始化后调用 connectService
+        // 灏濊瘯娉ㄥ唽 RobotStateService 鐩戝惉
+        // 娉ㄦ剰锛歋erviceLocator 鍙兘杩樻湭鍑嗗濂斤紝杩欓噷鏀惧湪寤惰繜鍙兘浼氭洿绋冲Ε锛?
+        // 鎴栬€呬緷闈犲閮紙濡?WeigaoApplication锛夊湪 Service 鍒濆鍖栧悗璋冪敤 connectService
     }
 
     /**
-     * 连接 RobotStateService
-     * 应在 ServiceManager 初始化完成后调用
+     * 杩炴帴 RobotStateService
+     * 搴斿湪 ServiceManager 鍒濆鍖栧畬鎴愬悗璋冪敤
      */
     public void connectService() {
         try {
             IRobotStateService service = ServiceManager.getInstance().getRobotStateService();
             if (service != null) {
                 service.registerCallback(this);
-                Log.d(TAG, "已注册 RobotStateService 监听");
+                Log.d(TAG, "宸叉敞鍐?RobotStateService 鐩戝惉");
 
-                // 主动查询一次状态，防止错过初始状态
+                // 涓诲姩鏌ヨ涓€娆＄姸鎬侊紝闃叉閿欒繃鍒濆鐘舵€?
                 service.isScramButtonPressed(new com.weigao.robot.control.callback.IResultCallback<Boolean>() {
                     @Override
                     public void onSuccess(Boolean pressed) {
@@ -81,12 +82,12 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
 
                     @Override
                     public void onError(com.weigao.robot.control.callback.ApiError error) {
-                        // 忽略
+                        // 蹇界暐
                     }
                 });
             }
         } catch (Exception e) {
-            Log.e(TAG, "连接 RobotStateService 失败", e);
+            Log.e(TAG, "杩炴帴 RobotStateService 澶辫触", e);
         }
     }
 
@@ -96,7 +97,7 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
     public void onStateChanged(RobotState newState) {
         if (newState != null) {
             boolean pressed = newState.isScramButtonPressed();
-            // 如果状态发生变化，触发更新
+            // 濡傛灉鐘舵€佸彂鐢熷彉鍖栵紝瑙﹀彂鏇存柊
             if (pressed != isScramPressed) {
                 onScramButtonPressed(pressed);
             }
@@ -105,20 +106,25 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
 
     @Override
     public void onLocationChanged(double x, double y) {
-        // 不需要处理位置
+        // 涓嶉渶瑕佸鐞嗕綅缃?
     }
 
     @Override
     public void onBatteryLevelChanged(int level) {
-        // 不需要处理电量
+        // 涓嶉渶瑕佸鐞嗙數閲?
+    }
+
+    @Override
+    public void onChargingStateChanged(ChargingState chargingState) {
+        // no-op
     }
 
     @Override
     public void onScramButtonPressed(boolean pressed) {
         this.isScramPressed = pressed;
-        Log.d(TAG, "收到急停状态: " + pressed);
+        Log.d(TAG, "鏀跺埌鎬ュ仠鐘舵€? " + pressed);
 
-        // 在主线程处理 UI
+        // 鍦ㄤ富绾跨▼澶勭悊 UI
         if (pressed) {
             stopChargingOnScram();
         }
@@ -134,7 +140,7 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
         }
     }
 
-    // ==================== UI 逻辑 ====================
+    // ==================== UI 閫昏緫 ====================
 
     private void stopChargingOnScram() {
         try {
@@ -163,23 +169,23 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
             return;
         }
 
-        // 如果对话框已经在显示且属于当前 Activity，则不处理
+        // 濡傛灉瀵硅瘽妗嗗凡缁忓湪鏄剧ず涓斿睘浜庡綋鍓?Activity锛屽垯涓嶅鐞?
         if (scramDialog != null && scramDialog.isShowing()) {
-            // 确保对话框依附的是当前 Context
+            // 纭繚瀵硅瘽妗嗕緷闄勭殑鏄綋鍓?Context
             return;
         }
 
-        // 如果之前的对话框属于旧 Activity，先关闭
+        // 濡傛灉涔嬪墠鐨勫璇濇灞炰簬鏃?Activity锛屽厛鍏抽棴
         dismissScramDialog();
 
         Log.w(TAG, "显示急停对话框");
 
         scramDialog = new Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
         scramDialog.setContentView(R.layout.dialog_emergency_stop);
-        scramDialog.setCancelable(false); // 禁止点击外部取消
+        scramDialog.setCancelable(false); // 绂佹鐐瑰嚮澶栭儴鍙栨秷
 
         if (scramDialog.getWindow() != null) {
-            // 弹出时暂不获取焦点，避免由于焦点切换导致系统状态栏/导航栏弹回
+            // 寮瑰嚭鏃舵殏涓嶈幏鍙栫劍鐐癸紝閬垮厤鐢变簬鐒︾偣鍒囨崲瀵艰嚧绯荤粺鐘舵€佹爮/瀵艰埅鏍忓脊鍥?
             scramDialog.getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
         }
@@ -187,11 +193,11 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
         try {
             scramDialog.show();
 
-            // 确保当前 Activity 维持全屏状态
+            // 纭繚褰撳墠 Activity 缁存寔鍏ㄥ睆鐘舵€?
             com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(activity);
 
             if (scramDialog.getWindow() != null) {
-                // 使 Dialog 本身也进入沉浸式全屏，适配系统的 WindowInsets
+                // 浣?Dialog 鏈韩涔熻繘鍏ユ矇娴稿紡鍏ㄥ睆锛岄€傞厤绯荤粺鐨?WindowInsets
                 try {
                     boolean isFullscreen = AppSettingsManager.getInstance().isFullScreen();
                     if (isFullscreen) {
@@ -203,10 +209,10 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
                                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "设置 Dialog 全屏失败", e);
+                    Log.e(TAG, "璁剧疆 Dialog 鍏ㄥ睆澶辫触", e);
                 }
 
-                // 恢复焦点，允许点击
+                // 鎭㈠鐒︾偣锛屽厑璁哥偣鍑?
                 scramDialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
             }
         } catch (Exception e) {
@@ -221,8 +227,8 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
                     scramDialog.dismiss();
                 }
             } catch (IllegalArgumentException e) {
-                // 忽略 View not attached 异常，防止 crash
-                Log.w(TAG, "关闭对话框时 View 已不依附 WindowManager (可能 Activity 已销毁)");
+                // 蹇界暐 View not attached 寮傚父锛岄槻姝?crash
+                Log.w(TAG, "鍏抽棴瀵硅瘽妗嗘椂 View 宸蹭笉渚濋檮 WindowManager (鍙兘 Activity 宸查攢姣?");
             } catch (Exception e) {
                 Log.e(TAG, "关闭对话框失败", e);
             } finally {
@@ -252,8 +258,8 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
     public void onActivityResumed(Activity activity) {
         currentActivityRef = new WeakReference<>(activity);
 
-        // 如果当前处于急停状态，每次 Activity 恢复时都要弹窗
-        // 防止用户导航到新页面或按 Home 键回来后弹窗消失
+        // 濡傛灉褰撳墠澶勪簬鎬ュ仠鐘舵€侊紝姣忔 Activity 鎭㈠鏃堕兘瑕佸脊绐?
+        // 闃叉鐢ㄦ埛瀵艰埅鍒版柊椤甸潰鎴栨寜 Home 閿洖鏉ュ悗寮圭獥娑堝け
         if (isScramPressed) {
             showScramDialog(activity);
         }
@@ -261,8 +267,8 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
 
     @Override
     public void onActivityPaused(Activity activity) {
-        // Activity 暂停/切换时关闭对话框，防止 WindowLeaked
-        // 当下一个 Activity Resume 时，如果急停仍未解除，会再次弹出
+        // Activity 鏆傚仠/鍒囨崲鏃跺叧闂璇濇锛岄槻姝?WindowLeaked
+        // 褰撲笅涓€涓?Activity Resume 鏃讹紝濡傛灉鎬ュ仠浠嶆湭瑙ｉ櫎锛屼細鍐嶆寮瑰嚭
         dismissScramDialog();
     }
 
@@ -276,7 +282,7 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
 
     @Override
     public void onActivityDestroyed(Activity activity) {
-        // 如果是当前持有的 Activity 被销毁，且对话框在其上，需要清理引用防止泄漏
+        // 濡傛灉鏄綋鍓嶆寔鏈夌殑 Activity 琚攢姣侊紝涓斿璇濇鍦ㄥ叾涓婏紝闇€瑕佹竻鐞嗗紩鐢ㄩ槻姝㈡硠婕?
         if (scramDialog != null && cleanupActivityRef(activity)) {
             try {
                 scramDialog.dismiss();
@@ -292,3 +298,4 @@ public class GlobalScramManager implements Application.ActivityLifecycleCallback
         return current == activity;
     }
 }
+

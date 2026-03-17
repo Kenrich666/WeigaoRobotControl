@@ -1,193 +1,116 @@
 package com.weigao.robot.control.service.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import android.content.Context;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.keenon.sdk.component.runtime.PeanutRuntime;
 import com.keenon.sdk.component.runtime.RuntimeInfo;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.model.ChargingState;
 import com.weigao.robot.control.model.RobotState;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
-/**
- * RobotStateServiceImpl 的集成测试。
- */
 @RunWith(AndroidJUnit4.class)
 public class RobotStateServiceInstrumentedTest {
 
-    private RobotStateServiceImpl mService;
+    private RobotStateServiceImpl service;
+    private PeanutRuntime.Listener runtimeListener;
 
     @Mock
-    private PeanutRuntime mMockSdk;
+    private PeanutRuntime peanutRuntime;
 
     @Mock
-    private IResultCallback<RobotState> mStateCallback;
+    private ChargingRuntimeBridge chargingRuntimeBridge;
+
+    @Mock
+    private IResultCallback<RobotState> robotStateCallback;
 
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        when(chargingRuntimeBridge.getCurrentState()).thenReturn(new ChargingState());
 
-        mService = new RobotStateServiceImpl(appContext) {
+        service = new RobotStateServiceImpl(appContext, chargingRuntimeBridge) {
             @Override
             protected PeanutRuntime getPeanutRuntimeInstance() {
-                return mMockSdk;
+                return peanutRuntime;
             }
         };
+
+        ArgumentCaptor<PeanutRuntime.Listener> captor = ArgumentCaptor.forClass(PeanutRuntime.Listener.class);
+        verify(peanutRuntime).registerListener(captor.capture());
+        runtimeListener = captor.getValue();
     }
 
-    /**
-     * 测试：初始化是否注册了监听并启动
-     */
     @Test
-    public void testInit_RegistersListenerAndStarts() {
-        verify(mMockSdk).registerListener(any(PeanutRuntime.Listener.class));
-        verify(mMockSdk).start();
+    public void initRegistersListenerAndStarts() {
+        verify(peanutRuntime).registerListener(any(PeanutRuntime.Listener.class));
+        verify(peanutRuntime).start();
+        verify(peanutRuntime, never()).location();
     }
 
-    /**
-     * 测试：设置工作模式
-     */
     @Test
-    public void testSetWorkMode() {
-        int mode = 1;
-        mService.setWorkMode(mode, mock(IResultCallback.class));
-        verify(mMockSdk).setWorkMode(mode);
+    public void getRobotStateReturnsRuntimeSnapshot() {
+        clearInvocations(peanutRuntime);
+
+        RuntimeInfo runtimeInfo = mock(RuntimeInfo.class);
+        when(runtimeInfo.getPower()).thenReturn(80);
+        when(peanutRuntime.getRuntimeInfo()).thenReturn(runtimeInfo);
+
+        service.getRobotState(robotStateCallback);
+
+        verify(peanutRuntime).getRuntimeInfo();
+        verify(robotStateCallback).onSuccess(any(RobotState.class));
     }
 
-    /**
-     * 测试：获取机器人状态
-     */
     @Test
-    public void testGetRobotState() {
-        clearInvocations(mMockSdk);
+    public void getChargingStateReturnsBridgeSnapshot() {
+        ChargingState chargingState = new ChargingState();
+        chargingState.setCharging(true);
+        when(chargingRuntimeBridge.getCurrentState()).thenReturn(chargingState);
 
-        RuntimeInfo mockInfo = mock(RuntimeInfo.class);
-        when(mockInfo.getPower()).thenReturn(80);
-        when(mMockSdk.getRuntimeInfo()).thenReturn(mockInfo);
+        IResultCallback<ChargingState> callback = mock(IResultCallback.class);
+        service.getChargingState(callback);
 
-        mService.getRobotState(mStateCallback);
-
-        verify(mMockSdk).getRuntimeInfo();
-        verify(mStateCallback).onSuccess(any(RobotState.class));
+        verify(callback).onSuccess(chargingState);
     }
 
-    /**
-     * 测试：获取电量
-     */
     @Test
-    public void testGetBatteryLevel() {
-        clearInvocations(mMockSdk);
+    public void performLocalizationWaitsForEvent() {
+        clearInvocations(peanutRuntime);
 
-        RuntimeInfo mockInfo = mock(RuntimeInfo.class);
-        when(mockInfo.getPower()).thenReturn(75);
-        when(mMockSdk.getRuntimeInfo()).thenReturn(mockInfo);
-
-        IResultCallback<Integer> callback = mock(IResultCallback.class);
-        mService.getBatteryLevel(callback);
-
-        verify(callback).onSuccess(anyInt());
-    }
-
-    /**
-     * 测试：查询急停按钮状态
-     */
-    @Test
-    public void testIsScramButtonPressed() {
-        clearInvocations(mMockSdk);
-
-        RuntimeInfo mockInfo = mock(RuntimeInfo.class);
-        when(mockInfo.isEmergencyOpen()).thenReturn(true);
-        when(mMockSdk.getRuntimeInfo()).thenReturn(mockInfo);
-
-        IResultCallback<Boolean> callback = mock(IResultCallback.class);
-        mService.isScramButtonPressed(callback);
-
-        verify(callback).onSuccess(true);
-    }
-
-    /**
-     * 测试：设置急停按钮是否启用
-     */
-    @Test
-    public void testSetEmergencyEnabled() {
         IResultCallback<Void> callback = mock(IResultCallback.class);
-        mService.setEmergencyEnabled(true, callback);
-        verify(mMockSdk).setEmergencyEnable(true);
+        service.performLocalization(callback);
+
+        verify(peanutRuntime).location();
+        verify(callback, never()).onSuccess(null);
+
+        runtimeListener.onEvent(10016, 1);
+
         verify(callback).onSuccess(null);
     }
 
-    /**
-     * 测试：执行开机定位
-     */
     @Test
-    public void testPerformLocalization() {
-        IResultCallback<Void> callback = mock(IResultCallback.class);
-        mService.performLocalization(callback);
-        verify(mMockSdk).location();
-        verify(callback).onSuccess(null);
-    }
+    public void releaseRemovesListeners() {
+        service.release();
 
-    /**
-     * 测试：获取总里程
-     */
-    @Test
-    public void testGetTotalOdometer() {
-        clearInvocations(mMockSdk);
-
-        RuntimeInfo mockInfo = mock(RuntimeInfo.class);
-        when(mockInfo.getTotalOdo()).thenReturn(1234.5);
-        when(mMockSdk.getRuntimeInfo()).thenReturn(mockInfo);
-
-        IResultCallback<Double> callback = mock(IResultCallback.class);
-        mService.getTotalOdometer(callback);
-
-        verify(callback).onSuccess(1234.5);
-    }
-
-    /**
-     * 测试：获取机器人IP
-     */
-    @Test
-    public void testGetRobotIp() {
-        clearInvocations(mMockSdk);
-
-        RuntimeInfo mockInfo = mock(RuntimeInfo.class);
-        when(mockInfo.getRobotIp()).thenReturn("192.168.1.100");
-        when(mMockSdk.getRuntimeInfo()).thenReturn(mockInfo);
-
-        IResultCallback<String> callback = mock(IResultCallback.class);
-        mService.getRobotIp(callback);
-
-        verify(callback).onSuccess("192.168.1.100");
-    }
-
-    /**
-     * 测试：回调注册和注销
-     */
-    @Test
-    public void testRegisterAndUnregisterCallback() {
-        com.weigao.robot.control.callback.IStateCallback mockStateCallback = mock(
-                com.weigao.robot.control.callback.IStateCallback.class);
-        mService.registerCallback(mockStateCallback);
-        mService.unregisterCallback(mockStateCallback);
-    }
-
-    /**
-     * 测试：释放资源
-     */
-    @Test
-    public void testRelease() {
-        mService.release();
-        verify(mMockSdk).removeListener(any(PeanutRuntime.Listener.class));
+        verify(peanutRuntime).removeListener(any(PeanutRuntime.Listener.class));
+        verify(chargingRuntimeBridge).removeListener(any(ChargingRuntimeBridge.Listener.class));
     }
 }

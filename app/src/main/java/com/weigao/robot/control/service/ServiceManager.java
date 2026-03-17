@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.weigao.robot.control.service.impl.AudioServiceImpl;
 import com.weigao.robot.control.service.impl.ChargerServiceImpl;
+import com.weigao.robot.control.service.impl.ChargingRuntimeBridge;
 import com.weigao.robot.control.service.impl.DoorServiceImpl;
 import com.weigao.robot.control.service.impl.NavigationServiceImpl;
 import com.weigao.robot.control.service.impl.RemoteCallServiceImpl;
@@ -13,32 +14,16 @@ import com.weigao.robot.control.service.impl.SecurityServiceImpl;
 import com.weigao.robot.control.service.impl.TimingServiceImpl;
 
 /**
- * 服务管理器
- * <p>
- * 统一管理所有服务实例的创建、获取与释放。
- * 采用单例模式，服务实例使用懒加载机制。
- * </p>
+ * Central service locator for the application.
  */
 public class ServiceManager {
 
     private static final String TAG = "ServiceManager";
 
-    /**
-     * 单例实例
-     */
     private static volatile ServiceManager instance;
 
-    /**
-     * 应用上下文
-     */
     private Context context;
-
-    /**
-     * 是否已初始化
-     */
     private boolean initialized = false;
-
-    // ==================== 服务实例 ====================
 
     private volatile INavigationService navigationService;
     private volatile IDoorService doorService;
@@ -48,8 +33,7 @@ public class ServiceManager {
     private volatile IAudioService audioService;
     private volatile IRobotStateService robotStateService;
     private volatile IRemoteCallService remoteCallService;
-
-    // ==================== 锁对象 ====================
+    private volatile ChargingRuntimeBridge chargingRuntimeBridge;
 
     private final Object navigationLock = new Object();
     private final Object doorLock = new Object();
@@ -59,18 +43,11 @@ public class ServiceManager {
     private final Object audioLock = new Object();
     private final Object robotStateLock = new Object();
     private final Object remoteCallLock = new Object();
+    private final Object chargingRuntimeBridgeLock = new Object();
 
-    /**
-     * 私有构造函数
-     */
     private ServiceManager() {
     }
 
-    /**
-     * 获取单例实例
-     *
-     * @return ServiceManager 实例
-     */
     public static ServiceManager getInstance() {
         if (instance == null) {
             synchronized (ServiceManager.class) {
@@ -82,206 +59,137 @@ public class ServiceManager {
         return instance;
     }
 
-    /**
-     * 初始化服务管理器
-     * <p>
-     * 应在 SDK 初始化成功后调用。
-     * </p>
-     *
-     * @param context 应用上下文
-     */
     public void initialize(Context context) {
         if (initialized) {
-            Log.w(TAG, "ServiceManager 已初始化，跳过重复初始化");
+            Log.w(TAG, "ServiceManager already initialized, skip");
             return;
         }
 
         this.context = context.getApplicationContext();
         this.initialized = true;
-        Log.i(TAG, "ServiceManager 初始化完成");
+        Log.i(TAG, "ServiceManager initialized");
     }
 
-    /**
-     * 检查是否已初始化
-     *
-     * @return true=已初始化
-     */
     public boolean isInitialized() {
         return initialized;
     }
 
-    /**
-     * 获取应用上下文
-     *
-     * @return 上下文
-     */
     public Context getContext() {
         return context;
     }
 
-    // ==================== 服务获取方法（懒加载） ====================
-
-    /**
-     * 获取导航服务
-     *
-     * @return 导航服务实例
-     */
     public INavigationService getNavigationService() {
         checkInitialized();
         if (navigationService == null) {
             synchronized (navigationLock) {
                 if (navigationService == null) {
                     navigationService = new NavigationServiceImpl(context);
-                    Log.d(TAG, "NavigationService 已创建");
+                    Log.d(TAG, "NavigationService created");
                 }
             }
         }
         return navigationService;
     }
 
-    /**
-     * 获取舱门服务
-     *
-     * @return 舱门服务实例
-     */
     public IDoorService getDoorService() {
         checkInitialized();
         if (doorService == null) {
             synchronized (doorLock) {
                 if (doorService == null) {
                     doorService = new DoorServiceImpl(context);
-                    Log.d(TAG, "DoorService 已创建");
+                    Log.d(TAG, "DoorService created");
                 }
             }
         }
         return doorService;
     }
 
-    /**
-     * 获取充电服务
-     *
-     * @return 充电服务实例
-     */
     public IChargerService getChargerService() {
         checkInitialized();
         if (chargerService == null) {
             synchronized (chargerLock) {
                 if (chargerService == null) {
-                    chargerService = new ChargerServiceImpl(context);
-                    Log.d(TAG, "ChargerService 已创建");
+                    chargerService = new ChargerServiceImpl(getChargingRuntimeBridge());
+                    Log.d(TAG, "ChargerService created");
                 }
             }
         }
         return chargerService;
     }
 
-    /**
-     * 获取安全锁定服务
-     *
-     * @return 安全锁定服务实例
-     */
     public ISecurityService getSecurityService() {
         checkInitialized();
         if (securityService == null) {
             synchronized (securityLock) {
                 if (securityService == null) {
                     securityService = new SecurityServiceImpl(context);
-                    Log.d(TAG, "SecurityService 已创建");
+                    Log.d(TAG, "SecurityService created");
                 }
             }
         }
         return securityService;
     }
 
-    /**
-     * 获取计时服务
-     *
-     * @return 计时服务实例
-     */
     public ITimingService getTimingService() {
         checkInitialized();
         if (timingService == null) {
             synchronized (timingLock) {
                 if (timingService == null) {
                     timingService = new TimingServiceImpl();
-                    Log.d(TAG, "TimingService 已创建");
+                    Log.d(TAG, "TimingService created");
                 }
             }
         }
         return timingService;
     }
 
-    /**
-     * 获取音频服务
-     *
-     * @return 音频服务实例
-     */
     public IAudioService getAudioService() {
         checkInitialized();
         if (audioService == null) {
             synchronized (audioLock) {
                 if (audioService == null) {
                     audioService = new AudioServiceImpl(context);
-                    Log.d(TAG, "AudioService 已创建");
+                    Log.d(TAG, "AudioService created");
                 }
             }
         }
         return audioService;
     }
 
-    /**
-     * 获取机器人状态服务
-     *
-     * @return 机器人状态服务实例
-     */
     public IRobotStateService getRobotStateService() {
         checkInitialized();
         if (robotStateService == null) {
             synchronized (robotStateLock) {
                 if (robotStateService == null) {
-                    robotStateService = new RobotStateServiceImpl(context);
-                    Log.d(TAG, "RobotStateService 已创建");
+                    robotStateService = new RobotStateServiceImpl(context, getChargingRuntimeBridge());
+                    Log.d(TAG, "RobotStateService created");
                 }
             }
         }
         return robotStateService;
     }
 
-    /**
-     * 获取远程呼叫服务
-     *
-     * @return 远程呼叫服务实例
-     */
     public IRemoteCallService getRemoteCallService() {
         checkInitialized();
         if (remoteCallService == null) {
             synchronized (remoteCallLock) {
                 if (remoteCallService == null) {
                     remoteCallService = new RemoteCallServiceImpl(context, getNavigationService());
-                    Log.d(TAG, "RemoteCallService 已创建");
+                    Log.d(TAG, "RemoteCallService created");
                 }
             }
         }
         return remoteCallService;
     }
 
-    // ==================== 生命周期管理 ====================
-
-    /**
-     * 释放所有服务资源
-     * <p>
-     * 优化：按照依赖关系的反序释放，先释放上层业务，再释放底层硬件服务。
-     * </p>
-     */
     public void release() {
-        Log.i(TAG, "开始释放所有服务资源...");
+        Log.i(TAG, "Releasing all services");
 
-        // 1. 先释放依赖其他服务的上层业务
         if (remoteCallService != null) {
             try {
                 remoteCallService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 RemoteCallService 失败", e);
+                Log.e(TAG, "Release RemoteCallService failed", e);
             }
             remoteCallService = null;
         }
@@ -290,7 +198,7 @@ public class ServiceManager {
             try {
                 timingService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 TimingService 失败", e);
+                Log.e(TAG, "Release TimingService failed", e);
             }
             timingService = null;
         }
@@ -299,17 +207,16 @@ public class ServiceManager {
             try {
                 securityService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 SecurityService 失败", e);
+                Log.e(TAG, "Release SecurityService failed", e);
             }
             securityService = null;
         }
 
-        // 2. 释放状态监听和独立服务
         if (robotStateService != null) {
             try {
                 robotStateService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 RobotStateService 失败", e);
+                Log.e(TAG, "Release RobotStateService failed", e);
             }
             robotStateService = null;
         }
@@ -318,7 +225,7 @@ public class ServiceManager {
             try {
                 chargerService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 ChargerService 失败", e);
+                Log.e(TAG, "Release ChargerService failed", e);
             }
             chargerService = null;
         }
@@ -327,17 +234,25 @@ public class ServiceManager {
             try {
                 audioService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 AudioService 失败", e);
+                Log.e(TAG, "Release AudioService failed", e);
             }
             audioService = null;
         }
 
-        // 3. 最后释放基础硬件服务 (被依赖的服务)
+        if (chargingRuntimeBridge != null) {
+            try {
+                chargingRuntimeBridge.release();
+            } catch (Exception e) {
+                Log.e(TAG, "Release ChargingRuntimeBridge failed", e);
+            }
+            chargingRuntimeBridge = null;
+        }
+
         if (doorService != null) {
             try {
                 doorService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 DoorService 失败", e);
+                Log.e(TAG, "Release DoorService failed", e);
             }
             doorService = null;
         }
@@ -346,24 +261,32 @@ public class ServiceManager {
             try {
                 navigationService.release();
             } catch (Exception e) {
-                Log.e(TAG, "释放 NavigationService 失败", e);
+                Log.e(TAG, "Release NavigationService failed", e);
             }
             navigationService = null;
         }
 
         initialized = false;
         context = null;
-        Log.i(TAG, "所有服务资源已释放");
+        Log.i(TAG, "All services released");
     }
 
-    /**
-     * 检查是否已初始化
-     *
-     * @throws IllegalStateException 未初始化时抛出
-     */
+    private ChargingRuntimeBridge getChargingRuntimeBridge() {
+        checkInitialized();
+        if (chargingRuntimeBridge == null) {
+            synchronized (chargingRuntimeBridgeLock) {
+                if (chargingRuntimeBridge == null) {
+                    chargingRuntimeBridge = new ChargingRuntimeBridge(context);
+                    Log.d(TAG, "ChargingRuntimeBridge created");
+                }
+            }
+        }
+        return chargingRuntimeBridge;
+    }
+
     private void checkInitialized() {
         if (!initialized) {
-            throw new IllegalStateException("ServiceManager 未初始化，请先调用 initialize() 方法");
+            throw new IllegalStateException("ServiceManager not initialized");
         }
     }
 }

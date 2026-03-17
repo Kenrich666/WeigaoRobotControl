@@ -19,6 +19,7 @@ import com.weigao.robot.control.service.ServiceManager;
 public class PositioningFailedActivity extends AppCompatActivity {
 
     private static final String TAG = "PositionFailedActivity";
+
     private IRobotStateService robotStateService;
 
     @Override
@@ -27,6 +28,7 @@ public class PositioningFailedActivity extends AppCompatActivity {
         setContentView(R.layout.activity_positioning_failed);
 
         robotStateService = ServiceManager.getInstance().getRobotStateService();
+        Log.d(TAG, "【定位】进入定位失败页");
 
         Button btnRetry = findViewById(R.id.btn_retry);
         Button btnBack = findViewById(R.id.btn_back);
@@ -37,10 +39,12 @@ public class PositioningFailedActivity extends AppCompatActivity {
 
     private void handleRetry(Button btnRetry) {
         if (robotStateService == null) {
+            Log.e(TAG, "【定位】失败页点击重试，但定位服务未连接");
             Toast.makeText(this, "服务未连接", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        Log.d(TAG, "【定位】失败页点击重试，重新发起定位");
         btnRetry.setEnabled(false);
         btnRetry.setText("正在定位...");
 
@@ -48,9 +52,17 @@ public class PositioningFailedActivity extends AppCompatActivity {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
+                    if (!isActivityAlive()) {
+                        Log.d(TAG, "【定位】失败页重试成功回调到达，但页面已销毁，忽略");
+                        return;
+                    }
+                    Log.d(TAG, "【定位】失败页重试定位成功，1秒后关闭失败页");
                     Toast.makeText(PositioningFailedActivity.this, "定位成功", Toast.LENGTH_SHORT).show();
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        setResult(RESULT_OK); // Notify caller if needed
+                        if (!isActivityAlive()) {
+                            return;
+                        }
+                        setResult(RESULT_OK);
                         finish();
                     }, 1000);
                 });
@@ -59,14 +71,24 @@ public class PositioningFailedActivity extends AppCompatActivity {
             @Override
             public void onError(ApiError error) {
                 runOnUiThread(() -> {
-                    Log.e(TAG, "Localization failed: " + error.getMessage());
-                    Toast.makeText(PositioningFailedActivity.this, "定位失败: " + error.getMessage(), Toast.LENGTH_SHORT)
-                            .show();
+                    if (!isActivityAlive()) {
+                        Log.d(TAG, "【定位】失败页重试失败回调到达，但页面已销毁，忽略");
+                        return;
+                    }
+                    Log.e(TAG, "【定位】失败页重试定位失败: " + error.getMessage());
+                    Toast.makeText(
+                            PositioningFailedActivity.this,
+                            "定位失败: " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show();
                     btnRetry.setEnabled(true);
                     btnRetry.setText("重试");
                 });
             }
         });
+    }
+
+    private boolean isActivityAlive() {
+        return !isFinishing() && !isDestroyed();
     }
 
     @Override
