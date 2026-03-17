@@ -1,6 +1,11 @@
 package com.weigao.robot.control.ui.main;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -10,28 +15,20 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-
-import com.weigao.robot.control.R;
-import com.weigao.robot.control.model.NavigationNode;
-
-import com.weigao.robot.control.callback.ApiError;
-import com.weigao.robot.control.callback.IResultCallback;
-import com.weigao.robot.control.service.IDoorService;
-import com.weigao.robot.control.service.ServiceManager;
-import com.weigao.robot.control.manager.ItemDeliveryManager;
-
-import android.content.Intent;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.IntentFilter;
-import android.os.CountDownTimer;
-
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.weigao.robot.control.ui.auth.PasswordActivity;
+import com.weigao.robot.control.R;
 import com.weigao.robot.control.app.WeigaoApplication;
-import com.weigao.robot.control.manager.AppSettingsManager;
+import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.HospitalDeliveryManager;
+import com.weigao.robot.control.manager.ItemDeliveryManager;
+import com.weigao.robot.control.model.HospitalDeliveryTask;
+import com.weigao.robot.control.model.ItemDeliveryRecord;
+import com.weigao.robot.control.model.NavigationNode;
+import com.weigao.robot.control.service.IDoorService;
+import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.ui.auth.PasswordActivity;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,52 +36,46 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import androidx.appcompat.app.AlertDialog;
-
-import com.weigao.robot.control.model.ItemDeliveryRecord;
-
-/**
- * 到达点位确认收货页面
- * 显示到达的点位名称，并指示需要取走的层级（L1, L2, L3）
- */
 public class ConfirmReceiptActivity extends AppCompatActivity {
 
     private static final String TAG = "ConfirmReceiptActivity";
+    private static final int REQUEST_CODE_VERIFY_PASSWORD = 2001;
 
     private TextView tvPointName;
     private TextView tvLayersList;
     private TextView tvCountdown;
     private TextView tvArrivalDuration;
-    private TextView layerL1, layerL2, layerL3;
+    private TextView tvItemsList;
+    private TextView layerL1;
+    private TextView layerL2;
+    private TextView layerL3;
     private Button btnOpenCabin;
 
-    // 舱门服务
     private IDoorService doorService;
-    // 确认关闭状态标记
     private boolean isConfirmState = false;
     private CountDownTimer departureTimer;
-    private static final int REQUEST_CODE_VERIFY_PASSWORD = 2001;
-
-    // 存储配对关系：层级 -> 导航点
-    // TODO：配对信息占位符，跳转该页面需要附带配对信息，将pairings赋值即可
     private HashMap<Integer, NavigationNode> pairings;
-    // 当前到达的导航点
+    private ArrayList<HospitalDeliveryTask> hospitalTasks;
     private NavigationNode currentNode;
     private String recordMode = "item";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        recordMode = getIntent().getStringExtra("record_mode");
+        if (recordMode == null || recordMode.isEmpty()) {
+            recordMode = "item";
+        }
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_confirm_receipt);
+        setContentView("hospital".equals(recordMode)
+                ? R.layout.activity_confirm_receipt_hospital
+                : R.layout.activity_confirm_receipt);
 
         initViews();
         initData();
         updateUI();
-
         setupListeners();
         startDepartureTimer();
 
-        // 注册投影灯脚踩门状态变化广播
         LocalBroadcastManager.getInstance(this).registerReceiver(
                 doorBroadcastReceiver,
                 new IntentFilter("com.weigao.robot.DOOR_STATE_CHANGED"));
@@ -94,42 +85,29 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         tvPointName = findViewById(R.id.tv_point_name);
         tvLayersList = findViewById(R.id.tv_layers_list);
         tvCountdown = findViewById(R.id.tv_countdown);
-
         layerL1 = findViewById(R.id.layer_l1);
         layerL2 = findViewById(R.id.layer_l2);
         layerL3 = findViewById(R.id.layer_l3);
-
         btnOpenCabin = findViewById(R.id.btn_open_cabin);
         tvArrivalDuration = findViewById(R.id.tv_arrival_duration);
+        tvItemsList = findViewById(R.id.tv_items_list);
     }
 
+    @SuppressWarnings("unchecked")
     private void initData() {
-        // 获取舱门服务
         doorService = ServiceManager.getInstance().getDoorService();
-
-        // 获取传递的数据
         try {
             pairings = (HashMap<Integer, NavigationNode>) getIntent().getSerializableExtra("pairings");
+            hospitalTasks = (ArrayList<HospitalDeliveryTask>) getIntent().getSerializableExtra("hospital_tasks");
             currentNode = (NavigationNode) getIntent().getSerializableExtra("current_node");
-            recordMode = getIntent().getStringExtra("record_mode");
         } catch (Exception e) {
             Log.e(TAG, "获取Intent数据失败", e);
         }
-
         if (pairings == null) {
             pairings = new HashMap<>();
-            Log.w(TAG, "pairings为空");
         }
-
-        if (currentNode == null) {
-            Log.w(TAG, "currentNode为空，使用测试数据");
-            // 仅用于测试/预览，实际应由上个页面传入
-            // currentNode = new NavigationNode();
-            // currentNode.setName("测试点位");
-            // currentNode.setId(1);
-        }
-        if (recordMode == null || recordMode.isEmpty()) {
-            recordMode = "item";
+        if (hospitalTasks == null) {
+            hospitalTasks = new ArrayList<>();
         }
     }
 
@@ -140,65 +118,76 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             tvPointName.setText("未知点位");
         }
 
+        resetLayerHighlights();
         List<Integer> targetLayers = new ArrayList<>();
+        List<String> itemLines = new ArrayList<>();
 
-        // 遍历配对关系，找出所有对应当前点位的层级
-        if (pairings != null && currentNode != null) {
+        if ("hospital".equals(recordMode)) {
+            for (HospitalDeliveryTask task : hospitalTasks) {
+                NavigationNode roomNode = task.getRoomNode();
+                if (roomNode == null || currentNode == null || roomNode.getId() != currentNode.getId()) {
+                    continue;
+                }
+                if (task.hasAssignedLayer()) {
+                    targetLayers.add(task.getAssignedLayer());
+                    highlightLayer(task.getAssignedLayer());
+                    itemLines.add(task.getAssignedLayerLabel() + " - " + task.getItemName());
+                } else {
+                    itemLines.add("未分配 - " + task.getItemName());
+                }
+            }
+        } else if (pairings != null && currentNode != null) {
             for (Map.Entry<Integer, NavigationNode> entry : pairings.entrySet()) {
                 NavigationNode node = entry.getValue();
-                // 比较ID或名称，这里假设ID唯一
                 if (node != null && node.getId() == currentNode.getId()) {
-                    // 将资源ID转换为层号 (1, 2, 3)
                     int layerNum = getLayerNumber(entry.getKey());
                     if (layerNum > 0) {
                         targetLayers.add(layerNum);
+                        highlightLayer(layerNum);
                     }
                 }
             }
         }
 
-        // 排序层级
         Collections.sort(targetLayers);
-
-        // 构建显示的层级字符串
         StringBuilder layersText = new StringBuilder();
         for (Integer layer : targetLayers) {
-            layersText.append("L").append(layer).append(" ");
-
-            // 高亮显示的层级
-            highlightLayer(layer);
+            if (layersText.length() > 0) {
+                layersText.append(" ");
+            }
+            layersText.append("L").append(layer);
         }
+        tvLayersList.setText(layersText.length() == 0 ? "未分配层位" : layersText.toString());
 
-        if (targetLayers.isEmpty()) {
-            tvLayersList.setText("");
-        } else {
-            tvLayersList.setText(layersText.toString().trim());
+        if (tvItemsList != null) {
+            if (itemLines.isEmpty()) {
+                tvItemsList.setText("请打开舱门后取物。");
+            } else {
+                tvItemsList.setText(android.text.TextUtils.join("\n", itemLines));
+            }
         }
     }
 
-    /**
-     * 将按钮ID转换为层号
-     */
+    private void resetLayerHighlights() {
+        int textColor = ContextCompat.getColor(this, R.color.medical_text_primary);
+        layerL1.setBackgroundResource(R.drawable.item_point_style);
+        layerL2.setBackgroundResource(R.drawable.item_point_style);
+        layerL3.setBackgroundResource(R.drawable.item_point_style);
+        layerL1.setTextColor(textColor);
+        layerL2.setTextColor(textColor);
+        layerL3.setTextColor(textColor);
+    }
+
     private int getLayerNumber(int id) {
-        if (id == R.id.l1_button)
-            return 1;
-        if (id == R.id.l2_button)
-            return 2;
-        if (id == R.id.l3_button)
-            return 3;
-        // 兼容处理：如果已经是层号
-        if (id == 1 || id == 2 || id == 3)
-            return id;
+        if (id == R.id.l1_button) return 1;
+        if (id == R.id.l2_button) return 2;
+        if (id == R.id.l3_button) return 3;
+        if (id == 1 || id == 2 || id == 3) return id;
         return 0;
     }
 
-    /**
-     * 高亮指定层级
-     */
     private void highlightLayer(int layer) {
-        // 将对应的层级背景设置为高亮色（蓝色圆角），文字设为白色
         int whiteColor = ContextCompat.getColor(this, android.R.color.white);
-
         switch (layer) {
             case 1:
                 layerL1.setBackgroundResource(R.drawable.blue_rounded_button);
@@ -212,6 +201,8 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 layerL3.setBackgroundResource(R.drawable.blue_rounded_button);
                 layerL3.setTextColor(whiteColor);
                 break;
+            default:
+                break;
         }
     }
 
@@ -222,36 +213,26 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 return;
             }
 
-            // 禁用按钮防止重复点击
             btnOpenCabin.setEnabled(false);
-
             if (!isConfirmState) {
-                // 1. 当前为"打开舱门"操作，需先验证密码
                 Toast.makeText(this, "请先验证密码", Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(this, PasswordActivity.class);
                 startActivityForResult(intent, REQUEST_CODE_VERIFY_PASSWORD);
             } else {
-                // 2. 当前为"确认收货"操作（关闭舱门）
-                // 用户确认收货，立刻取消自动离场倒计时
                 if (departureTimer != null) {
                     departureTimer.cancel();
-                    tvCountdown.setVisibility(android.view.View.INVISIBLE);
+                    tvCountdown.setVisibility(View.INVISIBLE);
                 }
-
                 attemptCloseAndLeave(true);
             }
         });
     }
 
-    /**
-     * 启动离场倒计时（根据设置中的取物停留时间）
-     */
     private void startDepartureTimer() {
         if (departureTimer != null) {
             departureTimer.cancel();
         }
 
-        // 从设置中读取取物停留时间（秒）
         int stayDurationSeconds;
         if ("hospital".equals(recordMode)) {
             stayDurationSeconds = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
@@ -272,28 +253,18 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
             @Override
             public void onFinish() {
-                Log.d(TAG, "【倒计时】" + stayDurationSeconds + "秒结束，自动离场");
                 processAutoDeparture();
             }
         }.start();
     }
 
-    /**
-     * 处理超时自动离场
-     */
     private void processAutoDeparture() {
-        if (isFinishing())
-            return;
-
-        // 关键修复：如果密码验证页面还在显示，强制关闭它
+        if (isFinishing()) return;
         finishActivity(REQUEST_CODE_VERIFY_PASSWORD);
-        Log.d(TAG, "【超时离场】强制关闭密码验证页面");
 
         runOnUiThread(() -> {
             btnOpenCabin.setEnabled(false);
             tvCountdown.setText("正在离开...");
-
-            // 如果门没开就自动离场，记录为超时失败
             if (!isConfirmState) {
                 String pointName = currentNode != null ? currentNode.getName() : "未知点位";
                 recordArrival(pointName, ItemDeliveryRecord.STATUS_FAILED_TIMEOUT);
@@ -301,22 +272,19 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         });
 
         if (doorService != null) {
-            // 先检查状态，如果已关闭直接走，否则尝试关闭
             doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
                 @Override
                 public void onSuccess(Boolean allClosed) {
                     if (allClosed) {
                         finishWithSuccess();
                     } else {
-                        runOnUiThread(() -> Toast.makeText(ConfirmReceiptActivity.this, "超时自动关门...", Toast.LENGTH_SHORT)
-                                .show());
+                        runOnUiThread(() -> Toast.makeText(ConfirmReceiptActivity.this, "超时自动关门...", Toast.LENGTH_SHORT).show());
                         attemptCloseAndLeave(false);
                     }
                 }
 
                 @Override
                 public void onError(ApiError error) {
-                    // 查询失败，也尝试关闭保底
                     attemptCloseAndLeave(false);
                 }
             });
@@ -325,40 +293,26 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 尝试关闭舱门并离开
-     *
-     * @param isManual 是否是手动触发
-     */
     private void attemptCloseAndLeave(boolean isManual) {
         runOnUiThread(() -> Toast.makeText(this, "正在关闭舱门...", Toast.LENGTH_SHORT).show());
 
         doorService.closeAllDoors(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                runOnUiThread(() -> {
-                    // 指令下发成功，开始轮询检查舱门是否真正关闭
-                    // 只有真正关闭后才允许离开（防止移动时门还开着）
-                    checkDoorClosedRecursive(10); // 10次重试，每次1秒
-                });
+                runOnUiThread(() -> checkDoorClosedRecursive(10));
             }
 
             @Override
             public void onError(ApiError error) {
                 runOnUiThread(() -> {
-                    Toast.makeText(ConfirmReceiptActivity.this, "关门指令失败: " + error.getMessage(),
-                            Toast.LENGTH_SHORT).show();
-
+                    Toast.makeText(ConfirmReceiptActivity.this, "关门指令失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     if (isManual) {
-                        // 如果是手动触发，允许重试
                         btnOpenCabin.setEnabled(true);
                     } else {
-                        // 如果是自动超时触发，延迟5秒后强制结束
                         btnOpenCabin.setEnabled(false);
-                        tvCountdown.setText("关门异常，5秒后离场...");
+                        tvCountdown.setText("关门异常，5s 后离场...");
                         new android.os.Handler().postDelayed(() -> {
                             if (!isFinishing()) {
-                                Log.w(TAG, "【关门失败】强制结束Activity");
                                 finishWithSuccess();
                             }
                         }, 5000);
@@ -368,23 +322,15 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * 递归检查舱门是否关闭
-     */
     private void checkDoorClosedRecursive(int remainingRetries) {
-        if (isFinishing() || doorService == null)
-            return;
-
+        if (isFinishing() || doorService == null) return;
         if (remainingRetries <= 0) {
             runOnUiThread(() -> {
-                Toast.makeText(ConfirmReceiptActivity.this, "关门检测超时，5秒后自动离场", Toast.LENGTH_LONG).show();
+                Toast.makeText(ConfirmReceiptActivity.this, "关门检测超时，5s 后自动离场", Toast.LENGTH_LONG).show();
                 btnOpenCabin.setEnabled(false);
                 tvCountdown.setText("检测超时，即将离场...");
-
-                // 延迟5秒后强制结束，避免无限等待
                 new android.os.Handler().postDelayed(() -> {
                     if (!isFinishing()) {
-                        Log.w(TAG, "【关门超时】强制结束Activity");
                         finishWithSuccess();
                     }
                 }, 5000);
@@ -397,31 +343,19 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             public void onSuccess(Boolean allClosed) {
                 runOnUiThread(() -> {
                     if (allClosed) {
-                        Toast.makeText(ConfirmReceiptActivity.this, "舱门已关闭，5秒后离场...", Toast.LENGTH_SHORT).show();
-                        tvCountdown.setVisibility(android.view.View.VISIBLE);
+                        Toast.makeText(ConfirmReceiptActivity.this, "舱门已关闭，5s 后离场...", Toast.LENGTH_SHORT).show();
+                        tvCountdown.setVisibility(View.VISIBLE);
                         tvCountdown.setText("准备离场...");
-
-                        // 增加5秒延迟，确保门完全关闭后再移动
-                        new android.os.Handler().postDelayed(() -> {
-                            finishWithSuccess();
-                        }, 5000);
+                        new android.os.Handler().postDelayed(ConfirmReceiptActivity.this::finishWithSuccess, 5000);
                     } else {
-                        // 未关闭，等待1秒后重试
-                        new android.os.Handler().postDelayed(() -> {
-                            checkDoorClosedRecursive(remainingRetries - 1);
-                        }, 1000);
+                        new android.os.Handler().postDelayed(() -> checkDoorClosedRecursive(remainingRetries - 1), 1000);
                     }
                 });
             }
 
             @Override
             public void onError(ApiError error) {
-                // 查询出错也重试
-                runOnUiThread(() -> {
-                    new android.os.Handler().postDelayed(() -> {
-                        checkDoorClosedRecursive(remainingRetries - 1);
-                    }, 1000);
-                });
+                runOnUiThread(() -> new android.os.Handler().postDelayed(() -> checkDoorClosedRecursive(remainingRetries - 1), 1000));
             }
         });
     }
@@ -439,7 +373,6 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             departureTimer.cancel();
             departureTimer = null;
         }
-        // 注销广播接收器
         LocalBroadcastManager.getInstance(this).unregisterReceiver(doorBroadcastReceiver);
         super.onDestroy();
     }
@@ -447,25 +380,16 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
-        // 如果Activity已经在结束过程中（例如超时触发了自动离场），忽略密码验证结果
         if (isFinishing()) {
-            Log.d(TAG, "【密码验证】Activity正在结束，忽略密码验证结果");
             return;
         }
-
         if (requestCode == REQUEST_CODE_VERIFY_PASSWORD && resultCode == RESULT_OK) {
-            // 密码验证通过，执行开门
             performOpenCabin();
         } else if (requestCode == REQUEST_CODE_VERIFY_PASSWORD) {
-            // 验证未通过或取消，恢复按钮状态
             btnOpenCabin.setEnabled(true);
         }
     }
 
-    /**
-     * 执行开门操作
-     */
     private void performOpenCabin() {
         Toast.makeText(this, "正在打开舱门...", Toast.LENGTH_SHORT).show();
         doorService.openAllDoors(false, new IResultCallback<Void>() {
@@ -473,20 +397,14 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
                     Toast.makeText(ConfirmReceiptActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
-                    // 切换按钮状态和文本
                     btnOpenCabin.setText("确认收货");
                     isConfirmState = true;
-
-                    // 记录到达时间 (成功)
                     String pointName = currentNode != null ? currentNode.getName() : "位置点位";
                     ItemDeliveryRecord record = recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
-
                     if (record != null) {
                         tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
                         tvArrivalDuration.setVisibility(View.VISIBLE);
                     }
-
-                    // 防止连击，延迟3秒启用确认收货按钮
                     new android.os.Handler().postDelayed(() -> {
                         if (!isFinishing()) {
                             btnOpenCabin.setEnabled(true);
@@ -498,11 +416,8 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             @Override
             public void onError(ApiError error) {
                 runOnUiThread(() -> {
-                    Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(),
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     btnOpenCabin.setEnabled(true);
-
-                    // 记录开门硬件失败
                     String pointName = currentNode != null ? currentNode.getName() : "位置点位";
                     recordArrival(pointName, ItemDeliveryRecord.STATUS_FAILED_HARDWARE);
                 });
@@ -518,43 +433,22 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         }
     }
 
-    // ==================== 投影灯脚踩门状态广播 ====================
-
-    /**
-     * 监听投影灯脚踩引起的门状态变化
-     * - 收到"开门完成"广播：更新按钮为"确认收货"状态
-     * - 收到"关门完成"广播：自动执行确认收货并离场，触发前往下一个点
-     */
     private final BroadcastReceiver doorBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             boolean isClosing = intent.getBooleanExtra("is_closing", false);
-            Log.d(TAG, "收到门状态变化广播, is_closing=" + isClosing);
-
             if (isClosing) {
-                // 投影灯触发了关门操作 -> 自动确认收货并离场
-                Log.d(TAG, "【投影灯关门】自动执行确认收货流程");
-
-                // 取消倒计时
                 if (departureTimer != null) {
                     departureTimer.cancel();
                 }
-
-                // 如果之前已经开过门但还没确认收货，记录成功
-                if (isConfirmState) {
-                    // 已经记录过了，不重复记录
-                } else {
-                    // 投影灯直接完成了开→关循环，也记录为成功
+                if (!isConfirmState) {
                     String pointName = currentNode != null ? currentNode.getName() : "未知点位";
                     recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
                 }
-
                 runOnUiThread(() -> {
                     btnOpenCabin.setEnabled(false);
                     btnOpenCabin.setText("舱门已关闭");
                     tvCountdown.setText("舱门已关闭，即将离场...");
-
-                    // 延迟3秒后自动离场（给门关闭动作留出时间）
                     new android.os.Handler().postDelayed(() -> {
                         if (!isFinishing()) {
                             finishWithSuccess();
@@ -562,23 +456,16 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                     }, 3000);
                 });
             } else {
-                // 投影灯触发了开门操作 -> 更新按钮为"确认收货"状态
-                Log.d(TAG, "【投影灯开门】更新按钮为确认收货状态");
                 runOnUiThread(() -> {
                     if (!isConfirmState) {
                         btnOpenCabin.setText("确认收货");
                         isConfirmState = true;
-
-                        // 记录到达时间 (成功)
                         String pointName = currentNode != null ? currentNode.getName() : "未知点位";
                         ItemDeliveryRecord record = recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
-
                         if (record != null) {
                             tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
                             tvArrivalDuration.setVisibility(View.VISIBLE);
                         }
-
-                        // 延迟启用按钮
                         new android.os.Handler().postDelayed(() -> {
                             if (!isFinishing()) {
                                 btnOpenCabin.setEnabled(true);
@@ -616,5 +503,4 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 return com.weigao.robot.control.model.HospitalDeliveryRecord.STATUS_CANCELLED;
         }
     }
-
 }
