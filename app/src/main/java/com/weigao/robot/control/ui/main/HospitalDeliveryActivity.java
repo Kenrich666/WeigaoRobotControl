@@ -143,7 +143,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                 public void onError(ApiError error) {
                     runOnUiThread(() -> Toast.makeText(
                             HospitalDeliveryActivity.this,
-                            "查询舱门状态失败: " + error.getMessage(),
+                            "获取舱门状态失败: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show());
                 }
             });
@@ -166,14 +166,14 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
 
             v.setEnabled(false);
             if (robotStateService != null) {
-                Log.d(TAG, "【定位】医院配送开始前发起定位校验，pairings=" + pairings.size()
-                        + "，items=" + layerItems.size());
+                Log.d(TAG, "【定位】医院配送开始前发起定位校验，tasks=" + hospitalTasks.size()
+                        + ", disinfectionPoints=" + disinfectionPoints.size());
                 robotStateService.performLocalization(new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         runOnUiThread(() -> {
                             if (!isActivityAlive()) {
-                                Log.d(TAG, "【定位】医院配送定位成功回调到达，但页面已销毁，忽略");
+                                Log.d(TAG, "【定位】医院配送页已结束，忽略定位成功回调");
                                 return;
                             }
                             Log.d(TAG, "【定位】医院配送定位校验成功，进入关门检查");
@@ -185,10 +185,10 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                     public void onError(ApiError error) {
                         runOnUiThread(() -> {
                             if (!isActivityAlive()) {
-                                Log.d(TAG, "【定位】医院配送定位失败回调到达，但页面已销毁，忽略");
+                                Log.d(TAG, "【定位】医院配送页已结束，忽略定位失败回调");
                                 return;
                             }
-                            Log.e(TAG, "【定位】医院配送定位校验失败，跳转失败页: " + error.getMessage());
+                            Log.e(TAG, "【定位】医院配送定位校验失败: " + error.getMessage());
                             v.setEnabled(true);
                             startActivity(new Intent(
                                     HospitalDeliveryActivity.this,
@@ -208,7 +208,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         taskAdapter = new TaskAdapter(hospitalTasks, task -> {
             hospitalTasks.remove(task);
             updateTaskListState();
-            Toast.makeText(this, "已删除任务: " + task.getItemName(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "已移除任务: " + task.getItemName(), Toast.LENGTH_SHORT).show();
         });
         taskRecyclerView.setAdapter(taskAdapter);
     }
@@ -238,8 +238,8 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     }
 
     private void updateDraftSummary() {
-        selectedItemTextView.setText("物品：" + (selectedItemName == null ? "未选择" : selectedItemName));
-        selectedRoomTextView.setText("房间：" + (selectedRoomNode == null ? "未选择" : selectedRoomNode.getName()));
+        selectedItemTextView.setText("物品: " + (selectedItemName == null ? "未选择" : selectedItemName));
+        selectedRoomTextView.setText("房间: " + (selectedRoomNode == null ? "未选择" : selectedRoomNode.getName()));
         addTaskButton.setEnabled(selectedItemName != null
                 && selectedRoomNode != null
                 && hospitalTasks.size() < MAX_TASK_COUNT);
@@ -360,7 +360,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                 Log.e(TAG, "getDestinationList failed: " + error.getMessage());
                 runOnUiThread(() -> Toast.makeText(
                         HospitalDeliveryActivity.this,
-                        "获取点位失败: " + error.getMessage(),
+                        "获取配送点列表失败: " + error.getMessage(),
                         Toast.LENGTH_SHORT).show());
             }
         });
@@ -456,7 +456,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                     openDoorButton.setEnabled(true);
                     Toast.makeText(
                             HospitalDeliveryActivity.this,
-                            "查询舱门状态失败: " + error.getMessage(),
+                            "获取舱门状态失败: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show();
                 });
             }
@@ -523,7 +523,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                     trigger.setEnabled(true);
                     Toast.makeText(
                             HospitalDeliveryActivity.this,
-                            "查询舱门状态失败: " + error.getMessage(),
+                            "获取舱门状态失败: " + error.getMessage(),
                             Toast.LENGTH_SHORT).show();
                 });
             }
