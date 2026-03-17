@@ -215,11 +215,11 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         // 确定目标点：直接返回原点
         NavigationNode targetNode = null;
         if (sourceMode == 3) {
-            if (HospitalDeliveryActivity.originPoints != null && !HospitalDeliveryActivity.originPoints.isEmpty()) {
-                targetNode = HospitalDeliveryActivity.originPoints.get(0);
-            }
+            targetNode = findHospitalReturnTarget();
+        } else if (sourceMode == 2) {
+            targetNode = findCircularReturnTarget();
         } else if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
-            targetNode = DeliveryActivity.originPoints.get(0);
+            targetNode = findItemReturnTarget();
         }
         if (targetNode != null) {
             Log.d(TAG, "选择返航目标: 原点 - " + targetNode.getName());
@@ -641,5 +641,59 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         if (tvCountdown != null) {
             tvCountdown.setVisibility(View.GONE);
         }
+    }
+
+    private NavigationNode findHospitalReturnTarget() {
+        int configuredId = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                .getReturnPointId();
+        if (configuredId != -1) {
+            return new NavigationNode(
+                    configuredId,
+                    com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().getReturnPointName(),
+                    0,
+                    0);
+        }
+
+        if (HospitalDeliveryActivity.originPoints == null || HospitalDeliveryActivity.originPoints.isEmpty()) {
+            return null;
+        }
+
+        return HospitalDeliveryActivity.originPoints.get(0);
+    }
+
+    private NavigationNode findItemReturnTarget() {
+        int configuredId = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                .getReturnPointId();
+        if (configuredId != -1) {
+            return new NavigationNode(
+                    configuredId,
+                    com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnPointName(),
+                    0,
+                    0);
+        }
+
+        if (DeliveryActivity.originPoints == null || DeliveryActivity.originPoints.isEmpty()) {
+            return null;
+        }
+
+        return DeliveryActivity.originPoints.get(0);
+    }
+
+    private NavigationNode findCircularReturnTarget() {
+        int configuredId = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                .getReturnPointId();
+        if (configuredId != -1) {
+            return new NavigationNode(
+                    configuredId,
+                    com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnPointName(),
+                    0,
+                    0);
+        }
+
+        if (DeliveryActivity.originPoints == null || DeliveryActivity.originPoints.isEmpty()) {
+            return null;
+        }
+
+        return DeliveryActivity.originPoints.get(0);
     }
 }

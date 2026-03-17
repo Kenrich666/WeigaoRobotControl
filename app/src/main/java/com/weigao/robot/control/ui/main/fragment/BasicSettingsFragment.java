@@ -1,12 +1,13 @@
 package com.weigao.robot.control.ui.main.fragment;
 
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import com.weigao.robot.control.service.impl.ProjectionDoorService;
@@ -15,11 +16,22 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 
 import com.weigao.robot.control.R;
+import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.model.NavigationNode;
+import com.weigao.robot.control.service.IRobotStateService;
+import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +65,11 @@ public class BasicSettingsFragment extends Fragment {
     private static final int STAY_PROGRESS_MAX = STAY_MAX - STAY_MIN;
 
     private DrawerLayout drawerLayout;
+    private final List<NavigationNode> availableReturnPoints = new ArrayList<>();
+    private NavigationNode defaultOriginPoint;
+    private TextView itemReturnPointValueView;
+    private TextView circularReturnPointValueView;
+    private TextView hospitalReturnPointValueView;
 
     @Nullable
     @Override
@@ -66,6 +83,21 @@ public class BasicSettingsFragment extends Fragment {
 
         View closeDrawerButton = view.findViewById(R.id.btn_close_drawer);
         closeDrawerButton.setOnClickListener(v -> drawerLayout.closeDrawer(GravityCompat.END));
+
+        itemReturnPointValueView = view.findViewById(R.id.tv_item_return_point_setting_value);
+        circularReturnPointValueView = view.findViewById(R.id.tv_circular_return_point_setting_value);
+        hospitalReturnPointValueView = view.findViewById(R.id.tv_hospital_return_point_setting_value);
+        TextView hospitalReturnPointValue = hospitalReturnPointValueView;
+        View itemReturnPointLayout = view.findViewById(R.id.layout_item_return_point_setting);
+        View circularReturnPointLayout = view.findViewById(R.id.layout_circular_return_point_setting);
+        View hospitalReturnPointLayout = view.findViewById(R.id.layout_hospital_return_point_setting);
+        updateItemReturnPointText(itemReturnPointValueView);
+        updateCircularReturnPointText(circularReturnPointValueView);
+        updateHospitalReturnPointText(hospitalReturnPointValue);
+        itemReturnPointLayout.setOnClickListener(v -> showItemReturnPointDialog(itemReturnPointValueView));
+        circularReturnPointLayout.setOnClickListener(v -> showCircularReturnPointDialog(circularReturnPointValueView));
+        hospitalReturnPointLayout.setOnClickListener(v -> showHospitalReturnPointDialog(hospitalReturnPointValue));
+        loadHospitalOriginPoints(hospitalReturnPointValue);
 
         EditText etCurrent = view.findViewById(R.id.et_current_password);
         EditText etNew = view.findViewById(R.id.et_new_password);
@@ -285,6 +317,35 @@ public class BasicSettingsFragment extends Fragment {
             }
         });
 
+        SeekBar hospitalArrivalStaySeekBar = view.findViewById(R.id.seekbar_hospital_arrival_stay);
+        TextView hospitalArrivalStayValue = view.findViewById(R.id.tv_hospital_arrival_stay_value);
+
+        int currentHospitalStay = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                .getArrivalStayDuration();
+        currentHospitalStay = clampStay(currentHospitalStay);
+        hospitalArrivalStaySeekBar.setMax(STAY_PROGRESS_MAX);
+        hospitalArrivalStaySeekBar.setProgress(toStaySeekBarProgress(currentHospitalStay));
+        hospitalArrivalStayValue.setText(String.format("%d s", currentHospitalStay));
+
+        hospitalArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int stay = toStayValue(progress);
+                hospitalArrivalStayValue.setText(String.format("%d s", stay));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int stay = toStayValue(seekBar.getProgress());
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                        .setArrivalStayDuration(stay);
+            }
+        });
+
         SeekBar seekBar = view.findViewById(R.id.seekbar_circular_speed);
         TextView speedValue = view.findViewById(R.id.tv_speed_value);
 
@@ -424,6 +485,280 @@ public class BasicSettingsFragment extends Fragment {
         switchProjectionDoor.postDelayed(syncRunnable, 1000);
 
         return view;
+    }
+
+    private void loadHospitalOriginPoints(TextView valueView) {
+        IRobotStateService robotStateService = ServiceManager.getInstance().getRobotStateService();
+        if (robotStateService == null) {
+            return;
+        }
+
+        robotStateService.getDestinationList(new IResultCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                new Thread(() -> {
+                    List<NavigationNode> loadedPoints = new ArrayList<>();
+                    NavigationNode loadedOriginPoint = null;
+                    try {
+                        JSONObject resultObj = new JSONObject(result);
+                        JSONArray jsonArray = resultObj.optJSONArray("data");
+                        if (jsonArray != null) {
+                            for (int i = 0; i < jsonArray.length(); i++) {
+                                JSONObject obj = jsonArray.getJSONObject(i);
+                                NavigationNode node = new NavigationNode();
+                                int id = obj.optInt("id");
+                                String name = obj.optString("name");
+                                String type = obj.optString("type");
+                                if (name == null || name.trim().isEmpty()) {
+                                    name = String.valueOf(id);
+                                }
+                                node.setId(id);
+                                node.setName(name);
+                                node.setFloor(obj.optInt("floor"));
+                                loadedPoints.add(node);
+                                if (loadedOriginPoint == null && "origin".equals(type)) {
+                                    loadedOriginPoint = node;
+                                }
+                            }
+                        }
+                    } catch (JSONException e) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> Toast.makeText(
+                                    getContext(),
+                                    "返航点位解析失败",
+                                    Toast.LENGTH_SHORT).show());
+                        }
+                    }
+
+                    if (getActivity() != null) {
+                        final NavigationNode finalOriginPoint = loadedOriginPoint;
+                        getActivity().runOnUiThread(() -> {
+                            availableReturnPoints.clear();
+                            availableReturnPoints.addAll(loadedPoints);
+                            defaultOriginPoint = finalOriginPoint;
+                            ensureDefaultReturnPoints();
+                            updateItemReturnPointText(itemReturnPointValueView);
+                            updateCircularReturnPointText(circularReturnPointValueView);
+                            updateHospitalReturnPointText(valueView);
+                        });
+                    }
+                }).start();
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> Toast.makeText(
+                            getContext(),
+                            "获取返航点位失败: " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show());
+                }
+            }
+        });
+    }
+
+    private void ensureDefaultReturnPoints() {
+        if (defaultOriginPoint == null) {
+            return;
+        }
+
+        com.weigao.robot.control.manager.ItemDeliverySettingsManager itemSettings =
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance();
+        if (itemSettings.getReturnPointId() == -1) {
+            itemSettings.setReturnPoint(defaultOriginPoint.getId(), defaultOriginPoint.getName());
+        }
+
+        com.weigao.robot.control.manager.CircularDeliverySettingsManager circularSettings =
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance();
+        if (circularSettings.getReturnPointId() == -1) {
+            circularSettings.setReturnPoint(defaultOriginPoint.getId(), defaultOriginPoint.getName());
+        }
+
+        com.weigao.robot.control.manager.HospitalDeliverySettingsManager hospitalSettings =
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance();
+        if (hospitalSettings.getReturnPointId() == -1) {
+            hospitalSettings.setReturnPoint(defaultOriginPoint.getId(), defaultOriginPoint.getName());
+        }
+    }
+
+    private void showHospitalReturnPointDialog(TextView valueView) {
+        if (getContext() == null) {
+            return;
+        }
+        if (availableReturnPoints.isEmpty()) {
+            Toast.makeText(getContext(), "暂无可选返航点位，请先确认地图已配置点位", Toast.LENGTH_SHORT).show();
+            loadHospitalOriginPoints(valueView);
+            return;
+        }
+
+        String[] names = new String[availableReturnPoints.size()];
+        int checkedItem = -1;
+        int currentId = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().getReturnPointId();
+        for (int i = 0; i < availableReturnPoints.size(); i++) {
+            NavigationNode node = availableReturnPoints.get(i);
+            names[i] = node.getName();
+            if (node.getId() == currentId) {
+                checkedItem = i;
+            }
+        }
+
+        new AlertDialog.Builder(getContext())
+                .setTitle("选择医院配送返航点位")
+                .setSingleChoiceItems(names, checkedItem, (dialog, which) -> {
+                    NavigationNode selectedNode = availableReturnPoints.get(which);
+                    com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                            .setReturnPoint(selectedNode.getId(), selectedNode.getName());
+                    updateHospitalReturnPointText(valueView);
+                    dialog.dismiss();
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showItemReturnPointDialog(TextView valueView) {
+        if (getContext() == null) {
+            return;
+        }
+        if (availableReturnPoints.isEmpty()) {
+            Toast.makeText(getContext(), "暂无可选返航点位，请先确认地图已配置点位", Toast.LENGTH_SHORT).show();
+            loadHospitalOriginPoints(hospitalReturnPointValueView);
+            return;
+        }
+
+        String[] names = new String[availableReturnPoints.size()];
+        int checkedItem = -1;
+        int currentId = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnPointId();
+        for (int i = 0; i < availableReturnPoints.size(); i++) {
+            NavigationNode node = availableReturnPoints.get(i);
+            names[i] = node.getName();
+            if (node.getId() == currentId) {
+                checkedItem = i;
+            }
+        }
+
+        new AlertDialog.Builder(getContext())
+                .setTitle("选择物品配送返航点位")
+                .setSingleChoiceItems(names, checkedItem, (dialog, which) -> {
+                    NavigationNode selectedNode = availableReturnPoints.get(which);
+                    com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                            .setReturnPoint(selectedNode.getId(), selectedNode.getName());
+                    updateItemReturnPointText(valueView);
+                    dialog.dismiss();
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showCircularReturnPointDialog(TextView valueView) {
+        if (getContext() == null) {
+            return;
+        }
+        if (availableReturnPoints.isEmpty()) {
+            Toast.makeText(getContext(), "暂无可选返航点位，请先确认地图已配置点位", Toast.LENGTH_SHORT).show();
+            loadHospitalOriginPoints(hospitalReturnPointValueView);
+            return;
+        }
+
+        String[] names = new String[availableReturnPoints.size()];
+        int checkedItem = -1;
+        int currentId = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnPointId();
+        for (int i = 0; i < availableReturnPoints.size(); i++) {
+            NavigationNode node = availableReturnPoints.get(i);
+            names[i] = node.getName();
+            if (node.getId() == currentId) {
+                checkedItem = i;
+            }
+        }
+
+        new AlertDialog.Builder(getContext())
+                .setTitle("选择循环配送返航点位")
+                .setSingleChoiceItems(names, checkedItem, (dialog, which) -> {
+                    NavigationNode selectedNode = availableReturnPoints.get(which);
+                    com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                            .setReturnPoint(selectedNode.getId(), selectedNode.getName());
+                    updateCircularReturnPointText(valueView);
+                    dialog.dismiss();
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void updateHospitalReturnPointText(TextView valueView) {
+        if (valueView == null) {
+            return;
+        }
+
+        com.weigao.robot.control.manager.HospitalDeliverySettingsManager settingsManager =
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance();
+        int currentId = settingsManager.getReturnPointId();
+        String currentName = settingsManager.getReturnPointName();
+
+        if (currentId != -1) {
+            for (NavigationNode node : availableReturnPoints) {
+                if (node.getId() == currentId) {
+                    valueView.setText(node.getName());
+                    return;
+                }
+            }
+        }
+
+        if (!TextUtils.isEmpty(currentName)) {
+            valueView.setText(currentName);
+        } else {
+            valueView.setText("未设置");
+        }
+    }
+
+    private void updateItemReturnPointText(TextView valueView) {
+        if (valueView == null) {
+            return;
+        }
+
+        com.weigao.robot.control.manager.ItemDeliverySettingsManager settingsManager =
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance();
+        int currentId = settingsManager.getReturnPointId();
+        String currentName = settingsManager.getReturnPointName();
+
+        if (currentId != -1) {
+            for (NavigationNode node : availableReturnPoints) {
+                if (node.getId() == currentId) {
+                    valueView.setText(node.getName());
+                    return;
+                }
+            }
+        }
+
+        if (!TextUtils.isEmpty(currentName)) {
+            valueView.setText(currentName);
+        } else {
+            valueView.setText("未设置");
+        }
+    }
+
+    private void updateCircularReturnPointText(TextView valueView) {
+        if (valueView == null) {
+            return;
+        }
+
+        com.weigao.robot.control.manager.CircularDeliverySettingsManager settingsManager =
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance();
+        int currentId = settingsManager.getReturnPointId();
+        String currentName = settingsManager.getReturnPointName();
+
+        if (currentId != -1) {
+            for (NavigationNode node : availableReturnPoints) {
+                if (node.getId() == currentId) {
+                    valueView.setText(node.getName());
+                    return;
+                }
+            }
+        }
+
+        if (!TextUtils.isEmpty(currentName)) {
+            valueView.setText(currentName);
+        } else {
+            valueView.setText("未设置");
+        }
     }
 
     private int clampSpeed(int speed) {
