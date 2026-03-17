@@ -12,6 +12,7 @@ import com.keenon.sdk.external.PeanutSDK;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.callback.IStateCallback;
+import com.weigao.robot.control.model.ChargingState;
 import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.service.IRobotStateService;
 
@@ -31,12 +32,13 @@ public class RobotStateServiceImpl implements IRobotStateService {
     private static final String LOCALIZATION_SERVICE_UNAVAILABLE_MESSAGE = "定位服务未就绪，请稍后重试";
     private static final String LOCALIZATION_SERVICE_RELEASED_MESSAGE = "定位服务已释放";
 
-    private final Context context;
     private final Handler mainHandler;
     private final List<IStateCallback> callbacks = new CopyOnWriteArrayList<>();
     private final RobotState currentState = new RobotState();
     private final Object localizationLock = new Object();
     private final List<IResultCallback<Void>> pendingLocalizationCallbacks = new ArrayList<>();
+    private final ChargingRuntimeBridge chargingRuntimeBridge;
+    private final boolean ownsChargingRuntimeBridge;
 
     private PeanutRuntime peanutRuntime;
     private int workMode = WORK_MODE_STANDBY;
@@ -44,8 +46,22 @@ public class RobotStateServiceImpl implements IRobotStateService {
     private Runnable localizationTimeoutRunnable;
 
     public RobotStateServiceImpl(Context context) {
-        this.context = context.getApplicationContext();
+        this(context, new ChargingRuntimeBridge(context), true);
+    }
+
+    public RobotStateServiceImpl(Context context, ChargingRuntimeBridge chargingRuntimeBridge) {
+        this(context, chargingRuntimeBridge, false);
+    }
+
+    private RobotStateServiceImpl(
+            Context context,
+            ChargingRuntimeBridge chargingRuntimeBridge,
+            boolean ownsChargingRuntimeBridge) {
         this.mainHandler = createMainHandler();
+        this.chargingRuntimeBridge = chargingRuntimeBridge;
+        this.ownsChargingRuntimeBridge = ownsChargingRuntimeBridge;
+        currentState.setChargingState(chargingRuntimeBridge.getCurrentState());
+        chargingRuntimeBridge.addListener(chargingStateListener);
         logLocalization("服务创建，准备初始化 PeanutRuntime");
         initPeanutRuntime();
     }
@@ -58,7 +74,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
                 return;
             }
 
-            peanutRuntime.registerListener(mRuntimeListener);
+            peanutRuntime.registerListener(runtimeListener);
             peanutRuntime.start();
             logLocalization("PeanutRuntime 初始化完成，已注册监听并启动");
             updateStateFromSdk();
@@ -68,7 +84,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
         }
     }
 
-    private final PeanutRuntime.Listener mRuntimeListener = new PeanutRuntime.Listener() {
+    private final PeanutRuntime.Listener runtimeListener = new PeanutRuntime.Listener() {
         @Override
         public void onEvent(int event, Object obj) {
             if (event == EVENT_LOCALIZATION_SUCCESS) {
@@ -86,26 +102,6 @@ public class RobotStateServiceImpl implements IRobotStateService {
         @Override
         public void onHealth(Object content) {
             Log.d(TAG, "onHealth: " + content);
-            try {
-                if (content == null) {
-                    return;
-                }
-                org.json.JSONObject json = new org.json.JSONObject(content.toString());
-                org.json.JSONArray data = json.optJSONArray("data");
-                if (data == null) {
-                    return;
-                }
-                for (int i = 0; i < data.length(); i++) {
-                    org.json.JSONObject item = data.getJSONObject(i);
-                    int code = item.optInt("code");
-                    String desc = item.optString("desc");
-                    if (code != 0) {
-                        Log.e(TAG, "Robot Health Error: code=" + code + ", desc=" + desc);
-                    }
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Error parsing onHealth content", e);
-            }
         }
 
         @Override
@@ -114,48 +110,12 @@ public class RobotStateServiceImpl implements IRobotStateService {
         }
     };
 
-    private void updateStateFromSdk() {
-        if (peanutRuntime == null) {
-            return;
-        }
-        RuntimeInfo info = peanutRuntime.getRuntimeInfo();
-        if (info == null) {
-            return;
-        }
-
-        boolean stateChanged = false;
-        synchronized (currentState) {
-            int power = info.getPower();
-            if (power != currentState.getBatteryLevel()) {
-                currentState.setBatteryLevel(power);
-                notifyBatteryLevelChanged(power);
-                stateChanged = true;
-            }
-
-            int newWorkMode = info.getWorkMode();
-            if (workMode != newWorkMode) {
-                workMode = newWorkMode;
-                currentState.setWorkMode(workMode);
-                stateChanged = true;
-            }
-
-            boolean scram = info.isEmergencyOpen();
-            if (scram != currentState.isScramButtonPressed()) {
-                currentState.setScramButtonPressed(scram);
-                stateChanged = true;
-            }
-
-            int motorStatus = info.getMotorStatus();
-            if (motorStatus != currentState.getMotorStatus()) {
-                currentState.setMotorStatus(motorStatus);
-                stateChanged = true;
-            }
-        }
-
-        if (stateChanged) {
+    private final ChargingRuntimeBridge.Listener chargingStateListener = chargingState -> {
+        if (updateChargingState(chargingState)) {
+            notifyChargingStateChanged(chargingState);
             notifyStateChanged(currentState);
         }
-    }
+    };
 
     @Override
     public void registerCallback(IStateCallback callback) {
@@ -164,6 +124,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
             synchronized (currentState) {
                 callback.onStateChanged(currentState);
                 callback.onBatteryLevelChanged(currentState.getBatteryLevel());
+                callback.onChargingStateChanged(copyChargingState(currentState.getChargingState()));
             }
         }
     }
@@ -177,6 +138,7 @@ public class RobotStateServiceImpl implements IRobotStateService {
     public void getRobotState(IResultCallback<RobotState> callback) {
         if (callback != null) {
             updateStateFromSdk();
+            updateChargingState(chargingRuntimeBridge.getCurrentState());
             callback.onSuccess(currentState);
         }
     }
@@ -192,12 +154,29 @@ public class RobotStateServiceImpl implements IRobotStateService {
                 RuntimeInfo info = peanutRuntime.getRuntimeInfo();
                 if (info != null) {
                     power = info.getPower();
-                    currentState.setBatteryLevel(power);
+                    synchronized (currentState) {
+                        currentState.setBatteryLevel(power);
+                    }
                 }
             }
             callback.onSuccess(power);
         } catch (Exception e) {
             Log.e(TAG, "getBatteryLevel failed", e);
+            notifyError(callback, -1, e.getMessage());
+        }
+    }
+
+    @Override
+    public void getChargingState(IResultCallback<ChargingState> callback) {
+        if (callback == null) {
+            return;
+        }
+        try {
+            ChargingState chargingState = chargingRuntimeBridge.getCurrentState();
+            updateChargingState(chargingState);
+            callback.onSuccess(chargingState);
+        } catch (Exception e) {
+            Log.e(TAG, "getChargingState failed", e);
             notifyError(callback, -1, e.getMessage());
         }
     }
@@ -256,6 +235,9 @@ public class RobotStateServiceImpl implements IRobotStateService {
                 peanutRuntime.setWorkMode(mode);
             }
             workMode = mode;
+            synchronized (currentState) {
+                currentState.setWorkMode(mode);
+            }
             notifySuccess(callback);
         } catch (Exception e) {
             Log.e(TAG, "setWorkMode failed", e);
@@ -422,9 +404,9 @@ public class RobotStateServiceImpl implements IRobotStateService {
         try {
             String info = "";
             if (peanutRuntime != null) {
-                RuntimeInfo rtInfo = peanutRuntime.getRuntimeInfo();
-                if (rtInfo != null) {
-                    info = rtInfo.getRobotArmInfo();
+                RuntimeInfo runtimeInfo = peanutRuntime.getRuntimeInfo();
+                if (runtimeInfo != null) {
+                    info = runtimeInfo.getRobotArmInfo();
                 }
             }
             callback.onSuccess(info != null ? info : "");
@@ -442,9 +424,9 @@ public class RobotStateServiceImpl implements IRobotStateService {
         try {
             String info = "";
             if (peanutRuntime != null) {
-                RuntimeInfo rtInfo = peanutRuntime.getRuntimeInfo();
-                if (rtInfo != null) {
-                    info = rtInfo.getRobotStm32Info();
+                RuntimeInfo runtimeInfo = peanutRuntime.getRuntimeInfo();
+                if (runtimeInfo != null) {
+                    info = runtimeInfo.getRobotStm32Info();
                 }
             }
             callback.onSuccess(info != null ? info : "");
@@ -462,9 +444,9 @@ public class RobotStateServiceImpl implements IRobotStateService {
         try {
             String list = "[]";
             if (peanutRuntime != null) {
-                RuntimeInfo rtInfo = peanutRuntime.getRuntimeInfo();
-                if (rtInfo != null) {
-                    list = rtInfo.getDestList();
+                RuntimeInfo runtimeInfo = peanutRuntime.getRuntimeInfo();
+                if (runtimeInfo != null) {
+                    list = runtimeInfo.getDestList();
                 }
             }
             callback.onSuccess(list != null ? list : "[]");
@@ -482,9 +464,9 @@ public class RobotStateServiceImpl implements IRobotStateService {
         try {
             String props = "{}";
             if (peanutRuntime != null) {
-                RuntimeInfo rtInfo = peanutRuntime.getRuntimeInfo();
-                if (rtInfo != null) {
-                    props = rtInfo.getRobotProperties();
+                RuntimeInfo runtimeInfo = peanutRuntime.getRuntimeInfo();
+                if (runtimeInfo != null) {
+                    props = runtimeInfo.getRobotProperties();
                 }
             }
             callback.onSuccess(props != null ? props : "{}");
@@ -499,14 +481,93 @@ public class RobotStateServiceImpl implements IRobotStateService {
         logLocalization("释放服务，清理定位状态和监听");
         callbacks.clear();
         completeLocalizationError(-1, LOCALIZATION_SERVICE_RELEASED_MESSAGE);
+        chargingRuntimeBridge.removeListener(chargingStateListener);
+        if (ownsChargingRuntimeBridge) {
+            chargingRuntimeBridge.release();
+        }
         if (peanutRuntime != null) {
             try {
-                peanutRuntime.removeListener(mRuntimeListener);
+                peanutRuntime.removeListener(runtimeListener);
             } catch (Exception e) {
                 Log.e(TAG, "removeListener failed", e);
             }
             peanutRuntime = null;
         }
+    }
+
+    protected PeanutRuntime getPeanutRuntimeInstance() {
+        return PeanutRuntime.getInstance();
+    }
+
+    private void updateStateFromSdk() {
+        if (peanutRuntime == null) {
+            return;
+        }
+        RuntimeInfo info = peanutRuntime.getRuntimeInfo();
+        if (info == null) {
+            return;
+        }
+
+        boolean stateChanged = false;
+        synchronized (currentState) {
+            int power = info.getPower();
+            if (power != currentState.getBatteryLevel()) {
+                currentState.setBatteryLevel(power);
+                notifyBatteryLevelChanged(power);
+                stateChanged = true;
+            }
+
+            int newWorkMode = info.getWorkMode();
+            if (workMode != newWorkMode) {
+                workMode = newWorkMode;
+                currentState.setWorkMode(workMode);
+                stateChanged = true;
+            }
+
+            boolean scram = info.isEmergencyOpen();
+            if (scram != currentState.isScramButtonPressed()) {
+                currentState.setScramButtonPressed(scram);
+                stateChanged = true;
+            }
+
+            int motorStatus = info.getMotorStatus();
+            if (motorStatus != currentState.getMotorStatus()) {
+                currentState.setMotorStatus(motorStatus);
+                stateChanged = true;
+            }
+        }
+
+        if (stateChanged) {
+            notifyStateChanged(currentState);
+        }
+    }
+
+    private boolean updateChargingState(ChargingState chargingState) {
+        synchronized (currentState) {
+            ChargingState existing = currentState.getChargingState();
+            if (sameChargingState(existing, chargingState)) {
+                return false;
+            }
+            currentState.setChargingState(copyChargingState(chargingState));
+            return true;
+        }
+    }
+
+    private boolean sameChargingState(ChargingState first, ChargingState second) {
+        if (first == second) {
+            return true;
+        }
+        if (first == null || second == null) {
+            return false;
+        }
+        return first.getStatus() == second.getStatus()
+                && first.getEvent() == second.getEvent()
+                && first.getPileId() == second.getPileId()
+                && first.isCharging() == second.isCharging();
+    }
+
+    private ChargingState copyChargingState(ChargingState chargingState) {
+        return chargingState == null ? null : new ChargingState(chargingState);
     }
 
     private void notifyStateChanged(RobotState state) {
@@ -525,6 +586,17 @@ public class RobotStateServiceImpl implements IRobotStateService {
                 callback.onBatteryLevelChanged(level);
             } catch (Exception e) {
                 Log.e(TAG, "onBatteryLevelChanged callback failed", e);
+            }
+        }
+    }
+
+    private void notifyChargingStateChanged(ChargingState chargingState) {
+        ChargingState snapshot = copyChargingState(chargingState);
+        for (IStateCallback callback : callbacks) {
+            try {
+                callback.onChargingStateChanged(snapshot);
+            } catch (Exception e) {
+                Log.e(TAG, "onChargingStateChanged callback failed", e);
             }
         }
     }
@@ -625,9 +697,5 @@ public class RobotStateServiceImpl implements IRobotStateService {
 
     private void logLocalizationError(String message) {
         Log.e(TAG, LOG_PREFIX + " " + message);
-    }
-
-    protected PeanutRuntime getPeanutRuntimeInstance() {
-        return PeanutRuntime.getInstance();
     }
 }

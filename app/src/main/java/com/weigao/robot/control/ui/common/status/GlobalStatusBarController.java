@@ -30,6 +30,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.callback.IStateCallback;
+import com.weigao.robot.control.model.ChargingState;
 import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
@@ -90,6 +91,10 @@ public final class GlobalStatusBarController {
         @Override
         public void onBatteryLevelChanged(int level) {
             mainHandler.post(() -> updateBattery(level));
+        }
+
+        @Override
+        public void onChargingStateChanged(ChargingState chargingState) {
         }
 
         @Override

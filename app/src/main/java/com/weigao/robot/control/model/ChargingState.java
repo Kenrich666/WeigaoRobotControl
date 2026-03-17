@@ -3,30 +3,27 @@ package com.weigao.robot.control.model;
 import java.io.Serializable;
 
 /**
- * Charge-domain state returned by {@code IChargerService}.
+ * Unified charging state exposed by {@code IRobotStateService}.
  */
-public class ChargerInfo implements Serializable {
+public class ChargingState implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private int event;
     private int status;
+    private int event;
     private int pileId;
     private boolean isCharging;
 
-    public ChargerInfo() {
+    public ChargingState() {
     }
 
-    public ChargerInfo(int event) {
-        this.event = event;
-    }
-
-    public int getEvent() {
-        return event;
-    }
-
-    public void setEvent(int event) {
-        this.event = event;
+    public ChargingState(ChargingState other) {
+        if (other != null) {
+            this.status = other.status;
+            this.event = other.event;
+            this.pileId = other.pileId;
+            this.isCharging = other.isCharging;
+        }
     }
 
     public int getStatus() {
@@ -35,6 +32,14 @@ public class ChargerInfo implements Serializable {
 
     public void setStatus(int status) {
         this.status = status;
+    }
+
+    public int getEvent() {
+        return event;
+    }
+
+    public void setEvent(int event) {
+        this.event = event;
     }
 
     public int getPileId() {
@@ -55,9 +60,9 @@ public class ChargerInfo implements Serializable {
 
     @Override
     public String toString() {
-        return "ChargerInfo{"
-                + "event=" + event
-                + ", status=" + status
+        return "ChargingState{"
+                + "status=" + status
+                + ", event=" + event
                 + ", pileId=" + pileId
                 + ", isCharging=" + isCharging
                 + '}';

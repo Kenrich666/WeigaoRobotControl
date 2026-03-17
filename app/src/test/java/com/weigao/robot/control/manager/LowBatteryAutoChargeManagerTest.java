@@ -3,10 +3,9 @@ package com.weigao.robot.control.manager;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
-import com.weigao.robot.control.model.ChargerInfo;
+import com.weigao.robot.control.model.ChargingState;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
@@ -37,7 +36,7 @@ public class LowBatteryAutoChargeManagerTest {
         LowBatteryAutoChargeManager manager = LowBatteryAutoChargeManager.getInstance();
 
         invokeHandleBatteryLevelChanged(manager, 15);
-        invokeHandleChargerInfo(manager, chargerInfo(false));
+        invokeHandleChargingStateChanged(manager, chargingState(false));
 
         assertFalse(manager.hasPendingTaskCompletionAutoCharge());
         assertTrue(getBooleanField(manager, "confirmationPending"));
@@ -87,13 +86,14 @@ public class LowBatteryAutoChargeManagerTest {
     @Test
     public void chargingStateClearsPendingTaskAutoCharge() throws Exception {
         configureSettings(true, 20);
+        prepareServiceManager();
         LowBatteryAutoChargeManager manager = LowBatteryAutoChargeManager.getInstance();
         TaskExecutionStateManager.getInstance().startTask(TaskType.CIRCULAR_DELIVERY);
 
         invokeHandleBatteryLevelChanged(manager, 15);
         assertTrue(manager.hasPendingTaskCompletionAutoCharge());
 
-        invokeHandleChargerInfo(manager, chargerInfo(true));
+        invokeHandleChargingStateChanged(manager, chargingState(true));
 
         assertFalse(manager.hasPendingTaskCompletionAutoCharge());
         assertFalse(getBooleanField(manager, "confirmationPending"));
@@ -101,10 +101,10 @@ public class LowBatteryAutoChargeManagerTest {
     }
 
     @Test
-    public void chargingStatusChangeMarksChargingEvenWithoutChargerInfoUpdate() throws Exception {
+    public void chargingStateChangeMarksCharging() throws Exception {
         LowBatteryAutoChargeManager manager = LowBatteryAutoChargeManager.getInstance();
 
-        invokeHandleChargingStatusChanged(manager, 4);
+        invokeHandleChargingStateChanged(manager, chargingState(true));
 
         assertTrue(getBooleanField(manager, "currentCharging"));
     }
@@ -122,13 +122,16 @@ public class LowBatteryAutoChargeManagerTest {
         instanceField.set(null, manager);
     }
 
-    private void invokeHandleChargerInfo(LowBatteryAutoChargeManager manager, ChargerInfo chargerInfo) throws Exception {
-        Method method = LowBatteryAutoChargeManager.class.getDeclaredMethod("handleChargerInfo", ChargerInfo.class);
+    private void invokeHandleChargingStateChanged(LowBatteryAutoChargeManager manager, ChargingState chargingState)
+            throws Exception {
+        Method method = LowBatteryAutoChargeManager.class.getDeclaredMethod(
+                "handleChargingStateChanged", ChargingState.class);
         method.setAccessible(true);
-        method.invoke(manager, chargerInfo);
+        method.invoke(manager, chargingState);
     }
 
-    private void invokeHandleBatteryLevelChanged(LowBatteryAutoChargeManager manager, int batteryLevel) throws Exception {
+    private void invokeHandleBatteryLevelChanged(LowBatteryAutoChargeManager manager, int batteryLevel)
+            throws Exception {
         Method method = LowBatteryAutoChargeManager.class.getDeclaredMethod("handleBatteryLevelChanged", int.class);
         method.setAccessible(true);
         method.invoke(manager, batteryLevel);
@@ -140,22 +143,16 @@ public class LowBatteryAutoChargeManagerTest {
         method.invoke(manager);
     }
 
-    private void invokeHandleChargingStatusChanged(LowBatteryAutoChargeManager manager, int status) throws Exception {
-        Method method = LowBatteryAutoChargeManager.class.getDeclaredMethod("handleChargingStatusChanged", int.class);
-        method.setAccessible(true);
-        method.invoke(manager, status);
-    }
-
     private boolean getBooleanField(LowBatteryAutoChargeManager manager, String fieldName) throws Exception {
         Field field = LowBatteryAutoChargeManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.getBoolean(manager);
     }
 
-    private ChargerInfo chargerInfo(boolean charging) {
-        ChargerInfo info = new ChargerInfo();
-        info.setCharging(charging);
-        return info;
+    private ChargingState chargingState(boolean charging) {
+        ChargingState state = new ChargingState();
+        state.setCharging(charging);
+        return state;
     }
 
     private void prepareServiceManager() throws Exception {
@@ -171,7 +168,8 @@ public class LowBatteryAutoChargeManagerTest {
         setServiceManagerField(serviceManager, "context", null);
     }
 
-    private void setServiceManagerField(ServiceManager serviceManager, String fieldName, Object value) throws Exception {
+    private void setServiceManagerField(ServiceManager serviceManager, String fieldName, Object value)
+            throws Exception {
         Field field = ServiceManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(serviceManager, value);
