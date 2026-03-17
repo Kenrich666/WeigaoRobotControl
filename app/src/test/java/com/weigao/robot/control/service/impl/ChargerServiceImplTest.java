@@ -207,13 +207,6 @@ public class ChargerServiceImplTest {
     /**
      * 测试：获取电池电量。
      */
-    @Test
-    public void testGetBatteryLevel() {
-        // 验证初始电量获取逻辑
-        chargerService.getBatteryLevel(mockIntegerCallback);
-        verify(mockIntegerCallback).onSuccess(0);
-    }
-
     /**
      * 测试：回调接口的注册与注销。
      */

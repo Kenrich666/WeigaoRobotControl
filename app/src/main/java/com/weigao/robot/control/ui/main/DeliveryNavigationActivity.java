@@ -93,6 +93,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_delivery_navigation);
+        Log.d(TAG, "【导航】进入 DeliveryNavigationActivity.onCreate()");
 
         Log.d(TAG, "【Activity】onCreate - 初始化配送导航界面");
 
@@ -117,6 +118,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         // 获取配送任务
         pairings = (HashMap<Integer, NavigationNode>) getIntent()
                 .getSerializableExtra("pairings");
+        Log.d(TAG, "【导航】收到配送任务 pairings=" + (pairings != null ? pairings.size() : 0));
 
         if (pairings == null || pairings.isEmpty()) {
             Log.w(TAG, "【警告】没有配送任务");
@@ -134,6 +136,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         Log.d(TAG, "【配送任务】共 " + deliveryTasks.size() + " 个任务");
 
         // 准备导航目标点ID列表
+        Log.d(TAG, "【导航】deliveryTasks 已排序，taskCount=" + deliveryTasks.size());
         prepareNavigationTargets();
 
         // 更新任务文本
@@ -268,6 +271,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 开始导航
      */
     private void startNavigation() {
+        Log.d(TAG, "【导航】startNavigation() 被调用，targetCount=" + (targetNodes != null ? targetNodes.size() : 0));
         if (targetNodes == null || targetNodes.isEmpty()) {
             Log.e(TAG, "【错误】目标点列表为空，无法开始导航");
             Toast.makeText(this, "目标点列表为空", Toast.LENGTH_SHORT).show();
@@ -286,6 +290,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         for (NavigationNode node : targetNodes) {
             targetIds.add(node.getId());
         }
+        Log.d(TAG, "【导航】开始导航，targetIds=" + targetIds);
 
         // 设置导航目标点（使用 setTargets 传递 ID 列表）
         navigationService.setTargets(targetIds, new IResultCallback<Void>() {
@@ -293,6 +298,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             public void onSuccess(Void result) {
                 Log.d(TAG, "【导航控制】设置目标点成功");
                 // 播放背景音乐
+                Log.d(TAG, "【导航】setTargets() 成功，准备播放语音并设置速度");
                 playBackgroundMusic();
                 // 播报语音
                 playConfiguredVoice(false);
@@ -301,19 +307,23 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 int speed = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
                         .getDeliverySpeed();
 
+                Log.d(TAG, "【导航】读取配送速度配置 speed=" + speed);
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         Log.d(TAG, "【导航控制】设置速度成功");
                         // 准备导航路线
+                        Log.d(TAG, "【导航】setSpeed() 成功，准备调用 prepare()");
                         navigationService.prepare(new IResultCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
+                                Log.d(TAG, "【导航】prepare() 调用成功，等待 onRoutePrepared()");
                                 Log.d(TAG, "【导航控制】准备路线成功");
                             }
 
                             @Override
                             public void onError(ApiError error) {
+                                Log.e(TAG, "【导航】prepare() 失败: " + error.getMessage());
                                 Log.e(TAG, "【导航控制】准备路线失败: " + error.getMessage());
                                 runOnUiThread(() -> {
                                     Toast.makeText(DeliveryNavigationActivity.this,
@@ -327,6 +337,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
                     @Override
                     public void onError(ApiError error) {
+                        Log.e(TAG, "【导航】setSpeed() 失败: " + error.getMessage());
                         Log.e(TAG, "【导航控制】设置速度失败: " + error.getMessage());
                     }
                 });
@@ -334,6 +345,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "【导航】setTargets() 失败: " + error.getMessage());
                 Log.e(TAG, "【导航控制】设置目标点失败: " + error.getMessage());
                 runOnUiThread(() -> {
                     Toast.makeText(DeliveryNavigationActivity.this,
@@ -551,10 +563,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     @Override
     public void onStateChanged(int state, int schedule) {
+        Log.d(TAG, "【导航】收到导航状态变化 state=" + state + ", schedule=" + schedule);
         Log.d(TAG, "【导航回调】onStateChanged - state: " + state + ", schedule: " + schedule);
         runOnUiThread(() -> {
             switch (state) {
                 case Navigation.STATE_RUNNING:
+                    Log.d(TAG, "【导航】导航进入 STATE_RUNNING，机器人应开始移动");
                     Log.d(TAG, "【导航回调】正在运行中");
                     hasRunningStateReceived = true;
 
@@ -590,6 +604,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     break;
 
                 case Navigation.STATE_DESTINATION:
+                    Log.d(TAG, "【导航】导航进入 STATE_DESTINATION");
                     // 到达目标点
                     if (hasRunningStateReceived) {
                         Log.d(TAG, "【导航回调】已到达目标点");
@@ -608,12 +623,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
                 case Navigation.STATE_COLLISION:
                 case Navigation.STATE_BLOCKED:
+                    Log.w(TAG, "【导航】导航被阻挡或发生碰撞，state=" + state);
                     Log.w(TAG, "【导航回调】遇到障碍物，正在避障");
                     Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
                     // speak("遇到障碍物，正在避障");
                     break;
 
                 case Navigation.STATE_BLOCKING:
+                    Log.w(TAG, "【导航】导航进入 STATE_BLOCKING，可能长时间受阻");
                     Log.w(TAG, "【导航回调】阻挡超时");
                     Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
                     // speak("长时间被阻挡，请检查路径");
@@ -625,6 +642,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     break;
 
                 case Navigation.STATE_ERROR:
+                    Log.e(TAG, "【导航】导航进入 STATE_ERROR");
                     Log.e(TAG, "【导航回调】导航错误");
                     Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
                     // speak("导航出现错误");
@@ -648,11 +666,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     @Override
     public void onRoutePrepared(List<NavigationNode> nodes) {
+        Log.d(TAG, "【导航】收到 onRoutePrepared()，节点数=" + (nodes != null ? nodes.size() : 0) + "，即将调用 start()");
         Log.d(TAG, "【导航回调】onRoutePrepared - 路线准备完成，节点数: " + (nodes != null ? nodes.size() : 0));
         // 路线准备完成，自动开始导航
         navigationService.start(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                Log.d(TAG, "【导航】start() 调用成功，等待 STATE_RUNNING");
                 Log.d(TAG, "【导航控制】自动开始导航成功");
                 runOnUiThread(() -> {
                     tvStatus.setText("配送中");
@@ -662,6 +682,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "【导航】start() 失败: " + error.getMessage());
                 Log.e(TAG, "【导航控制】自动开始导航失败: " + error.getMessage());
                 runOnUiThread(() -> {
                     Toast.makeText(DeliveryNavigationActivity.this,
@@ -679,6 +700,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     @Override
     public void onNavigationError(int errorCode) {
+        Log.e(TAG, "【导航】onNavigationError(), errorCode=" + errorCode);
         Log.e(TAG, "【导航回调】导航错误，错误码: " + errorCode);
         runOnUiThread(() -> {
             Toast.makeText(this, "导航错误，错误码: " + errorCode, Toast.LENGTH_SHORT).show();
@@ -687,6 +709,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     @Override
     public void onError(int errorCode, String message) {
+        Log.e(TAG, "【导航】导航通用错误回调 errorCode=" + errorCode + ", message=" + message);
         Log.e(TAG, "【导航回调】错误 - 错误码: " + errorCode + ", 消息: " + message);
         runOnUiThread(() -> {
             Toast.makeText(this, "错误: " + message, Toast.LENGTH_SHORT).show();

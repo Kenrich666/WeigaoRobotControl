@@ -26,6 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class NavigationServiceImpl implements INavigationService {
 
     private static final String TAG = "NavigationServiceImpl";
+    private static final String NAV_LOG_PREFIX = "【导航】";
 
     private final Context context;
 
@@ -71,6 +72,7 @@ public class NavigationServiceImpl implements INavigationService {
         @Override
         public void onStateChanged(int state, int schedule) {
             String stateStr = getStateString(state);
+            Log.d(TAG, NAV_LOG_PREFIX + " SDK onStateChanged, state=" + state + "(" + stateStr + "), schedule=" + schedule);
             Log.d(TAG, "【导航回调】状态变化: " + stateStr + " (state=" + state + "), schedule=" + schedule);
             notifyStateChanged(state, schedule);
         }
@@ -85,6 +87,7 @@ public class NavigationServiceImpl implements INavigationService {
 
         @Override
         public void onRoutePrepared(RouteNode... routeNodes) {
+            Log.d(TAG, NAV_LOG_PREFIX + " SDK onRoutePrepared, routeNodeCount=" + (routeNodes != null ? routeNodes.length : 0));
             Log.d(TAG, "【导航回调】路线准备完成，点位数量: " + (routeNodes != null ? routeNodes.length : 0));
             // 更新目标点列表
             targetNodes.clear();
@@ -108,12 +111,14 @@ public class NavigationServiceImpl implements INavigationService {
 
         @Override
         public void onError(int code) {
+            Log.e(TAG, NAV_LOG_PREFIX + " SDK onError, code=" + code);
             Log.e(TAG, "onError: " + code);
             notifyError(code, "导航错误");
         }
 
         @Override
         public void onEvent(int event) {
+            Log.d(TAG, NAV_LOG_PREFIX + " SDK onEvent, event=" + event);
             Log.d(TAG, "onEvent: " + event);
             // 处理导航事件
         }
@@ -123,6 +128,7 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void setTargets(List<Integer> targetIds, IResultCallback<Void> callback) {
+        Log.d(TAG, NAV_LOG_PREFIX + " setTargets() called, targetIds=" + targetIds);
         Log.d(TAG, "【设置目标】目标点ID列表: " + targetIds);
         try {
             Integer[] targets = null;
@@ -142,6 +148,7 @@ public class NavigationServiceImpl implements INavigationService {
             }
 
             if (peanutNavigation != null) {
+                Log.d(TAG, NAV_LOG_PREFIX + " reuse existing PeanutNavigation in setTargets()");
                 // 复用现有实例
                 Log.d(TAG, "【设置目标】复用现有 PeanutNavigation 实例");
                 peanutNavigation.stop();
@@ -167,6 +174,7 @@ public class NavigationServiceImpl implements INavigationService {
                 }
 
                 peanutNavigation = createPeanutNavigation(builder);
+                Log.d(TAG, NAV_LOG_PREFIX + " build new PeanutNavigation in setTargets()");
                 Log.d(TAG, "【设置目标】创建新 PeanutNavigation 实例");
             }
             currentPosition = 0;
@@ -227,10 +235,14 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void prepare(IResultCallback<Void> callback) {
+        Log.d(TAG, NAV_LOG_PREFIX + " prepare() called, peanutNavigationReady=" + (peanutNavigation != null));
         Log.d(TAG, "【准备导航】开始规划路线...");
         try {
             if (peanutNavigation != null) {
+                Log.d(TAG, NAV_LOG_PREFIX + " calling peanutNavigation.prepare()");
                 peanutNavigation.prepare();
+            } else {
+                Log.w(TAG, NAV_LOG_PREFIX + " prepare() skipped because peanutNavigation is null");
             }
             notifySuccess(callback);
         } catch (Exception e) {
@@ -241,10 +253,14 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void start(IResultCallback<Void> callback) {
+        Log.d(TAG, NAV_LOG_PREFIX + " start() called, peanutNavigationReady=" + (peanutNavigation != null));
         Log.d(TAG, "【开始导航】启动导航...");
         try {
             if (peanutNavigation != null) {
+                Log.d(TAG, NAV_LOG_PREFIX + " calling peanutNavigation.setPilotWhenReady(true)");
                 peanutNavigation.setPilotWhenReady(true);
+            } else {
+                Log.w(TAG, NAV_LOG_PREFIX + " start() skipped because peanutNavigation is null");
             }
             notifySuccess(callback);
         } catch (Exception e) {
@@ -321,11 +337,15 @@ public class NavigationServiceImpl implements INavigationService {
 
     @Override
     public void setSpeed(int speed, IResultCallback<Void> callback) {
+        Log.d(TAG, NAV_LOG_PREFIX + " setSpeed() called, speed=" + speed + ", peanutNavigationReady=" + (peanutNavigation != null));
         Log.d(TAG, "setSpeed: " + speed);
         this.speed = speed;
         try {
             if (peanutNavigation != null) {
+                Log.d(TAG, NAV_LOG_PREFIX + " calling peanutNavigation.setSpeed(" + speed + ")");
                 peanutNavigation.setSpeed(speed);
+            } else {
+                Log.w(TAG, NAV_LOG_PREFIX + " setSpeed() skipped because peanutNavigation is null");
             }
             notifySuccess(callback);
         } catch (Exception e) {

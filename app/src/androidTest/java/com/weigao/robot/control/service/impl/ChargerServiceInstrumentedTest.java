@@ -133,14 +133,6 @@ public class ChargerServiceInstrumentedTest {
     /**
      * 测试：获取电量（从本地缓存）
      */
-    @Test
-    public void testGetBatteryLevel() {
-        // 注意：getBatteryLevel从本地chargerInfo对象获取，不直接调用SDK
-        IResultCallback<Integer> callback = mock(IResultCallback.class);
-        mService.getBatteryLevel(callback);
-        verify(callback).onSuccess(anyInt());
-    }
-
     /**
      * 测试：查询是否正在充电（从本地状态）
      */

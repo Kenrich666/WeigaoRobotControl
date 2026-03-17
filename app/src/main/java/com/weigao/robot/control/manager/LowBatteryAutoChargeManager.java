@@ -22,9 +22,11 @@ import com.weigao.robot.control.app.WeigaoApplication;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IChargerCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.callback.IStateCallback;
 import com.weigao.robot.control.model.ChargerInfo;
 import com.weigao.robot.control.service.IChargerService;
 import com.weigao.robot.control.service.INavigationService;
+import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.ui.main.MainActivity;
 import com.weigao.robot.control.ui.main.PositioningActivity;
@@ -52,7 +54,8 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
 
     private Application application;
     private boolean lifecycleRegistered;
-    private boolean serviceConnected;
+    private boolean chargerCallbackRegistered;
+    private boolean batteryCallbackRegistered;
     private boolean pendingAfterTaskCompletion;
     private boolean confirmationPending;
     private boolean suppressUntilRecovery;
@@ -78,19 +81,21 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
     }
 
     public synchronized void connectService() {
-        if (serviceConnected) {
+        if (chargerCallbackRegistered && batteryCallbackRegistered) {
             return;
         }
 
         try {
             IChargerService chargerService = ServiceManager.getInstance().getChargerService();
-            if (chargerService == null) {
-                Log.w(TAG, "Charger service unavailable, skip low battery auto charge init.");
+            IRobotStateService robotStateService = ServiceManager.getInstance().getRobotStateService();
+            if (chargerService == null || robotStateService == null) {
+                Log.w(TAG, "Required services unavailable, skip low battery auto charge init.");
                 return;
             }
             refreshCurrentChargeState(chargerService);
+            refreshCurrentBatteryLevel(robotStateService);
         } catch (Exception e) {
-            Log.e(TAG, "Failed to connect charger service for low battery auto charge", e);
+            Log.e(TAG, "Failed to connect services for low battery auto charge", e);
         }
     }
 
@@ -101,7 +106,7 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
             mainHandler.removeCallbacks(navigateToMainRunnable);
         }
 
-        if (serviceConnected) {
+        if (chargerCallbackRegistered) {
             try {
                 IChargerService chargerService = ServiceManager.getInstance().getChargerService();
                 if (chargerService != null) {
@@ -111,6 +116,16 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
                 Log.w(TAG, "Failed to unregister low battery charger callback", e);
             }
         }
+        if (batteryCallbackRegistered) {
+            try {
+                IRobotStateService robotStateService = ServiceManager.getInstance().getRobotStateService();
+                if (robotStateService != null) {
+                    robotStateService.unregisterCallback(stateCallback);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to unregister low battery battery callback", e);
+            }
+        }
 
         if (application != null && lifecycleRegistered) {
             application.unregisterActivityLifecycleCallbacks(this);
@@ -118,7 +133,8 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
 
         application = null;
         lifecycleRegistered = false;
-        serviceConnected = false;
+        chargerCallbackRegistered = false;
+        batteryCallbackRegistered = false;
         pendingAfterTaskCompletion = false;
         confirmationPending = false;
         suppressUntilRecovery = false;
@@ -136,7 +152,7 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
 
     public synchronized void onTaskCompletedAndReadyForPrompt() {
         pendingAfterTaskCompletion = false;
-        confirmationPending = true;
+        evaluateAutoChargeState();
     }
 
     public synchronized void onTaskCancelled() {
@@ -169,19 +185,44 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
         });
     }
 
+    private void refreshCurrentBatteryLevel(IRobotStateService robotStateService) {
+        robotStateService.getBatteryLevel(new IResultCallback<Integer>() {
+            @Override
+            public void onSuccess(Integer result) {
+                if (result != null) {
+                    handleBatteryLevelChanged(result);
+                }
+                registerBatteryCallback(robotStateService);
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                Log.w(TAG, "Failed to refresh battery level: " + error.getMessage());
+                registerBatteryCallback(robotStateService);
+            }
+        });
+    }
+
     private synchronized void registerChargerCallback(IChargerService chargerService) {
-        if (serviceConnected) {
+        if (chargerCallbackRegistered) {
             return;
         }
         chargerService.registerCallback(chargerCallback);
-        serviceConnected = true;
+        chargerCallbackRegistered = true;
+    }
+
+    private synchronized void registerBatteryCallback(IRobotStateService robotStateService) {
+        if (batteryCallbackRegistered) {
+            return;
+        }
+        robotStateService.registerCallback(stateCallback);
+        batteryCallbackRegistered = true;
     }
 
     private synchronized void initializeChargingState(ChargerInfo chargerInfo) {
         if (chargingStateInitialized || chargerInfo == null) {
             return;
         }
-        currentBatteryLevel = chargerInfo.getPower();
         currentCharging = chargerInfo.isCharging();
         chargingStateInitialized = true;
     }
@@ -214,15 +255,45 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
         }
     };
 
-    private synchronized void handleChargerInfo(ChargerInfo chargerInfo) {
-        currentBatteryLevel = chargerInfo.getPower();
-        updateChargingState(chargerInfo.isCharging());
+    private final IStateCallback stateCallback = new IStateCallback() {
+        @Override
+        public void onStateChanged(com.weigao.robot.control.model.RobotState newState) {
+        }
 
+        @Override
+        public void onLocationChanged(double x, double y) {
+        }
+
+        @Override
+        public void onBatteryLevelChanged(int level) {
+            handleBatteryLevelChanged(level);
+        }
+
+        @Override
+        public void onScramButtonPressed(boolean pressed) {
+        }
+    };
+
+    private synchronized void handleBatteryLevelChanged(int batteryLevel) {
+        currentBatteryLevel = batteryLevel;
+        evaluateAutoChargeState();
+    }
+
+    private synchronized void handleChargerInfo(ChargerInfo chargerInfo) {
+        updateChargingState(chargerInfo.isCharging());
+        evaluateAutoChargeState();
+    }
+
+    private synchronized void evaluateAutoChargeState() {
         if (currentCharging) {
             autoChargeInProgress = true;
             pendingAfterTaskCompletion = false;
             confirmationPending = false;
             dismissConfirmationDialogInternal(false);
+            return;
+        }
+
+        if (currentBatteryLevel < 0) {
             return;
         }
 
@@ -267,6 +338,7 @@ public class LowBatteryAutoChargeManager implements Application.ActivityLifecycl
 
     private synchronized void handleChargingStatusChanged(int status) {
         updateChargingState(isChargingStatus(status));
+        evaluateAutoChargeState();
     }
 
     private void updateChargingState(boolean isCharging) {

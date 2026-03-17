@@ -101,7 +101,6 @@ public interface IChargerService {
      *
      * @param callback 结果回调，返回电量百分比（0-100）
      */
-    void getBatteryLevel(IResultCallback<Integer> callback);
 
     /**
      * 查询是否正在充电

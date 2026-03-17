@@ -376,15 +376,29 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
         if (robotStateService != null) {
             Toast.makeText(this, "正在检查定位状态...", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "【定位】循环配送开始前发起定位校验，route="
+                    + (selectedRoute != null ? selectedRoute.getName() : "null"));
             robotStateService.performLocalization(new IResultCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    runOnUiThread(() -> checkDoorsAndProceed(startNavBtn));
+                    runOnUiThread(() -> {
+                        if (!isActivityAlive()) {
+                            Log.d(TAG, "【定位】循环配送定位成功回调到达，但页面已销毁，忽略");
+                            return;
+                        }
+                        Log.d(TAG, "【定位】循环配送定位校验成功，进入关门检查");
+                        checkDoorsAndProceed(startNavBtn);
+                    });
                 }
 
                 @Override
                 public void onError(ApiError error) {
                     runOnUiThread(() -> {
+                        if (!isActivityAlive()) {
+                            Log.d(TAG, "【定位】循环配送定位失败回调到达，但页面已销毁，忽略");
+                            return;
+                        }
+                        Log.e(TAG, "【定位】循环配送定位校验失败，跳转失败页: " + error.getMessage());
                         if (startNavBtn != null)
                             startNavBtn.setEnabled(true);
                         Intent intent = new Intent(CircularDeliveryActivity.this, PositioningFailedActivity.class);
@@ -467,6 +481,10 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         intent.putExtra("route_nodes", nodes);
 
         startActivity(intent);
+    }
+
+    private boolean isActivityAlive() {
+        return !isFinishing() && !isDestroyed();
     }
 
     // Dialog/Overlay related fields

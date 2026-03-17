@@ -1,6 +1,14 @@
 package com.weigao.robot.control.service.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import android.content.Context;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -12,19 +20,15 @@ import com.weigao.robot.control.model.RobotState;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
-/**
- * RobotStateServiceImpl 的集成测试。
- */
 @RunWith(AndroidJUnit4.class)
 public class RobotStateServiceInstrumentedTest {
 
     private RobotStateServiceImpl mService;
+    private PeanutRuntime.Listener runtimeListener;
 
     @Mock
     private PeanutRuntime mMockSdk;
@@ -43,20 +47,19 @@ public class RobotStateServiceInstrumentedTest {
                 return mMockSdk;
             }
         };
+
+        ArgumentCaptor<PeanutRuntime.Listener> captor = ArgumentCaptor.forClass(PeanutRuntime.Listener.class);
+        verify(mMockSdk).registerListener(captor.capture());
+        runtimeListener = captor.getValue();
     }
 
-    /**
-     * 测试：初始化是否注册了监听并启动
-     */
     @Test
     public void testInit_RegistersListenerAndStarts() {
         verify(mMockSdk).registerListener(any(PeanutRuntime.Listener.class));
         verify(mMockSdk).start();
+        verify(mMockSdk, never()).location();
     }
 
-    /**
-     * 测试：设置工作模式
-     */
     @Test
     public void testSetWorkMode() {
         int mode = 1;
@@ -64,9 +67,6 @@ public class RobotStateServiceInstrumentedTest {
         verify(mMockSdk).setWorkMode(mode);
     }
 
-    /**
-     * 测试：获取机器人状态
-     */
     @Test
     public void testGetRobotState() {
         clearInvocations(mMockSdk);
@@ -81,9 +81,6 @@ public class RobotStateServiceInstrumentedTest {
         verify(mStateCallback).onSuccess(any(RobotState.class));
     }
 
-    /**
-     * 测试：获取电量
-     */
     @Test
     public void testGetBatteryLevel() {
         clearInvocations(mMockSdk);
@@ -95,12 +92,9 @@ public class RobotStateServiceInstrumentedTest {
         IResultCallback<Integer> callback = mock(IResultCallback.class);
         mService.getBatteryLevel(callback);
 
-        verify(callback).onSuccess(anyInt());
+        verify(callback).onSuccess(any(Integer.class));
     }
 
-    /**
-     * 测试：查询急停按钮状态
-     */
     @Test
     public void testIsScramButtonPressed() {
         clearInvocations(mMockSdk);
@@ -115,9 +109,6 @@ public class RobotStateServiceInstrumentedTest {
         verify(callback).onSuccess(true);
     }
 
-    /**
-     * 测试：设置急停按钮是否启用
-     */
     @Test
     public void testSetEmergencyEnabled() {
         IResultCallback<Void> callback = mock(IResultCallback.class);
@@ -126,20 +117,21 @@ public class RobotStateServiceInstrumentedTest {
         verify(callback).onSuccess(null);
     }
 
-    /**
-     * 测试：执行开机定位
-     */
     @Test
-    public void testPerformLocalization() {
+    public void testPerformLocalizationWaitsForEvent() {
+        clearInvocations(mMockSdk);
+
         IResultCallback<Void> callback = mock(IResultCallback.class);
         mService.performLocalization(callback);
+
         verify(mMockSdk).location();
+        verify(callback, never()).onSuccess(null);
+
+        runtimeListener.onEvent(10016, 1);
+
         verify(callback).onSuccess(null);
     }
 
-    /**
-     * 测试：获取总里程
-     */
     @Test
     public void testGetTotalOdometer() {
         clearInvocations(mMockSdk);
@@ -154,9 +146,6 @@ public class RobotStateServiceInstrumentedTest {
         verify(callback).onSuccess(1234.5);
     }
 
-    /**
-     * 测试：获取机器人IP
-     */
     @Test
     public void testGetRobotIp() {
         clearInvocations(mMockSdk);
@@ -171,9 +160,6 @@ public class RobotStateServiceInstrumentedTest {
         verify(callback).onSuccess("192.168.1.100");
     }
 
-    /**
-     * 测试：回调注册和注销
-     */
     @Test
     public void testRegisterAndUnregisterCallback() {
         com.weigao.robot.control.callback.IStateCallback mockStateCallback = mock(
@@ -182,9 +168,6 @@ public class RobotStateServiceInstrumentedTest {
         mService.unregisterCallback(mockStateCallback);
     }
 
-    /**
-     * 测试：释放资源
-     */
     @Test
     public void testRelease() {
         mService.release();

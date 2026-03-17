@@ -160,10 +160,16 @@ public class DeliveryActivity extends AppCompatActivity {
 
             if (robotStateService != null) {
                 Toast.makeText(this, "正在检查定位状态...", Toast.LENGTH_SHORT).show();
+                Log.d(TAG, "【定位】普通配送开始前发起定位校验，pairings=" + pairings.size());
                 robotStateService.performLocalization(new IResultCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         runOnUiThread(() -> {
+                            if (!isActivityAlive()) {
+                                Log.d(TAG, "【定位】普通配送定位成功回调到达，但页面已销毁，忽略");
+                                return;
+                            }
+                            Log.d(TAG, "【定位】普通配送定位校验成功，进入关门检查");
                             // 定位成功，继续执行舱门检查
                             checkDoorsAndStart(v);
                         });
@@ -172,6 +178,11 @@ public class DeliveryActivity extends AppCompatActivity {
                     @Override
                     public void onError(ApiError error) {
                         runOnUiThread(() -> {
+                            if (!isActivityAlive()) {
+                                Log.d(TAG, "【定位】普通配送定位失败回调到达，但页面已销毁，忽略");
+                                return;
+                            }
+                            Log.e(TAG, "【定位】普通配送定位校验失败，跳转失败页: " + error.getMessage());
                             v.setEnabled(true);
                             // 定位失败，跳转提示页
                             Intent intent = new Intent(DeliveryActivity.this, PositioningFailedActivity.class);
@@ -700,6 +711,7 @@ public class DeliveryActivity extends AppCompatActivity {
     }
 
     private void startDelivery() {
+        Log.d(TAG, "【舱门】执行 startDelivery()，pairings=" + pairings.size() + "，准备进入配送导航页");
         // 记录开始配送时间
         ItemDeliveryManager.getInstance().startDelivery();
         TaskExecutionStateManager.getInstance().startTask(TaskType.ITEM_DELIVERY);
@@ -707,11 +719,13 @@ public class DeliveryActivity extends AppCompatActivity {
         Intent intent = new Intent(this, DeliveryNavigationActivity.class);
         intent.putExtra("pairings", pairings);
         // 使用 startActivityForResult 以便在任务完成后接收通知
+        Log.d(TAG, "【舱门】startDelivery() 已创建 DeliveryNavigationActivity intent，requestCode=1002");
         startActivityForResult(intent, 1002);
     }
 
     private void checkDoorsAndStart(View v) {
         if (doorService == null) {
+            Log.d(TAG, "【舱门】doorService 为空，跳过舱门检查，直接开始配送");
             startDelivery();
             if (v != null)
                 v.setEnabled(true);
@@ -719,22 +733,27 @@ public class DeliveryActivity extends AppCompatActivity {
         }
 
         // 检查舱门状态
+        Log.d(TAG, "【舱门】开始检查舱门状态 isAllDoorsClosed()");
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
                 runOnUiThread(() -> {
+                    Log.d(TAG, "【舱门】舱门状态检查完成，allClosed=" + allClosed);
                     if (allClosed) {
+                        Log.d(TAG, "【舱门】所有舱门已关闭，直接开始配送");
                         // 已关闭，直接开始
                         startDelivery();
                         if (v != null)
                             v.setEnabled(true);
                     } else {
+                        Log.d(TAG, "【舱门】检测到舱门未关闭，开始执行 closeAllDoors()");
                         // 未关闭，先关门
                         Toast.makeText(DeliveryActivity.this, "检测到舱门未关，正在关闭...", Toast.LENGTH_SHORT).show();
                         doorService.closeAllDoors(new IResultCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
                                 runOnUiThread(() -> {
+                                    Log.d(TAG, "【舱门】closeAllDoors() 成功，5秒后开始配送");
                                     // 更新按钮状态及文字
                                     updateDoorButtonState();
                                     Toast.makeText(DeliveryActivity.this, "舱门已关闭，5秒后开始配送...", Toast.LENGTH_SHORT)
@@ -742,6 +761,7 @@ public class DeliveryActivity extends AppCompatActivity {
 
                                     // 增加5秒等待时间
                                     new Handler().postDelayed(() -> {
+                                        Log.d(TAG, "【舱门】5秒等待结束，开始配送");
                                         startDelivery();
                                         if (v != null)
                                             v.setEnabled(true);
@@ -752,6 +772,7 @@ public class DeliveryActivity extends AppCompatActivity {
                             @Override
                             public void onError(ApiError error) {
                                 runOnUiThread(() -> {
+                                    Log.e(TAG, "【舱门】closeAllDoors() 失败: " + error.getMessage());
                                     Toast.makeText(DeliveryActivity.this, "自动关门失败: " + error.getMessage(),
                                             Toast.LENGTH_SHORT).show();
                                     if (v != null)
@@ -766,6 +787,7 @@ public class DeliveryActivity extends AppCompatActivity {
             @Override
             public void onError(ApiError error) {
                 runOnUiThread(() -> {
+                    Log.e(TAG, "【舱门】isAllDoorsClosed() 查询失败: " + error.getMessage());
                     Toast.makeText(DeliveryActivity.this, "查询舱门状态失败: " + error.getMessage(), Toast.LENGTH_SHORT)
                             .show();
                     if (v != null)
@@ -784,6 +806,10 @@ public class DeliveryActivity extends AppCompatActivity {
         }
         // 注销广播接收器
         LocalBroadcastManager.getInstance(this).unregisterReceiver(doorBroadcastReceiver);
+    }
+
+    private boolean isActivityAlive() {
+        return !isFinishing() && !isDestroyed();
     }
 
     /** 监听投影灯脚踩引起的门状态变化 */

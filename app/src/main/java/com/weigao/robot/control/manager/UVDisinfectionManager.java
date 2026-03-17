@@ -140,8 +140,7 @@ public class UVDisinfectionManager {
         @Override
         public void onChargerInfoChanged(int event, ChargerInfo chargerInfo) {
             Log.d(TAG, "【紫外灯】收到充电回调: event=" + event
-                    + ", isCharging=" + (chargerInfo != null ? chargerInfo.isCharging() : "null")
-                    + ", power=" + (chargerInfo != null ? chargerInfo.getPower() : "null"));
+                    + ", isCharging=" + (chargerInfo != null ? chargerInfo.isCharging() : "null"));
             if (chargerInfo != null) {
                 handler.post(() -> handleChargingState(chargerInfo.isCharging()));
             }

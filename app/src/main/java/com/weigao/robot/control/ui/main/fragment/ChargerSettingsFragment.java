@@ -28,14 +28,17 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IChargerCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.callback.IStateCallback;
 import com.weigao.robot.control.callback.SdkErrorCode;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeSettingsManager;
 import com.weigao.robot.control.manager.UVDisinfectionManager;
 import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.manager.WorkScheduleSettingsManager;
 import com.weigao.robot.control.model.ChargerInfo;
+import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.model.WorkSchedule;
 import com.weigao.robot.control.service.IChargerService;
+import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 
 import java.util.List;
@@ -66,6 +69,7 @@ public class ChargerSettingsFragment extends Fragment {
     private Button btnStopUv;
 
     private IChargerService chargerService;
+    private IRobotStateService robotStateService;
     private int currentBatteryLevel = 0;
 
     private LinearLayout scheduleContainer;
@@ -83,10 +87,12 @@ public class ChargerSettingsFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_charger_settings, container, false);
 
         chargerService = ServiceManager.getInstance().getChargerService();
+        robotStateService = ServiceManager.getInstance().getRobotStateService();
         initViews(view);
         setupListeners();
         loadLowBatterySettings();
-        updateBatteryUI(null);
+        updateBatteryLevelUI(0);
+        updateChargingStateUI(null);
 
         return view;
     }
@@ -96,7 +102,11 @@ public class ChargerSettingsFragment extends Fragment {
         super.onResume();
         if (chargerService != null) {
             chargerService.registerCallback(chargerCallback);
-            refreshBatteryStatus();
+            refreshChargingStatus();
+        }
+        if (robotStateService != null) {
+            robotStateService.registerCallback(stateCallback);
+            refreshBatteryLevel();
         }
         UVDisinfectionManager.getInstance().setStateChangeListener(uvStateListener);
         loadLowBatterySettings();
@@ -107,6 +117,9 @@ public class ChargerSettingsFragment extends Fragment {
         super.onPause();
         if (chargerService != null) {
             chargerService.unregisterCallback(chargerCallback);
+        }
+        if (robotStateService != null) {
+            robotStateService.unregisterCallback(stateCallback);
         }
         UVDisinfectionManager.getInstance().removeStateChangeListener();
     }
@@ -139,7 +152,7 @@ public class ChargerSettingsFragment extends Fragment {
         @Override
         public void onChargerInfoChanged(int event, ChargerInfo chargerInfo) {
             if (getActivity() != null && chargerInfo != null) {
-                getActivity().runOnUiThread(() -> updateBatteryUI(chargerInfo));
+                getActivity().runOnUiThread(() -> updateChargingStateUI(chargerInfo));
             }
         }
 
@@ -162,7 +175,28 @@ public class ChargerSettingsFragment extends Fragment {
         }
     };
 
-    private void refreshBatteryStatus() {
+    private final IStateCallback stateCallback = new IStateCallback() {
+        @Override
+        public void onStateChanged(RobotState newState) {
+        }
+
+        @Override
+        public void onLocationChanged(double x, double y) {
+        }
+
+        @Override
+        public void onBatteryLevelChanged(int level) {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> updateBatteryLevelUI(level));
+            }
+        }
+
+        @Override
+        public void onScramButtonPressed(boolean pressed) {
+        }
+    };
+
+    private void refreshChargingStatus() {
         if (chargerService == null) {
             return;
         }
@@ -171,13 +205,33 @@ public class ChargerSettingsFragment extends Fragment {
             @Override
             public void onSuccess(ChargerInfo result) {
                 if (getActivity() != null && result != null) {
-                    getActivity().runOnUiThread(() -> updateBatteryUI(result));
+                    getActivity().runOnUiThread(() -> updateChargingStateUI(result));
                 }
             }
 
             @Override
             public void onError(ApiError error) {
                 Log.e(TAG, "获取充电信息失败: " + error.getMessage());
+            }
+        });
+    }
+
+    private void refreshBatteryLevel() {
+        if (robotStateService == null) {
+            return;
+        }
+
+        robotStateService.getBatteryLevel(new IResultCallback<Integer>() {
+            @Override
+            public void onSuccess(Integer result) {
+                if (getActivity() != null && result != null) {
+                    getActivity().runOnUiThread(() -> updateBatteryLevelUI(result));
+                }
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                Log.e(TAG, "鑾峰彇鐢甸噺淇℃伅澶辫触: " + error.getMessage());
             }
         });
     }
@@ -359,11 +413,7 @@ public class ChargerSettingsFragment extends Fragment {
         });
     }
 
-    private void updateBatteryUI(@Nullable ChargerInfo info) {
-        int batteryLevel = info != null ? info.getPower() : 0;
-        boolean isCharging = info != null && info.isCharging();
-        int event = info != null ? info.getEvent() : 0;
-
+    private void updateBatteryLevelUI(int batteryLevel) {
         currentBatteryLevel = batteryLevel;
         batteryPercentage.setText(batteryLevel + "%");
         batteryProgress.setProgress(batteryLevel);
@@ -379,6 +429,11 @@ public class ChargerSettingsFragment extends Fragment {
 
         batteryIcon.setColorFilter(color);
         batteryProgress.setProgressTintList(ColorStateList.valueOf(color));
+    }
+
+    private void updateChargingStateUI(@Nullable ChargerInfo info) {
+        boolean isCharging = info != null && info.isCharging();
+        int event = info != null ? info.getEvent() : 0;
 
         if (isCharging) {
             chargeNowButton.setEnabled(false);

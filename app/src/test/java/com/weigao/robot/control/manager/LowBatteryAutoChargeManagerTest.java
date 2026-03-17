@@ -36,7 +36,8 @@ public class LowBatteryAutoChargeManagerTest {
         prepareServiceManager();
         LowBatteryAutoChargeManager manager = LowBatteryAutoChargeManager.getInstance();
 
-        invokeHandleChargerInfo(manager, chargerInfo(15, false));
+        invokeHandleBatteryLevelChanged(manager, 15);
+        invokeHandleChargerInfo(manager, chargerInfo(false));
 
         assertFalse(manager.hasPendingTaskCompletionAutoCharge());
         assertTrue(getBooleanField(manager, "confirmationPending"));
@@ -45,14 +46,16 @@ public class LowBatteryAutoChargeManagerTest {
     @Test
     public void lowBatteryWithActiveTaskWaitsUntilTaskFinishes() throws Exception {
         configureSettings(true, 20);
+        prepareServiceManager();
         LowBatteryAutoChargeManager manager = LowBatteryAutoChargeManager.getInstance();
         TaskExecutionStateManager.getInstance().startTask(TaskType.ITEM_DELIVERY);
 
-        invokeHandleChargerInfo(manager, chargerInfo(15, false));
+        invokeHandleBatteryLevelChanged(manager, 15);
 
         assertTrue(manager.hasPendingTaskCompletionAutoCharge());
         assertFalse(getBooleanField(manager, "confirmationPending"));
 
+        TaskExecutionStateManager.getInstance().finishTask();
         manager.onTaskCompletedAndReadyForPrompt();
 
         assertFalse(manager.hasPendingTaskCompletionAutoCharge());
@@ -65,19 +68,19 @@ public class LowBatteryAutoChargeManagerTest {
         prepareServiceManager();
         LowBatteryAutoChargeManager manager = LowBatteryAutoChargeManager.getInstance();
 
-        invokeHandleChargerInfo(manager, chargerInfo(15, false));
+        invokeHandleBatteryLevelChanged(manager, 15);
         invokePrivateNoArg(manager, "skipCurrentAutoCharge");
 
         assertTrue(getBooleanField(manager, "suppressUntilRecovery"));
         assertFalse(getBooleanField(manager, "confirmationPending"));
 
-        invokeHandleChargerInfo(manager, chargerInfo(15, false));
+        invokeHandleBatteryLevelChanged(manager, 15);
         assertFalse(getBooleanField(manager, "confirmationPending"));
 
-        invokeHandleChargerInfo(manager, chargerInfo(35, false));
+        invokeHandleBatteryLevelChanged(manager, 35);
         assertFalse(getBooleanField(manager, "suppressUntilRecovery"));
 
-        invokeHandleChargerInfo(manager, chargerInfo(15, false));
+        invokeHandleBatteryLevelChanged(manager, 15);
         assertTrue(getBooleanField(manager, "confirmationPending"));
     }
 
@@ -87,10 +90,10 @@ public class LowBatteryAutoChargeManagerTest {
         LowBatteryAutoChargeManager manager = LowBatteryAutoChargeManager.getInstance();
         TaskExecutionStateManager.getInstance().startTask(TaskType.CIRCULAR_DELIVERY);
 
-        invokeHandleChargerInfo(manager, chargerInfo(15, false));
+        invokeHandleBatteryLevelChanged(manager, 15);
         assertTrue(manager.hasPendingTaskCompletionAutoCharge());
 
-        invokeHandleChargerInfo(manager, chargerInfo(15, true));
+        invokeHandleChargerInfo(manager, chargerInfo(true));
 
         assertFalse(manager.hasPendingTaskCompletionAutoCharge());
         assertFalse(getBooleanField(manager, "confirmationPending"));
@@ -125,6 +128,12 @@ public class LowBatteryAutoChargeManagerTest {
         method.invoke(manager, chargerInfo);
     }
 
+    private void invokeHandleBatteryLevelChanged(LowBatteryAutoChargeManager manager, int batteryLevel) throws Exception {
+        Method method = LowBatteryAutoChargeManager.class.getDeclaredMethod("handleBatteryLevelChanged", int.class);
+        method.setAccessible(true);
+        method.invoke(manager, batteryLevel);
+    }
+
     private void invokePrivateNoArg(LowBatteryAutoChargeManager manager, String methodName) throws Exception {
         Method method = LowBatteryAutoChargeManager.class.getDeclaredMethod(methodName);
         method.setAccessible(true);
@@ -143,9 +152,8 @@ public class LowBatteryAutoChargeManagerTest {
         return field.getBoolean(manager);
     }
 
-    private ChargerInfo chargerInfo(int power, boolean charging) {
+    private ChargerInfo chargerInfo(boolean charging) {
         ChargerInfo info = new ChargerInfo();
-        info.setPower(power);
         info.setCharging(charging);
         return info;
     }
