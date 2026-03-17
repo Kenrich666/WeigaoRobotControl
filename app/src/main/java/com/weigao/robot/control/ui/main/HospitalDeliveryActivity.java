@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -17,9 +18,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.keenon.sdk.component.navigation.route.RouteNode;
@@ -32,6 +33,7 @@ import com.weigao.robot.control.manager.HospitalItemPresetManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.manager.TaskType;
 import com.weigao.robot.control.model.DoorType;
+import com.weigao.robot.control.model.HospitalDeliveryTask;
 import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
@@ -43,7 +45,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 public class HospitalDeliveryActivity extends AppCompatActivity {
@@ -52,28 +53,30 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     private static final int REQUEST_PASSWORD_FOR_DOOR = 2102;
     private static final int REQUEST_PASSWORD_FOR_RETURN = 2103;
     private static final int REQUEST_PASSWORD_FOR_HISTORY = 2104;
-    private static final String[] ITEM_PRESETS = {
-            "胃镜",
-            "肠镜"
-    };
+    private static final int MAX_TASK_COUNT = 3;
 
     public static final List<NavigationNode> originPoints = new ArrayList<>();
     public static final List<NavigationNode> disinfectionPoints = new ArrayList<>();
 
-    private final HashMap<Integer, NavigationNode> pairings = new HashMap<>();
-    private final HashMap<Integer, String> layerItems = new HashMap<>();
-    private Button selectedLayerButton;
+    private final ArrayList<HospitalDeliveryTask> hospitalTasks = new ArrayList<>();
+    private final List<NavigationNode> availableRoomPoints = new ArrayList<>();
+
+    private TextView selectedItemTextView;
+    private TextView selectedRoomTextView;
+    private TextView taskCountTextView;
+    private TextView taskEmptyTextView;
+    private Button addTaskButton;
     private Button openDoorButton;
-    private Button clearSelectedLayerButton;
-    private TextView selectedLayerSummaryTextView;
-    private TextView selectedLayerDetailTextView;
+    private TaskAdapter taskAdapter;
+    private String selectedItemName;
+    private NavigationNode selectedRoomNode;
     private IDoorService doorService;
     private IRobotStateService robotStateService;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_hospital_delivery);
+        setContentView(R.layout.activity_hospital_delivery_v2);
 
         HospitalDeliveryManager.getInstance().init(this);
         doorService = ServiceManager.getInstance().getDoorService();
@@ -88,11 +91,11 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                 new IntentFilter("com.weigao.robot.DOOR_STATE_CHANGED"));
 
         bindCommonActions();
-        bindLayerSelection();
+        bindTaskList();
         bindItemPresetList();
         bindPointList();
-        resetPairingState();
-        updateAllLayerButtons();
+        updateDraftSummary();
+        updateTaskListState();
         updateDoorButtonState();
     }
 
@@ -109,22 +112,13 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                 new Intent(this, PasswordActivity.class), REQUEST_PASSWORD_FOR_HISTORY));
         findViewById(R.id.return_button).setOnClickListener(v -> startActivityForResult(
                 new Intent(this, PasswordActivity.class), REQUEST_PASSWORD_FOR_RETURN));
-        selectedLayerSummaryTextView = findViewById(R.id.tv_selected_layer_summary);
-        selectedLayerDetailTextView = findViewById(R.id.tv_selected_layer_detail);
-        clearSelectedLayerButton = findViewById(R.id.btn_clear_selected_layer);
-        clearSelectedLayerButton.setOnClickListener(v -> {
-            if (selectedLayerButton == null) {
-                Toast.makeText(this, "请先选择要清空的货层", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            int layerId = selectedLayerButton.getId();
-            if (!hasLayerConfig(layerId)) {
-                Toast.makeText(this, getLayerLabel(layerId) + "暂无可清空的配置", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            clearLayerConfig(layerId);
-            Toast.makeText(this, getLayerLabel(layerId) + "已清空房间和物品", Toast.LENGTH_SHORT).show();
-        });
+
+        selectedItemTextView = findViewById(R.id.tv_selected_item);
+        selectedRoomTextView = findViewById(R.id.tv_selected_room);
+        taskCountTextView = findViewById(R.id.tv_task_count);
+        taskEmptyTextView = findViewById(R.id.tv_task_empty);
+        addTaskButton = findViewById(R.id.btn_add_task);
+        addTaskButton.setOnClickListener(v -> addCurrentTask());
 
         openDoorButton = findViewById(R.id.open_door_button);
         openDoorButton.setOnClickListener(v -> {
@@ -156,17 +150,17 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.start_delivery_button).setOnClickListener(v -> {
-            String validationMessage = validateReadyLayers();
+            String validationMessage = validateReadyTasks();
             if (validationMessage != null) {
                 Toast.makeText(this, validationMessage, Toast.LENGTH_SHORT).show();
                 return;
             }
             if (originPoints.isEmpty()) {
-                Toast.makeText(this, "未获取到原点，请先在地图中配置", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "未获取到原点，请先在地图中配置原点", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (disinfectionPoints.isEmpty()) {
-                Toast.makeText(this, "未获取到消毒间，请先在地图中配置", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "未获取到消毒间，请先在地图中配置消毒间", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -194,39 +188,15 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         });
     }
 
-    private void bindLayerSelection() {
-        Button l1Button = findViewById(R.id.l1_button);
-        Button l2Button = findViewById(R.id.l2_button);
-        Button l3Button = findViewById(R.id.l3_button);
-
-        View.OnClickListener layerClickListener = v -> {
-            Button clickedButton = (Button) v;
-            if (clickedButton == selectedLayerButton) {
-                clearLayerSelection();
-                return;
-            }
-            selectLayer(clickedButton);
-        };
-
-        View.OnLongClickListener layerLongClickListener = v -> {
-            Button clickedButton = (Button) v;
-            int layerId = clickedButton.getId();
-            if (!hasLayerConfig(layerId)) {
-                Toast.makeText(this, getLayerLabel(layerId) + "暂无可清空的配置", Toast.LENGTH_SHORT).show();
-                return true;
-            }
-            clearLayerConfig(layerId);
-            Toast.makeText(this, getLayerLabel(layerId) + "已清空房间和物品", Toast.LENGTH_SHORT).show();
-            return true;
-        };
-
-        l1Button.setOnClickListener(layerClickListener);
-        l2Button.setOnClickListener(layerClickListener);
-        l3Button.setOnClickListener(layerClickListener);
-
-        l1Button.setOnLongClickListener(layerLongClickListener);
-        l2Button.setOnLongClickListener(layerLongClickListener);
-        l3Button.setOnLongClickListener(layerLongClickListener);
+    private void bindTaskList() {
+        RecyclerView taskRecyclerView = findViewById(R.id.task_recyclerview);
+        taskRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        taskAdapter = new TaskAdapter(hospitalTasks, task -> {
+            hospitalTasks.remove(task);
+            updateTaskListState();
+            Toast.makeText(this, "已删除任务: " + task.getItemName(), Toast.LENGTH_SHORT).show();
+        });
+        taskRecyclerView.setAdapter(taskAdapter);
     }
 
     private void bindItemPresetList() {
@@ -234,73 +204,80 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         presetRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
         List<String> presetItems = HospitalItemPresetManager.getInstance().getPresetItems();
-
         presetRecyclerView.setAdapter(new ItemPresetAdapter(presetItems, preset -> {
-            if (selectedLayerButton == null) {
-                Toast.makeText(this, "请先点击左侧货层，再选择预设物品", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            int layerId = selectedLayerButton.getId();
-            layerItems.put(layerId, preset);
-            updateAllLayerButtons();
-            Toast.makeText(
-                    this,
-                    getLayerLabel(layerId) + "已设置物品: " + preset + buildNextStepHint(layerId),
-                    Toast.LENGTH_SHORT).show();
+            selectedItemName = preset;
+            updateDraftSummary();
+            Toast.makeText(this, "已选择物品: " + preset, Toast.LENGTH_SHORT).show();
         }));
     }
 
     private void bindPointList() {
         RecyclerView pointsRecyclerView = findViewById(R.id.points_recyclerview);
         pointsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
-
-        List<NavigationNode> points = new ArrayList<>();
-        PointAdapter adapter = new PointAdapter(points, node -> {
-            if (selectedLayerButton == null) {
-                Toast.makeText(this, "请先点击左侧货层，再选择房间", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            int layerId = selectedLayerButton.getId();
-            pairings.put(layerId, node);
-            updateAllLayerButtons();
-            Toast.makeText(
-                    this,
-                    getLayerLabel(layerId) + "已绑定房间: " + node.getName() + buildNextStepHint(layerId),
-                    Toast.LENGTH_SHORT).show();
+        PointAdapter adapter = new PointAdapter(availableRoomPoints, node -> {
+            selectedRoomNode = node;
+            updateDraftSummary();
+            Toast.makeText(this, "已选择房间: " + node.getName(), Toast.LENGTH_SHORT).show();
         });
         pointsRecyclerView.setAdapter(adapter);
-        getRealPoints(points, adapter);
+        getRealPoints(availableRoomPoints, adapter);
+    }
+
+    private void updateDraftSummary() {
+        selectedItemTextView.setText("物品：" + (selectedItemName == null ? "未选择" : selectedItemName));
+        selectedRoomTextView.setText("房间：" + (selectedRoomNode == null ? "未选择" : selectedRoomNode.getName()));
+        addTaskButton.setEnabled(selectedItemName != null
+                && selectedRoomNode != null
+                && hospitalTasks.size() < MAX_TASK_COUNT);
+    }
+
+    private void updateTaskListState() {
+        taskAdapter.notifyDataSetChanged();
+        taskCountTextView.setText("已添加 " + hospitalTasks.size() + " / " + MAX_TASK_COUNT);
+        taskEmptyTextView.setVisibility(hospitalTasks.isEmpty() ? View.VISIBLE : View.GONE);
+        updateDraftSummary();
+    }
+
+    private void addCurrentTask() {
+        if (selectedItemName == null || selectedRoomNode == null) {
+            Toast.makeText(this, "请先同时选择物品和房间", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (hospitalTasks.size() >= MAX_TASK_COUNT) {
+            Toast.makeText(this, "一次任务最多添加 3 个物品", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        hospitalTasks.add(new HospitalDeliveryTask(selectedItemName, cloneNode(selectedRoomNode)));
+        selectedItemName = null;
+        selectedRoomNode = null;
+        updateTaskListState();
+        Toast.makeText(this, "任务已加入待配送列表", Toast.LENGTH_SHORT).show();
     }
 
     @Nullable
-    private String validateReadyLayers() {
-        int[] layerIds = {R.id.l1_button, R.id.l2_button, R.id.l3_button};
-        int completeLayerCount = 0;
-        for (int layerId : layerIds) {
-            boolean hasRoom = pairings.containsKey(layerId);
-            String itemName = layerItems.get(layerId);
-            boolean hasItem = itemName != null && !itemName.trim().isEmpty();
-            if (hasRoom && hasItem) {
-                completeLayerCount++;
-                continue;
-            }
-            if (hasRoom || hasItem) {
-                return "请为已配置货层同时设置物品和房间";
-            }
+    private String validateReadyTasks() {
+        if (hospitalTasks.isEmpty()) {
+            return "请至少添加 1 条配送任务";
         }
-        if (completeLayerCount == 0) {
-            return "请至少为一个货层同时设置物品和房间";
+        if (hospitalTasks.size() > MAX_TASK_COUNT) {
+            return "一次医院任务最多支持 3 条任务";
+        }
+        for (HospitalDeliveryTask task : hospitalTasks) {
+            if (task.getRoomNode() == null || task.getItemName() == null || task.getItemName().trim().isEmpty()) {
+                return "存在未完成的房间或物品配置";
+            }
         }
         return null;
     }
 
     private void getRealPoints(List<NavigationNode> points, PointAdapter adapter) {
         if (robotStateService == null) {
+            Log.w(TAG, "getRealPoints skipped: robotStateService is null");
             return;
         }
 
+        Log.d(TAG, "Requesting destination list for hospital delivery");
         robotStateService.getDestinationList(new IResultCallback<String>() {
             @Override
             public void onSuccess(String result) {
@@ -356,6 +333,9 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         points.clear();
                         points.addAll(normalPoints);
+                        Log.d(TAG, "Destination list ready. originPoints=" + originPoints.size()
+                                + ", disinfectionPoints=" + disinfectionPoints.size()
+                                + ", roomPoints=" + normalPoints.size());
                         adapter.notifyDataSetChanged();
                     });
                 }).start();
@@ -363,159 +343,13 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "getDestinationList failed: " + error.getMessage());
                 runOnUiThread(() -> Toast.makeText(
                         HospitalDeliveryActivity.this,
                         "获取点位失败: " + error.getMessage(),
                         Toast.LENGTH_SHORT).show());
             }
         });
-    }
-
-    private void updateAllLayerButtons() {
-        updateLayerButton(findViewById(R.id.l1_button));
-        updateLayerButton(findViewById(R.id.l2_button));
-        updateLayerButton(findViewById(R.id.l3_button));
-        updateSelectionPanel();
-    }
-
-    private void resetPairingState() {
-        pairings.clear();
-        layerItems.clear();
-        selectedLayerButton = null;
-    }
-
-    private void updateLayerButton(Button button) {
-        updateLayerButtonText(button);
-        refreshLayerStyle(button);
-    }
-
-    private void updateLayerButtonText(Button button) {
-        int layerId = button.getId();
-        String itemName = layerItems.get(layerId);
-        NavigationNode node = pairings.get(layerId);
-
-        StringBuilder textBuilder = new StringBuilder(getLayerLabel(layerId));
-        if (itemName != null && !itemName.isEmpty() && node != null && node.getName() != null && !node.getName().isEmpty()) {
-            textBuilder.append("  已配置");
-        } else if (itemName != null && !itemName.isEmpty()) {
-            textBuilder.append("  已选物品");
-        } else if (node != null && node.getName() != null && !node.getName().isEmpty()) {
-            textBuilder.append("  已选房间");
-        }
-
-        button.setText(textBuilder.toString());
-    }
-
-    private String getLayerLabel(int buttonId) {
-        if (buttonId == R.id.l1_button) {
-            return "L1 层";
-        }
-        if (buttonId == R.id.l2_button) {
-            return "L2 层";
-        }
-        return "L3 层";
-    }
-
-    private void refreshLayerStyle(Button button) {
-        if (button == selectedLayerButton) {
-            button.setBackgroundResource(R.drawable.bg_shelf_selected);
-            button.setTextColor(ContextCompat.getColor(this, R.color.medical_primary));
-        } else if (hasLayerConfig(button.getId())) {
-            button.setBackgroundResource(R.drawable.bg_shelf_paired);
-            button.setTextColor(ContextCompat.getColor(this, R.color.white));
-        } else {
-            button.setBackgroundResource(R.drawable.selector_shelf_item);
-            button.setTextColor(ContextCompat.getColor(this, R.color.medical_text_primary));
-        }
-    }
-
-    private void selectLayer(Button button) {
-        selectedLayerButton = button;
-        updateAllLayerButtons();
-        Toast.makeText(this, buildLayerSelectionMessage(button.getId()), Toast.LENGTH_SHORT).show();
-    }
-
-    private void clearLayerSelection() {
-        selectedLayerButton = null;
-        updateAllLayerButtons();
-    }
-
-    private void clearLayerConfig(int layerId) {
-        pairings.remove(layerId);
-        layerItems.remove(layerId);
-        if (selectedLayerButton != null && selectedLayerButton.getId() == layerId) {
-            selectedLayerButton = null;
-        }
-        updateAllLayerButtons();
-    }
-
-    private boolean hasLayerConfig(int layerId) {
-        return pairings.containsKey(layerId) || layerItems.containsKey(layerId);
-    }
-
-    private String buildLayerSelectionMessage(int layerId) {
-        String itemName = layerItems.get(layerId);
-        NavigationNode node = pairings.get(layerId);
-        if ((itemName == null || itemName.trim().isEmpty()) && node == null) {
-            return getLayerLabel(layerId) + "已选中，请继续选择物品和房间";
-        }
-
-        StringBuilder builder = new StringBuilder();
-        builder.append(getLayerLabel(layerId)).append("编辑中");
-        if (itemName != null && !itemName.trim().isEmpty()) {
-            builder.append(" | 物品: ").append(itemName);
-        }
-        if (node != null && node.getName() != null && !node.getName().isEmpty()) {
-            builder.append(" | 房间: ").append(node.getName());
-        }
-        builder.append(" | 长按可清空");
-        return builder.toString();
-    }
-
-    private String buildNextStepHint(int layerId) {
-        boolean hasRoom = pairings.containsKey(layerId);
-        String itemName = layerItems.get(layerId);
-        boolean hasItem = itemName != null && !itemName.trim().isEmpty();
-        if (hasRoom && hasItem) {
-            return "，当前层已配置完成";
-        }
-        if (!hasItem) {
-            return "，请继续选择物品";
-        }
-        return "，请继续选择房间";
-    }
-
-    private void updateSelectionPanel() {
-        if (selectedLayerSummaryTextView == null || selectedLayerDetailTextView == null || clearSelectedLayerButton == null) {
-            return;
-        }
-
-        if (selectedLayerButton == null) {
-            selectedLayerSummaryTextView.setText("未选择货层");
-            selectedLayerDetailTextView.setText("请先点击左侧货层，再配置该层的物品和房间。");
-            clearSelectedLayerButton.setEnabled(false);
-            return;
-        }
-
-        int layerId = selectedLayerButton.getId();
-        selectedLayerSummaryTextView.setText(getLayerLabel(layerId));
-
-        String itemName = layerItems.get(layerId);
-        NavigationNode node = pairings.get(layerId);
-        StringBuilder detailBuilder = new StringBuilder();
-        detailBuilder.append("物品：")
-                .append(itemName == null || itemName.trim().isEmpty() ? "未设置" : itemName)
-                .append("\n房间：")
-                .append(node != null && node.getName() != null && !node.getName().isEmpty() ? node.getName() : "未设置");
-
-        if (!hasLayerConfig(layerId)) {
-            detailBuilder.append("\n下一步：先选物品，再选房间。");
-        } else {
-            detailBuilder.append("\n说明：重新选择会直接覆盖当前配置。");
-        }
-
-        selectedLayerDetailTextView.setText(detailBuilder.toString());
-        clearSelectedLayerButton.setEnabled(hasLayerConfig(layerId));
     }
 
     private boolean isDisinfectionPoint(String name, String type) {
@@ -618,12 +452,16 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     private void performReturnOperation() {
         Intent intent = new Intent(this, ReturnActivity.class);
         intent.putExtra("return_source_mode", 3);
-        intent.putExtra("return_speed", com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().getReturnSpeed());
+        intent.putExtra("return_speed",
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance().getReturnSpeed());
         startActivity(intent);
     }
 
     private void checkDoorsAndStart(View trigger) {
+        Log.d(TAG, "checkDoorsAndStart called. taskCount=" + hospitalTasks.size()
+                + ", disinfectionCount=" + disinfectionPoints.size());
         if (doorService == null) {
+            Log.w(TAG, "doorService is null, starting delivery directly");
             startDelivery();
             trigger.setEnabled(true);
             return;
@@ -632,6 +470,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
+                Log.d(TAG, "Door state before hospital start. allClosed=" + allClosed);
                 runOnUiThread(() -> {
                     if (Boolean.TRUE.equals(allClosed)) {
                         startDelivery();
@@ -640,6 +479,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                         doorService.closeAllDoors(new IResultCallback<Void>() {
                             @Override
                             public void onSuccess(Void result) {
+                                Log.d(TAG, "Doors closed successfully before hospital start");
                                 runOnUiThread(() -> new Handler().postDelayed(() -> {
                                     startDelivery();
                                     trigger.setEnabled(true);
@@ -648,6 +488,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
 
                             @Override
                             public void onError(ApiError error) {
+                                Log.e(TAG, "closeAllDoors before hospital start failed: " + error.getMessage());
                                 runOnUiThread(() -> {
                                     trigger.setEnabled(true);
                                     Toast.makeText(
@@ -663,6 +504,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
 
             @Override
             public void onError(ApiError error) {
+                Log.e(TAG, "isAllDoorsClosed before hospital start failed: " + error.getMessage());
                 runOnUiThread(() -> {
                     trigger.setEnabled(true);
                     Toast.makeText(
@@ -675,13 +517,42 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     }
 
     private void startDelivery() {
+        StringBuilder taskSummary = new StringBuilder();
+        for (HospitalDeliveryTask task : hospitalTasks) {
+            if (taskSummary.length() > 0) {
+                taskSummary.append(" | ");
+            }
+            String roomName = task.getRoomNode() == null ? "null" : task.getRoomNode().getName();
+            int roomId = task.getRoomNode() == null ? -1 : task.getRoomNode().getId();
+            taskSummary.append(task.getItemName())
+                    .append("->")
+                    .append(roomName)
+                    .append("(")
+                    .append(roomId)
+                    .append(")");
+        }
+        Log.d(TAG, "startDelivery hospital. taskCount=" + hospitalTasks.size()
+                + ", disinfectionNode=" + disinfectionPoints.get(0).getName()
+                + "(" + disinfectionPoints.get(0).getId() + ")"
+                + ", tasks=" + taskSummary);
         HospitalDeliveryManager.getInstance().startDelivery();
         TaskExecutionStateManager.getInstance().startTask(TaskType.HOSPITAL_DELIVERY);
         Intent intent = new Intent(this, HospitalDeliveryNavigationActivity.class);
-        intent.putExtra("pairings", pairings);
-        intent.putExtra("layer_items", layerItems);
+        intent.putExtra("hospital_tasks", new ArrayList<>(hospitalTasks));
         intent.putExtra("disinfection_node", disinfectionPoints.get(0));
         startActivity(intent);
+    }
+
+    private NavigationNode cloneNode(NavigationNode node) {
+        NavigationNode copy = new NavigationNode();
+        copy.setId(node.getId());
+        copy.setName(node.getName());
+        copy.setFloor(node.getFloor());
+        copy.setX(node.getX());
+        copy.setY(node.getY());
+        copy.setPhi(node.getPhi());
+        copy.setRouteNode(node.getRouteNode());
+        return copy;
     }
 
     @Override
@@ -831,6 +702,57 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
 
     private interface OnPresetClickListener {
         void onPresetClick(String preset);
+    }
+
+    private static class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder> {
+        private final List<HospitalDeliveryTask> tasks;
+        private final OnTaskDeleteListener listener;
+
+        TaskAdapter(List<HospitalDeliveryTask> tasks, OnTaskDeleteListener listener) {
+            this.tasks = tasks;
+            this.listener = listener;
+        }
+
+        @NonNull
+        @Override
+        public TaskViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_hospital_task, parent, false);
+            return new TaskViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull TaskViewHolder holder, int position) {
+            HospitalDeliveryTask task = tasks.get(position);
+            holder.roomTextView.setText(task.getRoomNode() == null ? "未选择房间" : task.getRoomNode().getName());
+            holder.itemTextView.setText("物品: " + task.getItemName());
+            holder.layerTextView.setText("层位: " + task.getAssignedLayerLabel());
+            holder.deleteButton.setOnClickListener(v -> listener.onDelete(task));
+        }
+
+        @Override
+        public int getItemCount() {
+            return tasks.size();
+        }
+
+        static class TaskViewHolder extends RecyclerView.ViewHolder {
+            final TextView roomTextView;
+            final TextView itemTextView;
+            final TextView layerTextView;
+            final View deleteButton;
+
+            TaskViewHolder(View itemView) {
+                super(itemView);
+                roomTextView = itemView.findViewById(R.id.tv_task_room);
+                itemTextView = itemView.findViewById(R.id.tv_task_item);
+                layerTextView = itemView.findViewById(R.id.tv_task_layer);
+                deleteButton = itemView.findViewById(R.id.btn_delete_task);
+            }
+        }
+    }
+
+    private interface OnTaskDeleteListener {
+        void onDelete(HospitalDeliveryTask task);
     }
 
     private static Button buildGridButton(ViewGroup parent) {
