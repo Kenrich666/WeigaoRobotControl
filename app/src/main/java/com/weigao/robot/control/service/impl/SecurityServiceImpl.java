@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.service.IDoorService;
@@ -147,6 +148,12 @@ public class SecurityServiceImpl implements ISecurityService {
     @Override
     public void verifyPassword(String password, IResultCallback<Boolean> callback) {
         Log.d(TAG, "verifyPassword");
+        if (!AppSettingsManager.getInstance().isPasswordVerificationEnabled()) {
+            if (callback != null) {
+                callback.onSuccess(true);
+            }
+            return;
+        }
         // Verify against in-memory state (whch is synced with file)
         boolean isValid = currentPassword.equals(password);
         if (callback != null) {
@@ -183,7 +190,7 @@ public class SecurityServiceImpl implements ISecurityService {
     @Override
     public void unlockDoor(int doorId, String password, IResultCallback<Void> callback) {
         Log.d(TAG, "unlockDoor: doorId=" + doorId);
-        if (currentPassword.equals(password)) {
+        if (!AppSettingsManager.getInstance().isPasswordVerificationEnabled() || currentPassword.equals(password)) {
             setLockedState(false);
             // 调用 DoorService 打开指定舱门
             try {
@@ -224,7 +231,7 @@ public class SecurityServiceImpl implements ISecurityService {
     @Override
     public void unlock(String password, IResultCallback<Void> callback) {
         Log.d(TAG, "unlock");
-        if (currentPassword.equals(password)) {
+        if (!AppSettingsManager.getInstance().isPasswordVerificationEnabled() || currentPassword.equals(password)) {
             setLockedState(false); // [修复] 使用带持久化的方法
             notifySuccess(callback);
         } else {

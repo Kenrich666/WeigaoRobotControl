@@ -115,7 +115,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         startNavigation();
 
         // 如果启用了投影灯开关门，使用单例服务
-        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
             ProjectionDoorService.getInstance().setDoorActionListener(this::showDoorOperationDialog);
             Log.d(TAG, "【投影灯】功能已启用");
         }
@@ -342,7 +343,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void startPilotNext() {
         // 即将移动，确保投影灯关闭
-        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
             ProjectionDoorService.getInstance().pauseForMovement();
         }
         navigationService.pilotNext(new IResultCallback<Void>() {
@@ -507,7 +509,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
                     tvHint.setVisibility(View.VISIBLE);
 
                     // 机器人移动中：暂停投影灯检测
-                    if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                    if (AppSettingsManager.getInstance()
+                            .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
                         ProjectionDoorService.getInstance().pauseForMovement();
                     }
                     break;
@@ -531,11 +534,15 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
     private void handleArrival() {
         isWaitingAtNode = true;
 
+        /*
+
         // 检查是否启用了投影灯开关门功能
-        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
             Log.d(TAG, "【投影灯】到达目标点，恢复投影灯检测");
-            ProjectionDoorService.getInstance().resumeAfterMovement();
         }
+
+        */
 
         Intent intent = new Intent(this, CircularArrivalActivity.class);
         boolean isLastPoint = (currentTaskIndex >= targetNodes.size() - 1);
@@ -581,7 +588,8 @@ public class CircularDeliveryNavigationActivity extends AppCompatActivity implem
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_ARRIVAL) {
             // 离开到达页面，立即关闭投影灯，防止移动过程中灯亮
-            if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            if (AppSettingsManager.getInstance()
+                    .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
                 ProjectionDoorService.getInstance().pauseForMovement();
             }
 

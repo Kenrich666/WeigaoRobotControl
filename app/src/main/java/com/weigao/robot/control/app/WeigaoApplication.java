@@ -265,12 +265,6 @@ public class WeigaoApplication extends Application {
                 // [新增] 确保投影灯在启动时处于关闭状态（防止上次异常退出残留）
                 com.weigao.robot.control.service.impl.ProjectionDoorService.getInstance().ensureLightOff();
 
-                // 恢复投影灯设置状态：如果全局设置中启用了投影灯且未被锁定，自动开启
-                if (com.weigao.robot.control.manager.AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
-                    com.weigao.robot.control.service.impl.ProjectionDoorService.getInstance()
-                            .startContinuousDetection();
-                }
-
                 // [新增] 初始化工作时段调度服务
                 com.weigao.robot.control.manager.WorkScheduleService.getInstance().init(getApplicationContext());
 
