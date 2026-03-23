@@ -1,6 +1,8 @@
 package com.weigao.robot.control.service.impl;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.keenon.sdk.component.gating.manager.Door;
@@ -25,6 +27,7 @@ import com.keenon.sdk.sensor.common.Sensor;
 import com.keenon.sdk.sensor.common.SensorEvent;
 import com.keenon.sdk.constant.TopicName;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -38,8 +41,11 @@ public class DoorServiceImpl implements IDoorService {
 
     private static final String TAG = "DoorServiceImpl";
     private static final String LISTENER_TAG = "DoorServiceImpl_Listener";
+    private static final long ALL_DOOR_OPERATION_SETTLE_MS = 1200L;
 
     private final Context context;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Object allDoorOperationLock = new Object();
 
     /** 回调列表（线程安全） */
     private final List<IDoorCallback> callbacks = new CopyOnWriteArrayList<>();
@@ -64,6 +70,12 @@ public class DoorServiceImpl implements IDoorService {
 
     /** 内部跟踪：所有门是否已打开 (用于 T3 SensorDoor 状态同步) */
     private boolean allDoorsOpen = false;
+    private boolean allDoorOperationInProgress = false;
+    private boolean currentAllDoorTargetOpen = false;
+    private Boolean queuedAllDoorTargetOpen = null;
+    private final List<IResultCallback<Void>> currentAllDoorCallbacks = new ArrayList<>();
+    private final List<IResultCallback<Void>> queuedAllDoorCallbacks = new ArrayList<>();
+    private Runnable completeAllDoorOperationRunnable;
 
     public DoorServiceImpl(Context context) {
         this.context = context.getApplicationContext();

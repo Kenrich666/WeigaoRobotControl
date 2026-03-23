@@ -45,6 +45,7 @@ public class CircularArrivalActivity extends AppCompatActivity {
     private long countdownTimeMs; // 从设置中动态读取
     private TextView tvArrivalMessage;
     private android.os.CountDownTimer countDownTimer;
+    private boolean autoDepartureEnabled = false;
     private boolean isLastPoint = false;
     private Button btnContinue;
     private TextView tvCurrentPoint;
@@ -71,6 +72,8 @@ public class CircularArrivalActivity extends AppCompatActivity {
         int stayDurationSeconds = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
                 .getArrivalStayDuration();
         countdownTimeMs = stayDurationSeconds * 1000L;
+        autoDepartureEnabled = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                .isArrivalStayEnabled();
 
         initViews();
         if (currentPointName != null) {
@@ -158,6 +161,11 @@ public class CircularArrivalActivity extends AppCompatActivity {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
+        if (!autoDepartureEnabled) {
+            countDownTimer = null;
+            updateStaticMessage();
+            return;
+        }
         countDownTimer = new android.os.CountDownTimer(countdownTimeMs, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -177,6 +185,12 @@ public class CircularArrivalActivity extends AppCompatActivity {
     private void updateMessage(long secondsLeft) {
         String baseMsg = "请尽快把货物放入机器人中";
         String extra = isLastPoint ? "\n(无人操作将自动返航: " + secondsLeft + "s)" : "\n(无人操作将继续下一站: " + secondsLeft + "s)";
+        tvArrivalMessage.setText(baseMsg + extra);
+    }
+
+    private void updateStaticMessage() {
+        String baseMsg = "请尽快把货物放入机器人中";
+        String extra = isLastPoint ? "\n(等待手动返航)" : "\n(等待手动继续下一站)";
         tvArrivalMessage.setText(baseMsg + extra);
     }
 

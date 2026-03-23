@@ -231,6 +231,8 @@ public class BasicSettingsFragment extends Fragment {
         // --- 物品配送取物停留时间设置 ---
         SeekBar itemArrivalStaySeekBar = view.findViewById(R.id.seekbar_item_arrival_stay);
         TextView itemArrivalStayValue = view.findViewById(R.id.tv_item_arrival_stay_value);
+        androidx.appcompat.widget.SwitchCompat switchItemArrivalStayEnabled =
+                view.findViewById(R.id.switch_item_arrival_stay_enabled);
 
         int currentItemStay = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
                 .getArrivalStayDuration();
@@ -238,6 +240,17 @@ public class BasicSettingsFragment extends Fragment {
         itemArrivalStaySeekBar.setMax(STAY_PROGRESS_MAX);
         itemArrivalStaySeekBar.setProgress(toStaySeekBarProgress(currentItemStay));
         itemArrivalStayValue.setText(String.format("%d 秒", currentItemStay));
+
+        switchItemArrivalStayEnabled.setChecked(
+                com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                        .isArrivalStayEnabled());
+        switchItemArrivalStayEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
+            }
+            com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                    .setArrivalStayEnabled(isChecked);
+        });
 
         itemArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -319,6 +332,8 @@ public class BasicSettingsFragment extends Fragment {
 
         SeekBar hospitalArrivalStaySeekBar = view.findViewById(R.id.seekbar_hospital_arrival_stay);
         TextView hospitalArrivalStayValue = view.findViewById(R.id.tv_hospital_arrival_stay_value);
+        androidx.appcompat.widget.SwitchCompat switchHospitalArrivalStayEnabled =
+                view.findViewById(R.id.switch_hospital_arrival_stay_enabled);
 
         int currentHospitalStay = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
                 .getArrivalStayDuration();
@@ -326,6 +341,17 @@ public class BasicSettingsFragment extends Fragment {
         hospitalArrivalStaySeekBar.setMax(STAY_PROGRESS_MAX);
         hospitalArrivalStaySeekBar.setProgress(toStaySeekBarProgress(currentHospitalStay));
         hospitalArrivalStayValue.setText(String.format("%d s", currentHospitalStay));
+
+        switchHospitalArrivalStayEnabled.setChecked(
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                        .isArrivalStayEnabled());
+        switchHospitalArrivalStayEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
+            }
+            com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                    .setArrivalStayEnabled(isChecked);
+        });
 
         hospitalArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -408,6 +434,8 @@ public class BasicSettingsFragment extends Fragment {
         // --- 循环配送取物停留时间设置 ---
         SeekBar circularArrivalStaySeekBar = view.findViewById(R.id.seekbar_circular_arrival_stay);
         TextView circularArrivalStayValue = view.findViewById(R.id.tv_circular_arrival_stay_value);
+        androidx.appcompat.widget.SwitchCompat switchCircularArrivalStayEnabled =
+                view.findViewById(R.id.switch_circular_arrival_stay_enabled);
 
         int currentCircularStay = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
                 .getArrivalStayDuration();
@@ -415,6 +443,17 @@ public class BasicSettingsFragment extends Fragment {
         circularArrivalStaySeekBar.setMax(STAY_PROGRESS_MAX);
         circularArrivalStaySeekBar.setProgress(toStaySeekBarProgress(currentCircularStay));
         circularArrivalStayValue.setText(String.format("%d 秒", currentCircularStay));
+
+        switchCircularArrivalStayEnabled.setChecked(
+                com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                        .isArrivalStayEnabled());
+        switchCircularArrivalStayEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
+            }
+            com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                    .setArrivalStayEnabled(isChecked);
+        });
 
         circularArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override

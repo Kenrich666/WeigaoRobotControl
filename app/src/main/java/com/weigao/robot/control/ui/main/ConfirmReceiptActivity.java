@@ -55,6 +55,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     private boolean isConfirmState = false;
     private boolean isCabinOpeningInProgress = false;
     private boolean hasRecordedArrival = false;
+    private boolean autoDepartureEnabled = false;
     private CountDownTimer departureTimer;
     private HashMap<Integer, NavigationNode> pairings;
     private ArrayList<HospitalDeliveryTask> hospitalTasks;
@@ -114,6 +115,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         if (hospitalTasks == null) {
             hospitalTasks = new ArrayList<>();
         }
+        autoDepartureEnabled = resolveAutoDepartureEnabled();
     }
 
     private void updateUI() {
@@ -242,14 +244,14 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             departureTimer.cancel();
         }
 
-        int stayDurationSeconds;
-        if ("hospital".equals(recordMode)) {
-            stayDurationSeconds = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
-                    .getArrivalStayDuration();
-        } else {
-            stayDurationSeconds = com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
-                    .getArrivalStayDuration();
+        if (!autoDepartureEnabled) {
+            tvCountdown.setVisibility(View.VISIBLE);
+            tvCountdown.setText("等待手动离场");
+            departureTimer = null;
+            return;
         }
+
+        int stayDurationSeconds = resolveArrivalStayDurationSeconds();
         long stayDurationMs = stayDurationSeconds * 1000L;
 
         departureTimer = new CountDownTimer(stayDurationMs, 1000) {
@@ -265,6 +267,24 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 processAutoDeparture();
             }
         }.start();
+    }
+
+    private int resolveArrivalStayDurationSeconds() {
+        if (isHospitalMode()) {
+            return com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                    .getArrivalStayDuration();
+        }
+        return com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                .getArrivalStayDuration();
+    }
+
+    private boolean resolveAutoDepartureEnabled() {
+        if (isHospitalMode()) {
+            return com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                    .isArrivalStayEnabled();
+        }
+        return com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                .isArrivalStayEnabled();
     }
 
     private void processAutoDeparture() {
