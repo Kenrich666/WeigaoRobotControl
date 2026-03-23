@@ -11,6 +11,7 @@ import com.weigao.robot.control.service.impl.NavigationServiceImpl;
 import com.weigao.robot.control.service.impl.RemoteCallServiceImpl;
 import com.weigao.robot.control.service.impl.RobotStateServiceImpl;
 import com.weigao.robot.control.service.impl.SecurityServiceImpl;
+import com.weigao.robot.control.service.impl.StabilizedDoorServiceImpl;
 import com.weigao.robot.control.service.impl.TimingServiceImpl;
 
 /**
@@ -96,7 +97,7 @@ public class ServiceManager {
         if (doorService == null) {
             synchronized (doorLock) {
                 if (doorService == null) {
-                    doorService = new DoorServiceImpl(context);
+                    doorService = new StabilizedDoorServiceImpl(context);
                     Log.d(TAG, "DoorService created");
                 }
             }
