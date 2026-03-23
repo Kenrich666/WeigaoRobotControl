@@ -590,8 +590,57 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             if (btnDoorToggle != null) {
                 btnDoorToggle.setVisibility(View.VISIBLE);
                 updateDoorToggleButton();
+                autoOpenDisinfectionDoors();
             }
             Toast.makeText(this, "已到达消毒间，请分配 L1/L2/L3 后继续", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void autoOpenDisinfectionDoors() {
+        if (doorService == null) {
+            return;
+        }
+
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                if (!Boolean.TRUE.equals(allClosed)) {
+                    runOnUiThread(HospitalDeliveryNavigationActivity.this::updateDoorToggleButton);
+                    return;
+                }
+
+                doorService.openAllDoors(false, new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        runOnUiThread(() -> {
+                            updateDoorToggleButton();
+                            Toast.makeText(
+                                    HospitalDeliveryNavigationActivity.this,
+                                    "已到达消毒间，舱门已自动打开",
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        });
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        runOnUiThread(() -> Toast.makeText(
+                                HospitalDeliveryNavigationActivity.this,
+                                "消毒间自动开门失败: " + error.getMessage(),
+                                Toast.LENGTH_SHORT
+                        ).show());
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> Toast.makeText(
+                        HospitalDeliveryNavigationActivity.this,
+                        "消毒间舱门查询失败: " + error.getMessage(),
+                        Toast.LENGTH_SHORT
+                ).show());
+            }
         });
     }
 

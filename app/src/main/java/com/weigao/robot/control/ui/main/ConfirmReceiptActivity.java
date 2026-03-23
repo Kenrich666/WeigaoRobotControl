@@ -53,6 +53,8 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
     private IDoorService doorService;
     private boolean isConfirmState = false;
+    private boolean isCabinOpeningInProgress = false;
+    private boolean hasRecordedArrival = false;
     private CountDownTimer departureTimer;
     private HashMap<Integer, NavigationNode> pairings;
     private ArrayList<HospitalDeliveryTask> hospitalTasks;
@@ -75,6 +77,9 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         updateUI();
         setupListeners();
         startDepartureTimer();
+        if (isHospitalMode()) {
+            autoOpenCabinWithoutVerification();
+        }
 
         LocalBroadcastManager.getInstance(this).registerReceiver(
                 doorBroadcastReceiver,
@@ -215,9 +220,13 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
             btnOpenCabin.setEnabled(false);
             if (!isConfirmState) {
-                Toast.makeText(this, "请先验证密码", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(this, PasswordActivity.class);
-                startActivityForResult(intent, REQUEST_CODE_VERIFY_PASSWORD);
+                if (isHospitalMode()) {
+                    autoOpenCabinWithoutVerification();
+                } else {
+                    Toast.makeText(this, "请先验证密码", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(this, PasswordActivity.class);
+                    startActivityForResult(intent, REQUEST_CODE_VERIFY_PASSWORD);
+                }
             } else {
                 if (departureTimer != null) {
                     departureTimer.cancel();
@@ -367,6 +376,62 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         });
     }
 
+    private boolean isHospitalMode() {
+        return "hospital".equals(recordMode);
+    }
+
+    private void autoOpenCabinWithoutVerification() {
+        if (!isHospitalMode() || doorService == null || isCabinOpeningInProgress) {
+            return;
+        }
+        openCabinWithoutVerification();
+    }
+
+    private void openCabinWithoutVerification() {
+        if (doorService == null || isCabinOpeningInProgress) {
+            return;
+        }
+
+        isCabinOpeningInProgress = true;
+        Toast.makeText(this, "正在打开舱门...", Toast.LENGTH_SHORT).show();
+        doorService.openAllDoors(false, new IResultCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                runOnUiThread(() -> {
+                    isCabinOpeningInProgress = false;
+                    Toast.makeText(ConfirmReceiptActivity.this, "舱门已打开", Toast.LENGTH_SHORT).show();
+                    btnOpenCabin.setText("确认收货");
+                    isConfirmState = true;
+                    String pointName = currentNode != null ? currentNode.getName() : "未知点位";
+                    if (!hasRecordedArrival) {
+                        ItemDeliveryRecord record = recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
+                        hasRecordedArrival = true;
+                        if (record != null) {
+                            tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
+                            tvArrivalDuration.setVisibility(View.VISIBLE);
+                        }
+                    }
+                    new android.os.Handler().postDelayed(() -> {
+                        if (!isFinishing()) {
+                            btnOpenCabin.setEnabled(true);
+                        }
+                    }, 3000);
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> {
+                    isCabinOpeningInProgress = false;
+                    Toast.makeText(ConfirmReceiptActivity.this, "开门失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    btnOpenCabin.setEnabled(true);
+                    String pointName = currentNode != null ? currentNode.getName() : "未知点位";
+                    recordArrival(pointName, ItemDeliveryRecord.STATUS_FAILED_HARDWARE);
+                });
+            }
+        });
+    }
+
     @Override
     protected void onDestroy() {
         if (departureTimer != null) {
@@ -384,7 +449,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             return;
         }
         if (requestCode == REQUEST_CODE_VERIFY_PASSWORD && resultCode == RESULT_OK) {
-            performOpenCabin();
+            openCabinWithoutVerification();
         } else if (requestCode == REQUEST_CODE_VERIFY_PASSWORD) {
             btnOpenCabin.setEnabled(true);
         }
@@ -441,9 +506,10 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 if (departureTimer != null) {
                     departureTimer.cancel();
                 }
-                if (!isConfirmState) {
+                if (!hasRecordedArrival) {
                     String pointName = currentNode != null ? currentNode.getName() : "未知点位";
                     recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
+                    hasRecordedArrival = true;
                 }
                 runOnUiThread(() -> {
                     btnOpenCabin.setEnabled(false);
@@ -457,11 +523,12 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
                 });
             } else {
                 runOnUiThread(() -> {
-                    if (!isConfirmState) {
+                    if (!hasRecordedArrival) {
                         btnOpenCabin.setText("确认收货");
                         isConfirmState = true;
                         String pointName = currentNode != null ? currentNode.getName() : "未知点位";
                         ItemDeliveryRecord record = recordArrival(pointName, ItemDeliveryRecord.STATUS_SUCCESS);
+                        hasRecordedArrival = true;
                         if (record != null) {
                             tvArrivalDuration.setText("到达耗时: " + record.getFormattedDuration());
                             tvArrivalDuration.setVisibility(View.VISIBLE);
