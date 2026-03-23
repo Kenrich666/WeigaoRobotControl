@@ -54,6 +54,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     private static final int REQUEST_PASSWORD_FOR_RETURN = 2103;
     private static final int REQUEST_PASSWORD_FOR_HISTORY = 2104;
     private static final int MAX_TASK_COUNT = 3;
+    private static final String DISINFECTION_ROOM_EN_NAME = "disinfection";
 
     public static final List<NavigationNode> originPoints = new ArrayList<>();
     public static final List<NavigationNode> disinfectionPoints = new ArrayList<>();
@@ -331,13 +332,27 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                                 routeNode.setName(name);
                                 node.setRouteNode(routeNode);
 
+                                String category;
                                 if ("origin".equals(type)) {
                                     originPoints.add(node);
-                                } else if (isDisinfectionPoint(name, type)) {
+                                    category = "origin";
+                                } else if (isDisinfectionPointByName(name)) {
                                     disinfectionPoints.add(node);
+                                    category = "disinfection";
                                 } else if ("normal".equals(type)) {
                                     normalPoints.add(node);
+                                    category = "normal";
+                                } else {
+                                    category = "ignored";
                                 }
+
+                                Log.d(TAG, "Destination node parsed: id=" + id
+                                        + ", name=" + name
+                                        + ", type=" + type
+                                        + ", floor=" + node.getFloor()
+                                        + ", x=" + node.getX()
+                                        + ", y=" + node.getY()
+                                        + ", category=" + category);
                             }
                         }
                     } catch (JSONException e) {
@@ -350,6 +365,27 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                         Log.d(TAG, "Destination list ready. originPoints=" + originPoints.size()
                                 + ", disinfectionPoints=" + disinfectionPoints.size()
                                 + ", roomPoints=" + normalPoints.size());
+                        for (NavigationNode node : originPoints) {
+                            Log.d(TAG, "Origin point: id=" + node.getId()
+                                    + ", name=" + node.getName()
+                                    + ", floor=" + node.getFloor()
+                                    + ", x=" + node.getX()
+                                    + ", y=" + node.getY());
+                        }
+                        for (NavigationNode node : disinfectionPoints) {
+                            Log.d(TAG, "Disinfection point: id=" + node.getId()
+                                    + ", name=" + node.getName()
+                                    + ", floor=" + node.getFloor()
+                                    + ", x=" + node.getX()
+                                    + ", y=" + node.getY());
+                        }
+                        for (NavigationNode node : normalPoints) {
+                            Log.d(TAG, "Normal point: id=" + node.getId()
+                                    + ", name=" + node.getName()
+                                    + ", floor=" + node.getFloor()
+                                    + ", x=" + node.getX()
+                                    + ", y=" + node.getY());
+                        }
                         adapter.notifyDataSetChanged();
                     });
                 }).start();
@@ -364,6 +400,17 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                         Toast.LENGTH_SHORT).show());
             }
         });
+    }
+
+    private boolean isDisinfectionPointByName(String name) {
+        if (name == null) {
+            return false;
+        }
+        String normalizedName = name.trim();
+        if ("\u6d88\u6bd2\u95f4".equals(normalizedName)) {
+            return true;
+        }
+        return DISINFECTION_ROOM_EN_NAME.equalsIgnoreCase(normalizedName);
     }
 
     private boolean isDisinfectionPoint(String name, String type) {
