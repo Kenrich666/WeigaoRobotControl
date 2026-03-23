@@ -38,6 +38,7 @@ import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 
 import org.json.JSONArray;
@@ -103,6 +104,9 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         bindItemPresetList();
+        if (!TaskExecutionStateManager.getInstance().hasActiveTask()) {
+            ProjectionDoorService.getInstance().pauseForMovement();
+        }
     }
 
     private void bindCommonActions() {
@@ -551,6 +555,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                 + ", tasks=" + taskSummary);
         HospitalDeliveryManager.getInstance().startDelivery();
         TaskExecutionStateManager.getInstance().startTask(TaskType.HOSPITAL_DELIVERY);
+        ProjectionDoorService.getInstance().pauseForMovement();
         Intent intent = new Intent(this, HospitalDeliveryNavigationActivity.class);
         intent.putExtra("hospital_tasks", new ArrayList<>(hospitalTasks));
         intent.putExtra("disinfection_node", disinfectionPoints.get(0));

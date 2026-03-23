@@ -169,9 +169,6 @@ public class UVDisinfectionManager {
         Log.d(TAG, "【充电锁定】" + (locked ? "锁定舱门和投影灯" : "解锁舱门和投影灯"));
 
         ProjectionDoorService.getInstance().setChargingLocked(locked);
-        if (!locked && AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
-            ProjectionDoorService.getInstance().startContinuousDetection();
-        }
 
         IDoorService doorService = ServiceManager.getInstance().getDoorService();
         if (doorService instanceof DoorServiceImpl) {

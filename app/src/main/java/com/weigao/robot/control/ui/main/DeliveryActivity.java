@@ -20,6 +20,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
@@ -27,6 +28,7 @@ import com.weigao.robot.control.service.ServiceManager;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.manager.TaskType;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 import com.keenon.sdk.component.navigation.route.RouteNode;
@@ -75,6 +77,12 @@ public class DeliveryActivity extends AppCompatActivity {
      * 开门按钮引用
      */
     private Button openDoorButton;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        maybeEnableProjectionDoorWhenIdle();
+    }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -715,12 +723,32 @@ public class DeliveryActivity extends AppCompatActivity {
         // 记录开始配送时间
         ItemDeliveryManager.getInstance().startDelivery();
         TaskExecutionStateManager.getInstance().startTask(TaskType.ITEM_DELIVERY);
+        pauseProjectionDoorForTaskStartIfNeeded();
 
         Intent intent = new Intent(this, DeliveryNavigationActivity.class);
         intent.putExtra("pairings", pairings);
         // 使用 startActivityForResult 以便在任务完成后接收通知
         Log.d(TAG, "【舱门】startDelivery() 已创建 DeliveryNavigationActivity intent，requestCode=1002");
         startActivityForResult(intent, 1002);
+    }
+
+    private void maybeEnableProjectionDoorWhenIdle() {
+        if (TaskExecutionStateManager.getInstance().hasActiveTask()) {
+            return;
+        }
+        if (!AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
+            return;
+        }
+        Log.d(TAG, "【投影灯】物品配送页处于非任务待机态，自动开启脚踩投影灯检测");
+        ProjectionDoorService.getInstance().startContinuousDetection();
+    }
+
+    private void pauseProjectionDoorForTaskStartIfNeeded() {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
+            ProjectionDoorService.getInstance().pauseForMovement();
+        }
     }
 
     private void checkDoorsAndStart(View v) {

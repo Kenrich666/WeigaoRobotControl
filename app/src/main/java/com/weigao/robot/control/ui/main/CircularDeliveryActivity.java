@@ -37,6 +37,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.manager.TaskType;
 import com.weigao.robot.control.model.CircularRoute;
@@ -45,6 +46,7 @@ import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 import com.weigao.robot.control.model.CircularDeliveryRecord;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 
@@ -196,6 +198,12 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         startNavBtn.setOnClickListener(v -> startNavigation());
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        maybeEnableProjectionDoorWhenIdle();
+    }
+
     /**
      * 执行返航操作
      */
@@ -272,6 +280,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                                 }
                             }
                         }
+                        runOnUiThread(CircularDeliveryActivity.this::maybeEnableProjectionDoorWhenIdle);
                     } catch (JSONException e) {
                         Log.e(TAG, "Failed to parse nodes", e);
                     }
@@ -283,6 +292,25 @@ public class CircularDeliveryActivity extends AppCompatActivity {
                 Log.e(TAG, "Failed to load nodes: " + error.getMessage());
             }
         });
+    }
+
+    private void maybeEnableProjectionDoorWhenIdle() {
+        if (TaskExecutionStateManager.getInstance().hasActiveTask()) {
+            return;
+        }
+        if (!AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
+            return;
+        }
+        Log.d(TAG, "【投影灯】循环配送页处于非任务待机态，自动开启脚踩投影灯检测");
+        ProjectionDoorService.getInstance().startContinuousDetection();
+    }
+
+    private void pauseProjectionDoorForTaskStartIfNeeded() {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
+            ProjectionDoorService.getInstance().pauseForMovement();
+        }
     }
 
     // --- Persistence ---
@@ -473,6 +501,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
     private void proceedToNavigation() {
         TaskExecutionStateManager.getInstance().startTask(TaskType.CIRCULAR_DELIVERY);
+        pauseProjectionDoorForTaskStartIfNeeded();
         Intent intent = new Intent(this, CircularDeliveryNavigationActivity.class);
         intent.putExtra("route_name", selectedRoute.getName());
         intent.putExtra("loop_count", selectedRoute.getLoopCount());

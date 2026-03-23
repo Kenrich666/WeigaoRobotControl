@@ -448,41 +448,60 @@ public class BasicSettingsFragment extends Fragment {
         });
 
         // 脚踩投影灯开关门 Switch
-        androidx.appcompat.widget.SwitchCompat switchProjectionDoor = view.findViewById(R.id.switch_projection_door);
+        androidx.appcompat.widget.SwitchCompat switchPasswordVerification =
+                view.findViewById(R.id.switch_password_verification);
+        switchPasswordVerification.setChecked(settingsManager.isPasswordVerificationEnabled());
+        switchPasswordVerification.setOnCheckedChangeListener((buttonView, isChecked) ->
+                settingsManager.setPasswordVerificationEnabled(isChecked));
+
+        androidx.appcompat.widget.SwitchCompat switchItemProjectionDoor =
+                view.findViewById(R.id.switch_item_projection_door);
+        androidx.appcompat.widget.SwitchCompat switchCircularProjectionDoor =
+                view.findViewById(R.id.switch_circular_projection_door);
+        androidx.appcompat.widget.SwitchCompat switchHospitalProjectionDoor =
+                view.findViewById(R.id.switch_hospital_projection_door);
 
         // 首次初始化优先反映硬件真实状态
-        boolean actualStatus = ProjectionDoorService.getInstance().isLightOn()
-                || ProjectionDoorService.getInstance().isDetecting();
-        switchProjectionDoor.setChecked(actualStatus);
+        switchItemProjectionDoor.setChecked(
+                settingsManager.isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM));
 
-        switchProjectionDoor.setOnCheckedChangeListener((buttonView, isChecked) -> {
+        switchCircularProjectionDoor.setChecked(
+                settingsManager.isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR));
+        switchHospitalProjectionDoor.setChecked(
+                settingsManager.isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL));
+
+        switchItemProjectionDoor.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed())
                 return; // 仅响应当用户主动点击，防止回调循环
-            settingsManager.setProjectionDoorEnabled(isChecked);
+            settingsManager.setProjectionDoorEnabled(
+                    com.weigao.robot.control.manager.ProjectionDoorMode.ITEM, isChecked);
             // 立即控制投影灯和检测
-            if (isChecked) {
-                ProjectionDoorService.getInstance().startContinuousDetection();
-            } else {
+            if (!settingsManager.isAnyProjectionDoorEnabled()) {
                 ProjectionDoorService.getInstance().stopContinuousDetection();
             }
         });
 
         // 轮询检查投影灯实际状态，实现 实际状态 -> UI 的双向绑定同步
-        Runnable syncRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (getActivity() == null || getActivity().isFinishing() || !isVisible()
-                        || switchProjectionDoor == null)
-                    return;
-                boolean currentActual = ProjectionDoorService.getInstance().isLightOn()
-                        || ProjectionDoorService.getInstance().isDetecting();
-                if (switchProjectionDoor.isChecked() != currentActual) {
-                    switchProjectionDoor.setChecked(currentActual);
-                }
-                switchProjectionDoor.postDelayed(this, 1000);
+        switchCircularProjectionDoor.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
             }
-        };
-        switchProjectionDoor.postDelayed(syncRunnable, 1000);
+            settingsManager.setProjectionDoorEnabled(
+                    com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR, isChecked);
+            if (!settingsManager.isAnyProjectionDoorEnabled()) {
+                ProjectionDoorService.getInstance().stopContinuousDetection();
+            }
+        });
+        switchHospitalProjectionDoor.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
+            }
+            settingsManager.setProjectionDoorEnabled(
+                    com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL, isChecked);
+            if (!settingsManager.isAnyProjectionDoorEnabled()) {
+                ProjectionDoorService.getInstance().stopContinuousDetection();
+            }
+        });
 
         return view;
     }

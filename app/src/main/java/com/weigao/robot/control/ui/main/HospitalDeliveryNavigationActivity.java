@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.keenon.sdk.component.navigation.common.Navigation;
 import com.weigao.robot.control.R;
@@ -26,6 +27,7 @@ import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.manager.HospitalDeliveryManager;
 import com.weigao.robot.control.manager.HospitalDeliverySettingsManager;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
@@ -38,6 +40,7 @@ import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 
 import java.util.ArrayList;
@@ -90,6 +93,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean handoffToLowBatteryAutoCharge;
     private boolean hasStartCommandIssued;
     private boolean routePreparedReceived;
+    private android.app.Dialog doorOperationDialog;
     private final Handler startHandler = new Handler();
     private final Runnable delayedNavigationStartRunnable = new Runnable() {
         @Override
@@ -112,6 +116,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         initData();
         setupGestureDetector();
         setupButtons();
+        if (isHospitalProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().setDoorActionListener(this::showDoorOperationDialog);
+        }
         startToDisinfection();
     }
 
@@ -249,7 +256,10 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         tvHint.setText("双击屏幕可暂停导航");
         showPauseControls(false);
         ensureDoorsClosedBeforeMove(
-                () -> configureAndPrepareNavigation(Collections.singletonList(disinfectionNode), false),
+                () -> {
+                    pauseProjectionDoorForMovementIfNeeded();
+                    configureAndPrepareNavigation(Collections.singletonList(disinfectionNode), false);
+                },
                 "前往消毒间前关门失败");
     }
 
@@ -271,7 +281,10 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         showPauseControls(false);
         updateRoomTaskText();
         ensureDoorsClosedBeforeMove(
-                () -> configureAndPrepareNavigation(targetNodes, true),
+                () -> {
+                    pauseProjectionDoorForMovementIfNeeded();
+                    configureAndPrepareNavigation(targetNodes, true);
+                },
                 "继续配送前关门失败");
     }
 
@@ -351,7 +364,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         Log.d(TAG, "requestNavigationStart executing. flowStage=" + flowStage
                 + ", currentUniqueTargetIndex=" + currentUniqueTargetIndex);
         hasStartCommandIssued = true;
-        ensureDoorsClosedBeforeMove(() -> navigationService.start(new IResultCallback<Void>() {
+        ensureDoorsClosedBeforeMove(() -> {
+            pauseProjectionDoorForMovementIfNeeded();
+            navigationService.start(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "navigationService.start success. flowStage=" + flowStage);
@@ -365,7 +380,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 runOnUiThread(() -> Toast.makeText(HospitalDeliveryNavigationActivity.this,
                         "启动导航失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
             }
-        }), "启动导航前关门失败");
+            });
+        }, "启动导航前关门失败");
     }
 
     private void scheduleDelayedNavigationStart() {
@@ -462,7 +478,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             return;
         }
 
-        ensureDoorsClosedBeforeMove(() -> navigationService.start(new IResultCallback<Void>() {
+        ensureDoorsClosedBeforeMove(() -> {
+            pauseProjectionDoorForMovementIfNeeded();
+            navigationService.start(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
@@ -481,7 +499,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                         "继续导航失败: " + error.getMessage(),
                         Toast.LENGTH_SHORT).show());
             }
-        }), "继续导航前关门失败");
+            });
+        }, "继续导航前关门失败");
     }
     private void showPauseControls(boolean visible) {
         llPauseControls.setVisibility(visible ? View.VISIBLE : View.GONE);
@@ -524,6 +543,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         }
         isReturning = true;
         ensureDoorsClosedBeforeMove(() -> {
+            pauseProjectionDoorForMovementIfNeeded();
             stopAutoResumeTimer();
             recordCurrentStageCancelled();
             if (navigationService != null) {
@@ -583,6 +603,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 HospitalDeliveryRecord.STATUS_SUCCESS,
                 HospitalDeliveryRecord.STAGE_DISINFECTION);
         runOnUiThread(() -> {
+            resumeProjectionDoorAtPointIfNeeded();
             tvStatus.setText("消毒间等待");
             currentTaskTextView.setText("已到达消毒间：" + disinfectionNode.getName());
             populateTaskSummaryTable();
@@ -602,6 +623,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         isNavigating = false;
         isPaused = false;
         stopAutoResumeTimer();
+        resumeProjectionDoorAtPointIfNeeded();
         Intent intent = new Intent(this, ConfirmReceiptActivity.class);
         intent.putExtra("hospital_tasks", hospitalTasks);
         intent.putExtra("current_node", targetNodes.get(currentUniqueTargetIndex));
@@ -621,7 +643,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         Log.d(TAG, "goNextRoomOrReturn. currentIndex=" + currentUniqueTargetIndex
                 + ", targetCount=" + targetNodes.size());
         if (currentUniqueTargetIndex < targetNodes.size() - 1) {
-            ensureDoorsClosedBeforeMove(() -> navigationService.pilotNext(new IResultCallback<Void>() {
+            ensureDoorsClosedBeforeMove(() -> {
+                pauseProjectionDoorForMovementIfNeeded();
+                navigationService.pilotNext(new IResultCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
                     Log.d(TAG, "pilotNext success. nextIndex=" + (currentUniqueTargetIndex + 1));
@@ -642,10 +666,12 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     runOnUiThread(() -> Toast.makeText(HospitalDeliveryNavigationActivity.this,
                             "继续下一房间失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
                 }
-            }), "前往下一房间前关门失败");
+                });
+            }, "前往下一房间前关门失败");
         } else {
             Log.d(TAG, "All room targets finished. preparing return flow");
             ensureDoorsClosedBeforeMove(() -> {
+                pauseProjectionDoorForMovementIfNeeded();
                 isMissionFinished = true;
                 if (handoffToLowBatteryAutoChargeIfNeeded()) {
                     Toast.makeText(this, "电量过低，即将自动回充", Toast.LENGTH_SHORT).show();
@@ -758,12 +784,13 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         cell.setText(text);
         cell.setMaxLines(2);
         cell.setTextSize(header ? 18 : 16);
-        cell.setTextColor(getColor(header ? R.color.medical_primary : R.color.medical_text_primary));
+        cell.setTextColor(ContextCompat.getColor(this,
+                header ? R.color.medical_primary : R.color.medical_text_primary));
         if (header) {
             cell.setTypeface(cell.getTypeface(), Typeface.BOLD);
-            cell.setBackgroundColor(getColor(R.color.medical_secondary));
+            cell.setBackgroundColor(ContextCompat.getColor(this, R.color.medical_secondary));
         } else {
-            cell.setBackgroundColor(getColor(R.color.white));
+            cell.setBackgroundColor(ContextCompat.getColor(this, R.color.white));
         }
         return cell;
     }
@@ -945,6 +972,31 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         });
     }
 
+    private void showDoorOperationDialog(boolean isOpening) {
+        dismissDoorOperationDialog();
+
+        doorOperationDialog = new android.app.Dialog(this, android.R.style.Theme_Translucent_NoTitleBar);
+        doorOperationDialog.setContentView(R.layout.dialog_door_operation);
+        doorOperationDialog.setCancelable(true);
+
+        TextView tvTitle = doorOperationDialog.findViewById(R.id.tv_door_operation_title);
+        tvTitle.setText(isOpening ? "开门中" : "关门中");
+
+        TextView tvSubtitle = doorOperationDialog.findViewById(R.id.tv_door_operation_subtitle);
+        tvSubtitle.setText("请当心");
+
+        doorOperationDialog.show();
+
+        new Handler().postDelayed(this::dismissDoorOperationDialog, 3000);
+    }
+
+    private void dismissDoorOperationDialog() {
+        if (doorOperationDialog != null && doorOperationDialog.isShowing()) {
+            doorOperationDialog.dismiss();
+        }
+        doorOperationDialog = null;
+    }
+
     @Override
     public void onStateChanged(int state, int schedule) {
         Log.d(TAG, "onStateChanged. state=" + state + ", schedule=" + schedule
@@ -957,6 +1009,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     if (isPaused) {
                         return;
                     }
+                    pauseProjectionDoorForMovementIfNeeded();
                     tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION ? "前往消毒间" : "医院配送中");
                     break;
                 case Navigation.STATE_PAUSED:
@@ -1048,6 +1101,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         }
 
         if (requestCode == REQUEST_CODE_END_PASSWORD) {
+            pauseProjectionDoorForMovementIfNeeded();
             recordCurrentStageCancelled();
             if (navigationService != null) {
                 navigationService.stop(null);
@@ -1075,6 +1129,26 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         }
         if (doorService != null) {
             doorService.unregisterCallback(doorCallback);
+        }
+        ProjectionDoorService.getInstance().removeDoorActionListener();
+        dismissDoorOperationDialog();
+        pauseProjectionDoorForMovementIfNeeded();
+    }
+
+    private boolean isHospitalProjectionDoorEnabled() {
+        return AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL);
+    }
+
+    private void pauseProjectionDoorForMovementIfNeeded() {
+        if (isHospitalProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().pauseForMovement();
+        }
+    }
+
+    private void resumeProjectionDoorAtPointIfNeeded() {
+        if (isHospitalProjectionDoorEnabled()) {
+            ProjectionDoorService.getInstance().resumeAfterMovement();
         }
     }
 

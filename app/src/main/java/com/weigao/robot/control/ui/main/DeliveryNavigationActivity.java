@@ -152,7 +152,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         startNavigation();
 
         // 如果启用了投影灯开关门，使用单例服务
-        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
             ProjectionDoorService.getInstance().setDoorActionListener(this::showDoorOperationDialog);
             // 任务刚开始，机器人即将移动，先不开灯（STATE_RUNNING会处理）
             Log.d(TAG, "【投影灯】功能已启用");
@@ -423,7 +424,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             Log.d(TAG, "【导航控制】恢复导航：处于等待跳转状态，立即前往下一目标");
             waitingForNext = false;
             // 即将移动，确保投影灯关闭
-            if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            if (AppSettingsManager.getInstance()
+                    .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
                 ProjectionDoorService.getInstance().pauseForMovement();
             }
             navigationService.pilotNext(new IResultCallback<Void>() {
@@ -595,7 +597,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     tvStatus.setText("配送中");
 
                     // 机器人移动中：暂停投影灯检测
-                    if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+                    if (AppSettingsManager.getInstance()
+                            .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
                         ProjectionDoorService.getInstance().pauseForMovement();
                     }
 
@@ -727,7 +730,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         waitingForNext = true;
 
         // 检查是否启用了投影灯开关门功能
-        if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
             Log.d(TAG, "【投影灯】到达目标点，恢复投影灯检测");
             ProjectionDoorService.getInstance().resumeAfterMovement();
         }
@@ -824,7 +828,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_CONFIRM_RECEIPT) {
             // 离开到达页面，立即关闭投影灯，防止移动过程中灯亮
-            if (AppSettingsManager.getInstance().isProjectionDoorEnabled()) {
+            if (AppSettingsManager.getInstance()
+                    .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
                 ProjectionDoorService.getInstance().pauseForMovement();
             }
 

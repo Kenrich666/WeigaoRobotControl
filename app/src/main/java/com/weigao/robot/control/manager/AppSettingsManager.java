@@ -38,10 +38,17 @@ public class AppSettingsManager {
 
     private static final String KEY_FULLSCREEN = "is_fullscreen";
     private static final String KEY_PROJECTION_DOOR = "projection_door_enabled";
+    private static final String KEY_ITEM_PROJECTION_DOOR = "item_projection_door_enabled";
+    private static final String KEY_CIRCULAR_PROJECTION_DOOR = "circular_projection_door_enabled";
+    private static final String KEY_HOSPITAL_PROJECTION_DOOR = "hospital_projection_door_enabled";
+    private static final String KEY_PASSWORD_VERIFICATION = "password_verification_enabled";
 
     private static AppSettingsManager instance;
     private boolean isFullScreen = true;
-    private boolean projectionDoorEnabled = false;
+    private boolean itemProjectionDoorEnabled = false;
+    private boolean circularProjectionDoorEnabled = false;
+    private boolean hospitalProjectionDoorEnabled = false;
+    private boolean passwordVerificationEnabled = true;
 
     private AppSettingsManager() {
         // Delayed loading? Or just handle exception in loadSettings.
@@ -71,11 +78,56 @@ public class AppSettingsManager {
     }
 
     public boolean isProjectionDoorEnabled() {
-        return projectionDoorEnabled;
+        return isAnyProjectionDoorEnabled();
     }
 
     public void setProjectionDoorEnabled(boolean enabled) {
-        this.projectionDoorEnabled = enabled;
+        this.itemProjectionDoorEnabled = enabled;
+        this.circularProjectionDoorEnabled = enabled;
+        this.hospitalProjectionDoorEnabled = enabled;
+        saveSettings();
+    }
+
+    public boolean isProjectionDoorEnabled(ProjectionDoorMode mode) {
+        switch (mode) {
+            case ITEM:
+                return itemProjectionDoorEnabled;
+            case CIRCULAR:
+                return circularProjectionDoorEnabled;
+            case HOSPITAL:
+                return hospitalProjectionDoorEnabled;
+            default:
+                return false;
+        }
+    }
+
+    public void setProjectionDoorEnabled(ProjectionDoorMode mode, boolean enabled) {
+        switch (mode) {
+            case ITEM:
+                itemProjectionDoorEnabled = enabled;
+                break;
+            case CIRCULAR:
+                circularProjectionDoorEnabled = enabled;
+                break;
+            case HOSPITAL:
+                hospitalProjectionDoorEnabled = enabled;
+                break;
+            default:
+                return;
+        }
+        saveSettings();
+    }
+
+    public boolean isAnyProjectionDoorEnabled() {
+        return itemProjectionDoorEnabled || circularProjectionDoorEnabled || hospitalProjectionDoorEnabled;
+    }
+
+    public boolean isPasswordVerificationEnabled() {
+        return passwordVerificationEnabled;
+    }
+
+    public void setPasswordVerificationEnabled(boolean enabled) {
+        this.passwordVerificationEnabled = enabled;
         saveSettings();
     }
 
@@ -107,8 +159,26 @@ public class AppSettingsManager {
 
                 if (sb.length() > 0) {
                     JSONObject json = new JSONObject(sb.toString());
+                    boolean legacyProjectionDoorEnabled = json.optBoolean(KEY_PROJECTION_DOOR, false);
+                    boolean missingProjectionModeKey = !json.has(KEY_ITEM_PROJECTION_DOOR)
+                            || !json.has(KEY_CIRCULAR_PROJECTION_DOOR)
+                            || !json.has(KEY_HOSPITAL_PROJECTION_DOOR);
+
                     this.isFullScreen = json.optBoolean(KEY_FULLSCREEN, true);
-                    this.projectionDoorEnabled = json.optBoolean(KEY_PROJECTION_DOOR, false);
+                    this.itemProjectionDoorEnabled = json.has(KEY_ITEM_PROJECTION_DOOR)
+                            ? json.optBoolean(KEY_ITEM_PROJECTION_DOOR, false)
+                            : legacyProjectionDoorEnabled;
+                    this.circularProjectionDoorEnabled = json.has(KEY_CIRCULAR_PROJECTION_DOOR)
+                            ? json.optBoolean(KEY_CIRCULAR_PROJECTION_DOOR, false)
+                            : legacyProjectionDoorEnabled;
+                    this.hospitalProjectionDoorEnabled = json.has(KEY_HOSPITAL_PROJECTION_DOOR)
+                            ? json.optBoolean(KEY_HOSPITAL_PROJECTION_DOOR, false)
+                            : legacyProjectionDoorEnabled;
+                    this.passwordVerificationEnabled = json.optBoolean(KEY_PASSWORD_VERIFICATION, true);
+
+                    if (missingProjectionModeKey) {
+                        saveSettings();
+                    }
                 }
             }
         } catch (IOException | JSONException e) {
@@ -131,7 +201,10 @@ public class AppSettingsManager {
         try {
             JSONObject json = new JSONObject();
             json.put(KEY_FULLSCREEN, isFullScreen);
-            json.put(KEY_PROJECTION_DOOR, projectionDoorEnabled);
+            json.put(KEY_ITEM_PROJECTION_DOOR, itemProjectionDoorEnabled);
+            json.put(KEY_CIRCULAR_PROJECTION_DOOR, circularProjectionDoorEnabled);
+            json.put(KEY_HOSPITAL_PROJECTION_DOOR, hospitalProjectionDoorEnabled);
+            json.put(KEY_PASSWORD_VERIFICATION, passwordVerificationEnabled);
 
             try (FileWriter writer = new FileWriter(file)) {
                 writer.write(json.toString());

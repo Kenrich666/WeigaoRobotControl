@@ -19,6 +19,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeHost;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
@@ -27,6 +28,7 @@ import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -459,6 +461,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                     Toast.makeText(this, "已回到目标点", Toast.LENGTH_SHORT).show();
                     
                     // 延迟5秒后关闭Activity，确保到达语音播放完成
+                    maybeEnableProjectionDoorWhenIdleAfterReturn();
                     rootLayout.postDelayed(() -> {
                         finish();
                     }, 5000);
@@ -530,6 +533,25 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     @Override
     public void onError(int errorCode, String message) {
         Log.e(TAG, "通用错误: " + errorCode + ", " + message);
+    }
+
+    private void maybeEnableProjectionDoorWhenIdleAfterReturn() {
+        if (sourceMode == 3) {
+            return;
+        }
+        if (TaskExecutionStateManager.getInstance().hasActiveTask()) {
+            return;
+        }
+        boolean enabled = sourceMode == 2
+                ? AppSettingsManager.getInstance()
+                        .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)
+                : AppSettingsManager.getInstance()
+                        .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM);
+        if (!enabled) {
+            return;
+        }
+        Log.d(TAG, "【投影灯】返航结束后机器人处于非任务待机态，自动开启脚踩投影灯检测");
+        ProjectionDoorService.getInstance().startContinuousDetection();
     }
 
     @Override

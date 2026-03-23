@@ -30,6 +30,7 @@ import com.weigao.robot.control.manager.LowBatteryAutoChargeSettingsManager;
 import com.weigao.robot.control.manager.SoundSettingsManager;
 import com.weigao.robot.control.service.ISecurityService;
 import com.weigao.robot.control.service.ServiceManager;
+import com.weigao.robot.control.service.impl.ProjectionDoorService;
 import com.weigao.robot.control.ui.auth.PasswordActivity;
 import com.weigao.robot.control.app.WeigaoApplication;
 
@@ -186,6 +187,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private static final int REQUEST_CODE_SETTINGS = 102;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ProjectionDoorService.getInstance().ensureLightOff();
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
