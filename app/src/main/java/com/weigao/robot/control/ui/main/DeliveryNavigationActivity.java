@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.keenon.sdk.component.navigation.common.Navigation;
 import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
+import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.INavigationCallback;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
@@ -51,9 +52,11 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private static final int REQUEST_CODE_CONFIRM_RECEIPT = 1001;
     private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1002;
-
+    private static final int DOOR_CLOSE_CHECK_RETRY_COUNT = 8;
+    private static final long DOOR_CLOSE_CHECK_INTERVAL_MS = 800L;
+    private static final long DOOR_RESUME_DELAY_MS = 3000L;
     private TextView tvStatus, currentTaskTextView, tvHint;
-    private Button btnPauseEnd, btnContinue;
+    private Button btnPauseEnd, btnContinue, btnDoorToggle;
     private LinearLayout llPauseControls;
     private View rootLayout;
 
@@ -78,6 +81,8 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      */
     private INavigationService navigationService;
     private com.weigao.robot.control.service.IAudioService audioService; // Audio Service
+    private IDoorService doorService;
+    private boolean isDoorActionInProgress = false;
 
     /**
      * 当前导航的目标点列表
@@ -113,6 +118,10 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
         // 注册导航回调
         navigationService.registerCallback(this);
+        doorService = ServiceManager.getInstance().getDoorService();
+        if (doorService != null) {
+            doorService.registerCallback(doorCallback);
+        }
         Log.d(TAG, "【导航服务】已注册回调监听器");
 
         // 获取配送任务
@@ -173,6 +182,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
         btnPauseEnd = findViewById(R.id.btn_pause_end);
         btnContinue = findViewById(R.id.btn_continue);
+        btnDoorToggle = findViewById(R.id.btn_toggle_door);
         rootLayout = findViewById(R.id.root_layout);
     }
 
@@ -254,18 +264,15 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      */
     private void setupButtons() {
         btnPauseEnd.setOnClickListener(v -> {
-            Log.d(TAG, "【用户操作】点击结束按钮，请求密码验证");
-            // 不停止自动恢复计时，让其继续计时
             Intent intent = new Intent(this, com.weigao.robot.control.ui.auth.PasswordActivity.class);
             startActivityForResult(intent, REQUEST_CODE_END_NAVIGATION_PASSWORD);
         });
 
-        // "完成取物" / "继续" 按钮逻辑复用
-        // 若在到达等待状态，执行 processDeparture
-        btnContinue.setOnClickListener(v -> {
-            Log.d(TAG, "【用户操作】点击继续/完成取物按钮");
-            resumeNavigation();
-        });
+        btnContinue.setOnClickListener(v -> resumeNavigation());
+
+        if (btnDoorToggle != null) {
+            btnDoorToggle.setOnClickListener(v -> toggleDoorState());
+        }
     }
 
     /**
@@ -362,7 +369,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
      * 暂停导航
      */
     private void pauseNavigation() {
-        // 1s内尽可能多发暂停指令，从第一次发计时1s
         final long startTime = System.currentTimeMillis();
         final android.os.Handler handler = new android.os.Handler();
         Runnable multiplePauseTask = new Runnable() {
@@ -381,49 +387,45 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                Log.d(TAG, "【导航控制】暂停成功 - 机器人已停止");
-
                 runOnUiThread(() -> {
                     isPaused = true;
                     lastPauseTime = System.currentTimeMillis();
-                    tvStatus.setText("已暂停");
+                    tvStatus.setText("\u5df2\u6682\u505c");
                     llPauseControls.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
-
-                    startAutoResumeTimer();
-
-                    // pauseBackgroundMusic(); // Modified: Keep music playing during pause
-                    // speak("已暂停配送");
+                    stopAutoResumeTimer();
+                    if (btnDoorToggle != null) {
+                        btnDoorToggle.setVisibility(View.VISIBLE);
+                    }
+                    setPauseActionButtonsEnabled(true);
+                    updateDoorToggleButton();
                 });
             }
 
             @Override
             public void onError(ApiError error) {
-                Log.e(TAG, "【导航控制】暂停失败: " + error.getMessage());
-                // 暂停失败时显示提示
-                runOnUiThread(() -> {
-                    Toast.makeText(DeliveryNavigationActivity.this,
-                            "暂停失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                runOnUiThread(() -> Toast.makeText(DeliveryNavigationActivity.this,
+                        "\u6682\u505c\u5931\u8d25: " + error.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }
 
     private boolean waitingForNext = false;
 
-    /**
-     * 恢复导航
-     */
     private void resumeNavigation() {
         stopAutoResumeTimer();
-        // 恢复背景音乐
-        // resumeBackgroundMusic(); // Modified: Music is already playing
+        if (!isPaused || isDoorActionInProgress) {
+            return;
+        }
+        setPauseActionButtonsEnabled(false);
+        ensureDoorsClosedBeforeResume(this::resumeNavigationInternal);
+    }
+
+    private void resumeNavigationInternal() {
         playConfiguredVoice(false);
 
         if (waitingForNext) {
-            Log.d(TAG, "【导航控制】恢复导航：处于等待跳转状态，立即前往下一目标");
             waitingForNext = false;
-            // 即将移动，确保投影灯关闭
             if (AppSettingsManager.getInstance()
                     .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
                 ProjectionDoorService.getInstance().pauseForMovement();
@@ -431,40 +433,219 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             navigationService.pilotNext(new IResultCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    Log.d(TAG, "【导航控制】前往下一点成功");
                     runOnUiThread(() -> {
                         isPaused = false;
-                        tvStatus.setText("配送中");
+                        tvStatus.setText("\u914d\u9001\u4e2d");
                         llPauseControls.setVisibility(View.GONE);
+                        if (btnDoorToggle != null) {
+                            btnDoorToggle.setVisibility(View.GONE);
+                        }
+                        setPauseActionButtonsEnabled(true);
                         tvHint.setVisibility(View.VISIBLE);
                     });
                 }
 
                 @Override
                 public void onError(ApiError error) {
-                    Log.e(TAG, "【导航控制】前往下一点失败: " + error.getMessage());
+                    runOnUiThread(() -> {
+                        setPauseActionButtonsEnabled(true);
+                        updateDoorToggleButton();
+                        Toast.makeText(DeliveryNavigationActivity.this,
+                                "\u7ee7\u7eed\u5bfc\u822a\u5931\u8d25: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
                 }
             });
         } else {
-            Log.d(TAG, "【导航控制】恢复导航：继续当前路径");
             navigationService.start(new IResultCallback<Void>() {
-
                 @Override
                 public void onSuccess(Void result) {
-                    Log.d(TAG, "【导航控制】恢复成功");
                     runOnUiThread(() -> {
                         isPaused = false;
-                        tvStatus.setText("配送中");
+                        tvStatus.setText("\u914d\u9001\u4e2d");
                         llPauseControls.setVisibility(View.GONE);
+                        if (btnDoorToggle != null) {
+                            btnDoorToggle.setVisibility(View.GONE);
+                        }
+                        setPauseActionButtonsEnabled(true);
                         tvHint.setVisibility(View.VISIBLE);
                     });
                 }
 
                 @Override
                 public void onError(ApiError error) {
-                    Log.e(TAG, "【导航控制】恢复失败: " + error.getMessage());
+                    runOnUiThread(() -> {
+                        setPauseActionButtonsEnabled(true);
+                        updateDoorToggleButton();
+                        Toast.makeText(DeliveryNavigationActivity.this,
+                                "\u7ee7\u7eed\u5bfc\u822a\u5931\u8d25: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
                 }
             });
+        }
+    }
+
+    private void toggleDoorState() {
+        if (doorService == null || btnDoorToggle == null || !isPaused || isDoorActionInProgress) {
+            return;
+        }
+
+        isDoorActionInProgress = true;
+        setPauseActionButtonsEnabled(false);
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                IResultCallback<Void> actionCallback = new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        runOnUiThread(() -> {
+                            isDoorActionInProgress = false;
+                            setPauseActionButtonsEnabled(true);
+                            updateDoorToggleButton();
+                            Toast.makeText(DeliveryNavigationActivity.this,
+                                    Boolean.TRUE.equals(allClosed) ? "\u5df2\u6253\u5f00\u6240\u6709\u8231\u95e8" : "\u5df2\u5173\u95ed\u6240\u6709\u8231\u95e8",
+                                    Toast.LENGTH_SHORT).show();
+                        });
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        handleDoorActionError("\u8231\u95e8\u64cd\u4f5c\u5931\u8d25", error);
+                    }
+                };
+
+                if (Boolean.TRUE.equals(allClosed)) {
+                    doorService.openAllDoors(false, actionCallback);
+                } else {
+                    doorService.closeAllDoors(actionCallback);
+                }
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                handleDoorActionError("\u8231\u95e8\u72b6\u6001\u67e5\u8be2\u5931\u8d25", error);
+            }
+        });
+    }
+
+    private void ensureDoorsClosedBeforeResume(Runnable onReadyToResume) {
+        if (doorService == null) {
+            runOnUiThread(onReadyToResume);
+            return;
+        }
+
+        isDoorActionInProgress = true;
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                if (Boolean.TRUE.equals(allClosed)) {
+                    runOnUiThread(() -> {
+                        isDoorActionInProgress = false;
+                        onReadyToResume.run();
+                    });
+                    return;
+                }
+
+                doorService.closeAllDoors(new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        verifyDoorsClosedBeforeResume(onReadyToResume, DOOR_CLOSE_CHECK_RETRY_COUNT);
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        handleDoorActionError("\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", error);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                handleDoorActionError("\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", error);
+            }
+        });
+    }
+
+    private void verifyDoorsClosedBeforeResume(Runnable onReadyToResume, int remainingRetries) {
+        if (doorService == null) {
+            runOnUiThread(() -> {
+                isDoorActionInProgress = false;
+                onReadyToResume.run();
+            });
+            return;
+        }
+        if (remainingRetries <= 0) {
+            runOnUiThread(() -> {
+                isDoorActionInProgress = false;
+                setPauseActionButtonsEnabled(true);
+                updateDoorToggleButton();
+                Toast.makeText(DeliveryNavigationActivity.this,
+                        "\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", Toast.LENGTH_SHORT).show();
+            });
+            return;
+        }
+
+        new android.os.Handler().postDelayed(() -> doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                if (Boolean.TRUE.equals(allClosed)) {
+                    runOnUiThread(() -> new android.os.Handler().postDelayed(() -> {
+                        isDoorActionInProgress = false;
+                        onReadyToResume.run();
+                    }, DOOR_RESUME_DELAY_MS));
+                    return;
+                }
+                verifyDoorsClosedBeforeResume(onReadyToResume, remainingRetries - 1);
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                verifyDoorsClosedBeforeResume(onReadyToResume, remainingRetries - 1);
+            }
+        }), DOOR_CLOSE_CHECK_INTERVAL_MS);
+    }
+
+    private void handleDoorActionError(String prefix, ApiError error) {
+        runOnUiThread(() -> {
+            isDoorActionInProgress = false;
+            setPauseActionButtonsEnabled(true);
+            updateDoorToggleButton();
+            String detail = error == null ? "" : ": " + error.getMessage();
+            Toast.makeText(DeliveryNavigationActivity.this, prefix + detail, Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void updateDoorToggleButton() {
+        if (btnDoorToggle == null) {
+            return;
+        }
+        if (doorService == null) {
+            btnDoorToggle.setText("\u5f00\u95e8");
+            return;
+        }
+
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                runOnUiThread(() -> btnDoorToggle.setText(
+                        Boolean.TRUE.equals(allClosed) ? "\u5f00\u95e8" : "\u5173\u95e8"));
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                runOnUiThread(() -> btnDoorToggle.setText("\u5f00\u95e8"));
+            }
+        });
+    }
+
+    private void setPauseActionButtonsEnabled(boolean enabled) {
+        if (btnPauseEnd != null) {
+            btnPauseEnd.setEnabled(enabled);
+        }
+        if (btnContinue != null) {
+            btnContinue.setEnabled(enabled);
+        }
+        if (btnDoorToggle != null) {
+            btnDoorToggle.setEnabled(enabled);
         }
     }
 
@@ -522,15 +703,18 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private void showMissionCompletedUI() {
         isMissionFinished = true;
-        currentTaskTextView.setText("所有任务已完成！");
-        tvStatus.setText("配送完成");
+        currentTaskTextView.setText("\u6240\u6709\u4efb\u52a1\u5df2\u5b8c\u6210");
+        tvStatus.setText("\u914d\u9001\u5b8c\u6210");
         tvHint.setVisibility(View.GONE);
         llPauseControls.setVisibility(View.VISIBLE);
         btnContinue.setVisibility(View.GONE);
-        btnPauseEnd.setText("返回首页");
+        if (btnDoorToggle != null) {
+            btnDoorToggle.setVisibility(View.GONE);
+        }
+        btnPauseEnd.setText("\u8fd4\u56de\u9996\u9875");
         rootLayout.setOnTouchListener(null);
         isNavigating = false;
-        Log.d(TAG, "【UI更新】所有任务已完成");
+        Log.d(TAG, "mission completed");
     }
 
     private boolean handoffToLowBatteryAutoChargeIfNeeded() {
@@ -565,78 +749,64 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     @Override
     public void onStateChanged(int state, int schedule) {
-        Log.d(TAG, "【导航】收到导航状态变化 state=" + state + ", schedule=" + schedule);
-        Log.d(TAG, "【导航回调】onStateChanged - state: " + state + ", schedule: " + schedule);
+        Log.d(TAG, "onStateChanged state=" + state + ", schedule=" + schedule);
         runOnUiThread(() -> {
             switch (state) {
                 case Navigation.STATE_RUNNING:
-                    Log.d(TAG, "【导航】导航进入 STATE_RUNNING，机器人应开始移动");
-                    Log.d(TAG, "【导航回调】正在运行中");
                     hasRunningStateReceived = true;
-
-                    // 如果处于暂停状态，忽略运行状态更新（参考循环配送）
                     if (isPaused) {
                         if (System.currentTimeMillis() - lastPauseTime > 1000) {
                             if (pauseRetryCount < 1) {
                                 pauseRetryCount++;
                                 lastPauseTime = System.currentTimeMillis();
-                                Log.d(TAG, "暂停无效，尝试二次暂停...");
                                 navigationService.pause(null);
                                 return;
                             }
-                            // 暂停失败或失效，强制恢复 UI 状态
                             isPaused = false;
                             stopAutoResumeTimer();
-                            Toast.makeText(DeliveryNavigationActivity.this, "暂停失败，请重试", Toast.LENGTH_SHORT).show();
+                            setPauseActionButtonsEnabled(true);
+                            if (btnDoorToggle != null) {
+                                btnDoorToggle.setVisibility(View.GONE);
+                            }
+                            Toast.makeText(DeliveryNavigationActivity.this,
+                                    "\u6682\u505c\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5", Toast.LENGTH_SHORT).show();
                         } else {
                             return;
                         }
                     }
 
-                    // 更新状态文本
-                    tvStatus.setText("配送中");
+                    tvStatus.setText("\u914d\u9001\u4e2d");
+                    if (!isMissionFinished) {
+                        llPauseControls.setVisibility(View.GONE);
+                        if (btnDoorToggle != null) {
+                            btnDoorToggle.setVisibility(View.GONE);
+                        }
+                        setPauseActionButtonsEnabled(true);
+                        tvHint.setVisibility(View.VISIBLE);
+                    }
 
-                    // 机器人移动中：暂停投影灯检测
                     if (AppSettingsManager.getInstance()
                             .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
                         ProjectionDoorService.getInstance().pauseForMovement();
                     }
-
-                    // 移除此处的语音播放调用 - 语音应该只在开始导航、恢复导航等特定时刻播放
-                    // 原因：STATE_RUNNING 会被多次触发，导致不可预测的重复播放
                     break;
 
                 case Navigation.STATE_DESTINATION:
-                    Log.d(TAG, "【导航】导航进入 STATE_DESTINATION");
-                    // 到达目标点
                     if (hasRunningStateReceived) {
-                        Log.d(TAG, "【导航回调】已到达目标点");
-                        Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
-
-                        // pauseBackgroundMusic(); // Modified: Keep music playing at destination
+                        Toast.makeText(this, "\u5df2\u5230\u8fbe\u76ee\u6807\u70b9", Toast.LENGTH_SHORT).show();
                         playConfiguredVoice(true);
-
                         handleArrival();
-                        // 重置标志，防止重复触发，且等待下一段运行
                         hasRunningStateReceived = false;
-                    } else {
-                        Log.w(TAG, "【导航回调】忽略无效的到达状态(未经历运行阶段)");
                     }
                     break;
 
                 case Navigation.STATE_COLLISION:
                 case Navigation.STATE_BLOCKED:
-                    Log.w(TAG, "【导航】导航被阻挡或发生碰撞，state=" + state);
-                    Log.w(TAG, "【导航回调】遇到障碍物，正在避障");
-                    Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
-                    // speak("遇到障碍物，正在避障");
+                    Toast.makeText(this, "\u9047\u5230\u969c\u788d\u7269\uff0c\u6b63\u5728\u907f\u969c", Toast.LENGTH_SHORT).show();
                     break;
 
                 case Navigation.STATE_BLOCKING:
-                    Log.w(TAG, "【导航】导航进入 STATE_BLOCKING，可能长时间受阻");
-                    Log.w(TAG, "【导航回调】阻挡超时");
-                    Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
-                    // speak("长时间被阻挡，请检查路径");
+                    Toast.makeText(this, "\u963b\u6321\u8d85\u65f6\uff0c\u8bf7\u68c0\u67e5\u8def\u5f84", Toast.LENGTH_SHORT).show();
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),
@@ -645,15 +815,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     break;
 
                 case Navigation.STATE_ERROR:
-                    Log.e(TAG, "【导航】导航进入 STATE_ERROR");
-                    Log.e(TAG, "【导航回调】导航错误");
-                    Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
-                    // speak("导航出现错误");
+                    Toast.makeText(this, "\u5bfc\u822a\u51fa\u73b0\u9519\u8bef", Toast.LENGTH_SHORT).show();
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),
                                 ItemDeliveryRecord.STATUS_NAV_FAILED);
                     }
+                    break;
+                default:
                     break;
             }
         });
@@ -801,16 +970,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
     protected void onDestroy() {
         super.onDestroy();
         stopAutoResumeTimer();
-        // 移除弹窗监听器，但不停止单例服务（投影灯由设置开关全局管控）
         ProjectionDoorService.getInstance().removeDoorActionListener();
         dismissDoorOperationDialog();
-        Log.d(TAG, "【Activity】onDestroy - 销毁活动");
-        // 停止导航
         if (navigationService != null) {
             stopNavigation();
-            // 注销回调
             navigationService.unregisterCallback(this);
-            Log.d(TAG, "【导航服务】已注销回调监听器");
+        }
+        if (doorService != null) {
+            doorService.unregisterCallback(doorCallback);
         }
         stopBackgroundMusic();
     }
@@ -1065,30 +1232,6 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private void startAutoResumeTimer() {
         stopAutoResumeTimer();
-
-        tvCountdown.setVisibility(View.VISIBLE);
-
-        autoResumeTimer = new android.os.CountDownTimer(30000, 1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                if (!isFinishing()) {
-                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动继续");
-                }
-            }
-
-            @Override
-            public void onFinish() {
-                if (!isFinishing() && isPaused) {
-                    // 关键：如果密码页面还在显示，强制关闭它
-                    finishActivity(REQUEST_CODE_END_NAVIGATION_PASSWORD);
-
-                    tvCountdown.setVisibility(View.GONE);
-                    Toast.makeText(DeliveryNavigationActivity.this, "暂停超时，自动继续", Toast.LENGTH_SHORT).show();
-                    resumeNavigation();
-                }
-            }
-        };
-        autoResumeTimer.start();
     }
 
     private void stopAutoResumeTimer() {
@@ -1100,4 +1243,23 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             tvCountdown.setVisibility(View.GONE);
         }
     }
+
+    private final IDoorCallback doorCallback = new IDoorCallback() {
+        @Override
+        public void onDoorStateChanged(int doorId, int state) {
+            runOnUiThread(DeliveryNavigationActivity.this::updateDoorToggleButton);
+        }
+
+        @Override
+        public void onDoorTypeChanged(com.weigao.robot.control.model.DoorType type) {
+        }
+
+        @Override
+        public void onDoorTypeSettingResult(boolean success) {
+        }
+
+        @Override
+        public void onDoorError(int doorId, int errorCode) {
+        }
+    };
 }

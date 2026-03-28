@@ -121,16 +121,18 @@
         <!-- Pause Controls -->
         <LinearLayout
             android:id="@+id/ll_pause_controls"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:visibility="gone">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_pause_end"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="200dp"
+                android:layout_width="0dp"
                 android:layout_height="80dp"
-                android:layout_marginEnd="48dp"
+                android:layout_marginEnd="12dp"
+                android:layout_weight="1"
                 android:text="结束"
                 android:textSize="28sp"
                 android:textColor="@color/medical_error"
@@ -140,9 +142,25 @@
                 app:strokeWidth="2dp"/>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_continue"
-                android:layout_width="200dp"
+                android:id="@+id/btn_toggle_door"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
                 android:layout_height="80dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_weight="1"
+                android:text="开门"
+                android:textColor="@color/medical_primary"
+                android:textSize="28sp"
+                app:strokeColor="@color/medical_primary"
+                app:strokeWidth="2dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_continue"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
                 android:backgroundTint="@color/medical_primary"
                 android:text="继续"
                 android:textSize="28sp"

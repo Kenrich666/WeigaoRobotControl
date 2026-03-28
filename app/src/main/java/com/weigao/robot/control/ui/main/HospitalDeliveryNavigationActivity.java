@@ -58,6 +58,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private static final String EXTRA_REMAINING_HOSPITAL_TASKS = "remaining_hospital_tasks";
     private static final int DOOR_CLOSE_CHECK_RETRY_COUNT = 8;
     private static final long DOOR_CLOSE_CHECK_INTERVAL_MS = 800L;
+    private static final long DOOR_RESUME_DELAY_MS = 3000L;
     private static final long NAVIGATION_START_FALLBACK_DELAY_MS = 2500L;
 
     private enum FlowStage {
@@ -98,6 +99,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean hasStartCommandIssued;
     private boolean routePreparedReceived;
     private boolean hasRunningStateReceived;
+    private boolean isDoorActionInProgress = false;
     private android.app.Dialog doorOperationDialog;
     private final Handler startHandler = new Handler();
     private final Runnable delayedNavigationStartRunnable = new Runnable() {
@@ -470,9 +472,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 playConfiguredVoice(false);
                 runOnUiThread(() -> {
                     isPaused = true;
-                    tvStatus.setText("已暂停");
+                    tvStatus.setText("\u5df2\u6682\u505c");
+                    stopAutoResumeTimer();
                     showPauseControls(true);
-                    startAutoResumeTimer();
                 });
             }
 
@@ -480,7 +482,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             public void onError(ApiError error) {
                 runOnUiThread(() -> Toast.makeText(
                         HospitalDeliveryNavigationActivity.this,
-                        "暂停失败: " + error.getMessage(),
+                        "\u6682\u505c\u5931\u8d25: " + error.getMessage(),
                         Toast.LENGTH_SHORT).show());
             }
         });
@@ -488,48 +490,157 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void resumeNavigation() {
         stopAutoResumeTimer();
-        if (!isPaused) {
+        if (!isPaused || isDoorActionInProgress) {
             return;
         }
 
-        ensureDoorsClosedBeforeMove(() -> {
+        setPauseActionButtonsEnabled(false);
+        prepareDoorsForResume(() -> {
             pauseProjectionDoorForMovementIfNeeded();
             navigationService.start(new IResultCallback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
-                runOnUiThread(() -> {
-                    isPaused = false;
-                    tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION ? "前往消毒间" : "医院配送中");
-                    tvHint.setVisibility(View.VISIBLE);
-                    tvHint.setText("双击屏幕可暂停导航");
-                    showPauseControls(false);
-                });
-            }
+                @Override
+                public void onSuccess(Void result) {
+                    runOnUiThread(() -> {
+                        isPaused = false;
+                        tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION
+                                ? "\u524d\u5f80\u6d88\u6bd2\u95f4" : "\u533b\u9662\u914d\u9001\u4e2d");
+                        tvHint.setVisibility(View.VISIBLE);
+                        tvHint.setText("??????????????");
+                        showPauseControls(false);
+                        setPauseActionButtonsEnabled(true);
+                    });
+                }
 
-            @Override
-            public void onError(ApiError error) {
-                runOnUiThread(() -> Toast.makeText(
-                        HospitalDeliveryNavigationActivity.this,
-                        "继续导航失败: " + error.getMessage(),
-                        Toast.LENGTH_SHORT).show());
-            }
+                @Override
+                public void onError(ApiError error) {
+                    runOnUiThread(() -> {
+                        setPauseActionButtonsEnabled(true);
+                        updateDoorToggleButton();
+                        Toast.makeText(
+                                HospitalDeliveryNavigationActivity.this,
+                                "\u7ee7\u7eed\u5bfc\u822a\u5931\u8d25: " + error.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
             });
-        }, "继续导航前关门失败");
+        });
     }
     private void showPauseControls(boolean visible) {
         llPauseControls.setVisibility(visible ? View.VISIBLE : View.GONE);
         hideTaskSummaryPanel();
         if (btnDoorToggle != null) {
-            btnDoorToggle.setVisibility(View.GONE);
+            btnDoorToggle.setVisibility(visible ? View.VISIBLE : View.GONE);
         }
         if (visible) {
-            btnPauseEnd.setText("结束任务");
-            btnContinue.setText("继续导航");
+            btnPauseEnd.setText("\u7ed3\u675f\u4efb\u52a1");
+            btnContinue.setText("\u7ee7\u7eed\u5bfc\u822a");
             tvHint.setVisibility(View.VISIBLE);
-            tvHint.setText("双击屏幕可暂停导航");
+            tvHint.setText("??????????????");
+            setPauseActionButtonsEnabled(!isDoorActionInProgress);
+            updateDoorToggleButton();
         } else {
             stopAutoResumeTimer();
         }
+    }
+
+    private void setPauseActionButtonsEnabled(boolean enabled) {
+        if (btnPauseEnd != null) {
+            btnPauseEnd.setEnabled(enabled);
+        }
+        if (btnContinue != null) {
+            btnContinue.setEnabled(enabled);
+        }
+        if (btnDoorToggle != null) {
+            btnDoorToggle.setEnabled(enabled);
+        }
+    }
+
+    private void prepareDoorsForResume(Runnable onReadyToMove) {
+        if (doorService == null) {
+            runOnUiThread(onReadyToMove);
+            return;
+        }
+
+        isDoorActionInProgress = true;
+        doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                if (Boolean.TRUE.equals(allClosed)) {
+                    runOnUiThread(() -> {
+                        isDoorActionInProgress = false;
+                        onReadyToMove.run();
+                    });
+                    return;
+                }
+
+                doorService.closeAllDoors(new IResultCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        verifyDoorsClosedBeforeResume(onReadyToMove, DOOR_CLOSE_CHECK_RETRY_COUNT);
+                    }
+
+                    @Override
+                    public void onError(ApiError error) {
+                        handleResumeDoorFailure(error);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                handleResumeDoorFailure(error);
+            }
+        });
+    }
+
+    private void verifyDoorsClosedBeforeResume(Runnable onReadyToMove, int remainingRetries) {
+        if (doorService == null) {
+            runOnUiThread(() -> {
+                isDoorActionInProgress = false;
+                onReadyToMove.run();
+            });
+            return;
+        }
+        if (remainingRetries <= 0) {
+            runOnUiThread(() -> {
+                isDoorActionInProgress = false;
+                setPauseActionButtonsEnabled(true);
+                updateDoorToggleButton();
+                Toast.makeText(HospitalDeliveryNavigationActivity.this,
+                        "\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", Toast.LENGTH_SHORT).show();
+            });
+            return;
+        }
+
+        new Handler().postDelayed(() -> doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
+            @Override
+            public void onSuccess(Boolean allClosed) {
+                if (Boolean.TRUE.equals(allClosed)) {
+                    runOnUiThread(() -> new Handler().postDelayed(() -> {
+                        isDoorActionInProgress = false;
+                        onReadyToMove.run();
+                    }, 3000L));
+                    return;
+                }
+                verifyDoorsClosedBeforeResume(onReadyToMove, remainingRetries - 1);
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                verifyDoorsClosedBeforeResume(onReadyToMove, remainingRetries - 1);
+            }
+        }), DOOR_CLOSE_CHECK_INTERVAL_MS);
+    }
+
+    private void handleResumeDoorFailure(ApiError error) {
+        runOnUiThread(() -> {
+            isDoorActionInProgress = false;
+            setPauseActionButtonsEnabled(true);
+            updateDoorToggleButton();
+            Toast.makeText(HospitalDeliveryNavigationActivity.this,
+                    "\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25: " + error.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void showWaitAtDisinfectionControls() {
@@ -964,11 +1075,12 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     }
 
     private void toggleDoorState() {
-        if (doorService == null || btnDoorToggle == null) {
+        if (doorService == null || btnDoorToggle == null || isDoorActionInProgress) {
             return;
         }
 
-        btnDoorToggle.setEnabled(false);
+        isDoorActionInProgress = true;
+        setPauseActionButtonsEnabled(false);
         doorService.isAllDoorsClosed(new IResultCallback<Boolean>() {
             @Override
             public void onSuccess(Boolean allClosed) {
@@ -976,11 +1088,14 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     @Override
                     public void onSuccess(Void result) {
                         runOnUiThread(() -> {
-                            btnDoorToggle.setEnabled(true);
+                            isDoorActionInProgress = false;
+                            setPauseActionButtonsEnabled(true);
                             updateDoorToggleButton();
                             Toast.makeText(
                                     HospitalDeliveryNavigationActivity.this,
-                                    Boolean.TRUE.equals(allClosed) ? "舱门已打开" : "舱门已关闭",
+                                    Boolean.TRUE.equals(allClosed)
+                                            ? "\u5df2\u6253\u5f00\u6240\u6709\u8231\u95e8"
+                                            : "\u5df2\u5173\u95ed\u6240\u6709\u8231\u95e8",
                                     Toast.LENGTH_SHORT
                             ).show();
                         });
@@ -1008,13 +1123,12 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void handleDoorToggleError(ApiError error) {
         runOnUiThread(() -> {
-            if (btnDoorToggle != null) {
-                btnDoorToggle.setEnabled(true);
-                btnDoorToggle.setText("舱门控制");
-            }
+            isDoorActionInProgress = false;
+            setPauseActionButtonsEnabled(true);
+            updateDoorToggleButton();
             Toast.makeText(
                     HospitalDeliveryNavigationActivity.this,
-                    "舱门操作失败: " + error.getMessage(),
+                    "\u8231\u95e8\u64cd\u4f5c\u5931\u8d25: " + error.getMessage(),
                     Toast.LENGTH_SHORT
             ).show();
         });
@@ -1029,12 +1143,12 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             @Override
             public void onSuccess(Boolean allClosed) {
                 runOnUiThread(() -> btnDoorToggle.setText(
-                        Boolean.TRUE.equals(allClosed) ? "打开舱门" : "关闭舱门"));
+                        Boolean.TRUE.equals(allClosed) ? "\u5f00\u95e8" : "\u5173\u95e8"));
             }
 
             @Override
             public void onError(ApiError error) {
-                runOnUiThread(() -> btnDoorToggle.setText("舱门控制"));
+                runOnUiThread(() -> btnDoorToggle.setText("\u5f00\u95e8"));
             }
         });
     }
@@ -1078,10 +1192,17 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     }
                     hasRunningStateReceived = true;
                     pauseProjectionDoorForMovementIfNeeded();
-                    tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION ? "前往消毒间" : "医院配送中");
+                    tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION
+                            ? "\u524d\u5f80\u6d88\u6bd2\u95f4" : "\u533b\u9662\u914d\u9001\u4e2d");
+                    if (btnDoorToggle != null) {
+                        btnDoorToggle.setVisibility(View.GONE);
+                    }
+                    setPauseActionButtonsEnabled(true);
                     break;
                 case Navigation.STATE_PAUSED:
                     isPaused = true;
+                    tvStatus.setText("\u5df2\u6682\u505c");
+                    showPauseControls(true);
                     break;
                 case Navigation.STATE_DESTINATION:
                     if (!hasRunningStateReceived) {
@@ -1098,7 +1219,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     break;
                 case Navigation.STATE_BLOCKED:
                 case Navigation.STATE_COLLISION:
-                    Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "???????????????", Toast.LENGTH_SHORT).show();
                     break;
                 default:
                     break;
@@ -1305,27 +1426,6 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void startAutoResumeTimer() {
         stopAutoResumeTimer();
-        tvCountdown.setVisibility(View.VISIBLE);
-        autoResumeTimer = new CountDownTimer(30000, 1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                if (!isFinishing()) {
-                    tvCountdown.setText((millisUntilFinished / 1000) + "s 后自动继续");
-                }
-            }
-
-            @Override
-            public void onFinish() {
-                if (!isFinishing() && isPaused) {
-                    finishActivity(REQUEST_CODE_END_PASSWORD);
-                    tvCountdown.setVisibility(View.GONE);
-                    Toast.makeText(HospitalDeliveryNavigationActivity.this,
-                            "暂停超时，自动继续导航", Toast.LENGTH_SHORT).show();
-                    resumeNavigation();
-                }
-            }
-        };
-        autoResumeTimer.start();
     }
 
     private void stopAutoResumeTimer() {
