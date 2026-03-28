@@ -483,7 +483,9 @@ public class BasicSettingsFragment extends Fragment {
 
         switchFullscreen.setOnCheckedChangeListener((buttonView, isChecked) -> {
             settingsManager.setFullScreen(isChecked);
-            applyFullScreen(isChecked);
+            if (getActivity() != null) {
+                com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(getActivity());
+            }
         });
 
         // 脚踩投影灯开关门 Switch
@@ -860,20 +862,4 @@ public class BasicSettingsFragment extends Fragment {
         return clampStay(progress + STAY_MIN);
     }
 
-    private void applyFullScreen(boolean enable) {
-        if (getActivity() == null)
-            return;
-        android.view.Window window = getActivity().getWindow();
-        if (enable) {
-            window.getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
-        } else {
-            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
-        }
-    }
 }

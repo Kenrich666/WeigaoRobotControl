@@ -54,8 +54,10 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     private static final int REQUEST_PASSWORD_FOR_DOOR = 2102;
     private static final int REQUEST_PASSWORD_FOR_RETURN = 2103;
     private static final int REQUEST_PASSWORD_FOR_HISTORY = 2104;
+    private static final int REQUEST_HOSPITAL_DELIVERY_NAVIGATION = 2105;
     private static final int MAX_TASK_COUNT = 3;
     private static final String DISINFECTION_ROOM_EN_NAME = "disinfection";
+    private static final String EXTRA_REMAINING_HOSPITAL_TASKS = "remaining_hospital_tasks";
 
     public static final List<NavigationNode> originPoints = new ArrayList<>();
     public static final List<NavigationNode> disinfectionPoints = new ArrayList<>();
@@ -606,7 +608,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         Intent intent = new Intent(this, HospitalDeliveryNavigationActivity.class);
         intent.putExtra("hospital_tasks", new ArrayList<>(hospitalTasks));
         intent.putExtra("disinfection_node", disinfectionPoints.get(0));
-        startActivity(intent);
+        startActivityForResult(intent, REQUEST_HOSPITAL_DELIVERY_NAVIGATION);
     }
 
     private boolean isActivityAlive() {
@@ -642,6 +644,18 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                 break;
             case REQUEST_PASSWORD_FOR_HISTORY:
                 startActivity(new Intent(this, HospitalDeliveryHistoryActivity.class));
+                break;
+            case REQUEST_HOSPITAL_DELIVERY_NAVIGATION:
+                if (data != null && data.hasExtra(EXTRA_REMAINING_HOSPITAL_TASKS)) {
+                    ArrayList<HospitalDeliveryTask> remainingTasks =
+                            (ArrayList<HospitalDeliveryTask>) data.getSerializableExtra(
+                                    EXTRA_REMAINING_HOSPITAL_TASKS);
+                    hospitalTasks.clear();
+                    if (remainingTasks != null) {
+                        hospitalTasks.addAll(remainingTasks);
+                    }
+                    updateTaskListState();
+                }
                 break;
             default:
                 break;

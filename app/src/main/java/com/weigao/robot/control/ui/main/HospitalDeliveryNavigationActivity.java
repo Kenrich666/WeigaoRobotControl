@@ -53,6 +53,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private static final int REQUEST_CODE_END_PASSWORD = 2202;
     private static final int REQUEST_CODE_DOOR_PASSWORD = 2203;
     private static final int REQUEST_CODE_RETURN_PASSWORD = 2204;
+    private static final String EXTRA_REMAINING_HOSPITAL_TASKS = "remaining_hospital_tasks";
     private static final int DOOR_CLOSE_CHECK_RETRY_COUNT = 8;
     private static final long DOOR_CLOSE_CHECK_INTERVAL_MS = 800L;
     private static final long NAVIGATION_START_FALLBACK_DELAY_MS = 2500L;
@@ -1162,6 +1163,16 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         } else if (requestCode == REQUEST_CODE_DOOR_PASSWORD) {
             Toast.makeText(this, "当前页面未开放舱门密码操作", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    public void finish() {
+        if (hospitalTasks != null) {
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra(EXTRA_REMAINING_HOSPITAL_TASKS, new ArrayList<>(hospitalTasks));
+            setResult(RESULT_OK, resultIntent);
+        }
+        super.finish();
     }
 
     @Override

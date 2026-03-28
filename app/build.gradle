@@ -29,6 +29,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
+
     packaging {
         resources {
             pickFirst 'about.html'
