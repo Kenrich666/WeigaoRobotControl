@@ -17,6 +17,7 @@ public class AudioConfig implements Serializable {
     private int deliveryVolume;
     private String deliveryMusicPath;
     private String loopMusicPath;
+    private String hospitalMusicPath;
 
     // Item Delivery Voice Paths
     private String deliveryNavigatingVoicePath;
@@ -26,6 +27,10 @@ public class AudioConfig implements Serializable {
     private String loopNavigatingVoicePath;
     private String loopArrivalVoicePath;
 
+    // Hospital Delivery Voice Paths
+    private String hospitalNavigatingVoicePath;
+    private String hospitalArrivalVoicePath;
+
 
 
     // 开关配置
@@ -33,6 +38,8 @@ public class AudioConfig implements Serializable {
     private boolean isDeliveryVoiceEnabled = true;
     private boolean isLoopMusicEnabled = true;
     private boolean isLoopVoiceEnabled = true;
+    private boolean isHospitalMusicEnabled = true;
+    private boolean isHospitalVoiceEnabled = true;
 
     public boolean isInitialized() {
         return initialized;
@@ -74,6 +81,14 @@ public class AudioConfig implements Serializable {
         this.loopMusicPath = loopMusicPath;
     }
 
+    public String getHospitalMusicPath() {
+        return hospitalMusicPath;
+    }
+
+    public void setHospitalMusicPath(String hospitalMusicPath) {
+        this.hospitalMusicPath = hospitalMusicPath;
+    }
+
     public String getDeliveryNavigatingVoicePath() {
         return deliveryNavigatingVoicePath;
     }
@@ -106,6 +121,22 @@ public class AudioConfig implements Serializable {
         this.loopArrivalVoicePath = loopArrivalVoicePath;
     }
 
+    public String getHospitalNavigatingVoicePath() {
+        return hospitalNavigatingVoicePath;
+    }
+
+    public void setHospitalNavigatingVoicePath(String hospitalNavigatingVoicePath) {
+        this.hospitalNavigatingVoicePath = hospitalNavigatingVoicePath;
+    }
+
+    public String getHospitalArrivalVoicePath() {
+        return hospitalArrivalVoicePath;
+    }
+
+    public void setHospitalArrivalVoicePath(String hospitalArrivalVoicePath) {
+        this.hospitalArrivalVoicePath = hospitalArrivalVoicePath;
+    }
+
     public boolean isDeliveryMusicEnabled() { return isDeliveryMusicEnabled; }
     public void setDeliveryMusicEnabled(boolean deliveryMusicEnabled) { isDeliveryMusicEnabled = deliveryMusicEnabled; }
 
@@ -117,4 +148,10 @@ public class AudioConfig implements Serializable {
 
     public boolean isLoopVoiceEnabled() { return isLoopVoiceEnabled; }
     public void setLoopVoiceEnabled(boolean loopVoiceEnabled) { isLoopVoiceEnabled = loopVoiceEnabled; }
+
+    public boolean isHospitalMusicEnabled() { return isHospitalMusicEnabled; }
+    public void setHospitalMusicEnabled(boolean hospitalMusicEnabled) { isHospitalMusicEnabled = hospitalMusicEnabled; }
+
+    public boolean isHospitalVoiceEnabled() { return isHospitalVoiceEnabled; }
+    public void setHospitalVoiceEnabled(boolean hospitalVoiceEnabled) { isHospitalVoiceEnabled = hospitalVoiceEnabled; }
 }

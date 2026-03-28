@@ -29,6 +29,14 @@ public interface IAudioService {
      */
     void setLoopMusic(String musicPath, IResultCallback<Void> callback);
 
+    /**
+     * 设置医院配送背景音乐
+     *
+     * @param musicPath 音乐文件路径
+     * @param callback  结果回调
+     */
+    void setHospitalMusic(String musicPath, IResultCallback<Void> callback);
+
     // Global switches removed. Use updateAudioConfig or specific flow.
 
     // ==================== 音量设置 ====================
