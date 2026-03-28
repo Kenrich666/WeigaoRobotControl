@@ -12,7 +12,6 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- Page Header -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -22,7 +21,6 @@
             android:textSize="32sp"
             android:textStyle="bold" />
 
-        <!-- Card: System Controls -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -48,12 +46,11 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <!-- Volume Delivery -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="8dp"
-                    android:text="配乐音量"
+                    android:text="背景音乐音量"
                     android:textColor="@color/medical_text_secondary"
                     android:textSize="14sp" />
 
@@ -89,7 +86,6 @@
                     android:layout_marginVertical="16dp"
                     android:background="@color/medical_divider" />
 
-                <!-- Volume Voice -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -118,7 +114,7 @@
                         android:layout_width="48dp"
                         android:layout_height="wrap_content"
                         android:gravity="center"
-                        android:text="50"
+                        android:text="80"
                         android:textColor="@color/medical_text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -126,7 +122,6 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Card: Item Delivery -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -152,7 +147,6 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <!-- Switches -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -205,7 +199,6 @@
                     android:layout_marginBottom="16dp"
                     android:background="@color/medical_divider" />
 
-                <!-- Files Selection -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -237,7 +230,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="行驶语音"
+                    android:text="导航语音"
                     android:textColor="@color/medical_text_secondary"
                     android:textSize="14sp" />
 
@@ -246,11 +239,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:gravity="center_vertical">
+
                     <Spinner
                         android:id="@+id/spinner_delivery_nav_voice"
                         android:layout_width="0dp"
                         android:layout_height="48dp"
                         android:layout_weight="1" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_select_delivery_nav_voice"
                         android:layout_width="wrap_content"
@@ -272,11 +267,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:gravity="center_vertical">
+
                     <Spinner
                         android:id="@+id/spinner_delivery_arrival_voice"
                         android:layout_width="0dp"
                         android:layout_height="48dp"
                         android:layout_weight="1" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_select_delivery_arrival_voice"
                         android:layout_width="wrap_content"
@@ -286,7 +283,6 @@
                         app:backgroundTint="@color/medical_primary" />
                 </LinearLayout>
 
-                <!-- Test Actions -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -301,7 +297,7 @@
                         android:layout_marginEnd="8dp"
                         android:text="试听音乐"
                         android:textColor="@color/medical_primary"
-                        app:backgroundTint="@color/medical_secondary"/>
+                        app:backgroundTint="@color/medical_secondary" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_test_delivery_voice"
@@ -310,9 +306,9 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginEnd="8dp"
-                        android:text="测试行驶"
+                        android:text="测试导航"
                         android:textColor="@color/medical_primary"
-                        app:backgroundTint="@color/medical_secondary"/>
+                        app:backgroundTint="@color/medical_secondary" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_test_delivery_arrival"
@@ -322,12 +318,11 @@
                         android:layout_weight="1"
                         android:text="测试到达"
                         android:textColor="@color/medical_primary"
-                        app:backgroundTint="@color/medical_secondary"/>
+                        app:backgroundTint="@color/medical_secondary" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Card: Loop Delivery -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -353,7 +348,6 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <!-- Switches -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -406,7 +400,6 @@
                     android:layout_marginBottom="16dp"
                     android:background="@color/medical_divider" />
 
-                <!-- Files Selection -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -419,11 +412,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:gravity="center_vertical">
+
                     <Spinner
                         android:id="@+id/spinner_loop_music"
                         android:layout_width="0dp"
                         android:layout_height="48dp"
                         android:layout_weight="1" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_select_loop_music"
                         android:layout_width="wrap_content"
@@ -436,7 +431,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="行驶语音"
+                    android:text="导航语音"
                     android:textColor="@color/medical_text_secondary"
                     android:textSize="14sp" />
 
@@ -445,11 +440,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:gravity="center_vertical">
+
                     <Spinner
                         android:id="@+id/spinner_loop_nav_voice"
                         android:layout_width="0dp"
                         android:layout_height="48dp"
                         android:layout_weight="1" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_select_loop_nav_voice"
                         android:layout_width="wrap_content"
@@ -471,11 +468,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:gravity="center_vertical">
+
                     <Spinner
                         android:id="@+id/spinner_loop_arrival_voice"
                         android:layout_width="0dp"
                         android:layout_height="48dp"
                         android:layout_weight="1" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_select_loop_arrival_voice"
                         android:layout_width="wrap_content"
@@ -485,11 +484,9 @@
                         app:backgroundTint="@color/medical_primary" />
                 </LinearLayout>
 
-                <!-- Test Actions -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
@@ -501,7 +498,7 @@
                         android:layout_marginEnd="8dp"
                         android:text="试听音乐"
                         android:textColor="@color/medical_primary"
-                        app:backgroundTint="@color/medical_secondary"/>
+                        app:backgroundTint="@color/medical_secondary" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_test_loop_voice"
@@ -510,9 +507,9 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginEnd="8dp"
-                        android:text="测试行驶"
+                        android:text="测试导航"
                         android:textColor="@color/medical_primary"
-                        app:backgroundTint="@color/medical_secondary"/>
+                        app:backgroundTint="@color/medical_secondary" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_test_loop_arrival"
@@ -522,22 +519,223 @@
                         android:layout_weight="1"
                         android:text="测试到达"
                         android:textColor="@color/medical_primary"
-                        app:backgroundTint="@color/medical_secondary"/>
+                        app:backgroundTint="@color/medical_secondary" />
                 </LinearLayout>
-
-                <!-- Stop All (Inside Card or Outside, putting inside for grouping) -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_stop_bg_music"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:text="停止所有播放"
-                    android:textColor="@color/white"
-                    android:textSize="18sp"
-                    app:backgroundTint="@color/medical_error"
-                    app:cornerRadius="28dp"
-                    app:elevation="4dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/medical_divider"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:text="医院配送模式"
+                    android:textColor="@color/medical_text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="背景音乐开关"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="16sp" />
+
+                    <Switch
+                        android:id="@+id/switch_hospital_music"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:thumbTint="@color/medical_primary"
+                        android:trackTint="@color/medical_divider" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingBottom="16dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="语音播报开关"
+                        android:textColor="@color/medical_text_primary"
+                        android:textSize="16sp" />
+
+                    <Switch
+                        android:id="@+id/switch_hospital_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:thumbTint="@color/medical_primary"
+                        android:trackTint="@color/medical_divider" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@color/medical_divider" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="背景音乐文件"
+                    android:textColor="@color/medical_text_secondary"
+                    android:textSize="14sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/spinner_hospital_music"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_select_hospital_music"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="导入"
+                        app:backgroundTint="@color/medical_primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="导航语音"
+                    android:textColor="@color/medical_text_secondary"
+                    android:textSize="14sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/spinner_hospital_nav_voice"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_select_hospital_nav_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="导入"
+                        app:backgroundTint="@color/medical_primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="到达语音"
+                    android:textColor="@color/medical_text_secondary"
+                    android:textSize="14sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/spinner_hospital_arrival_voice"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_select_hospital_arrival_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="导入"
+                        app:backgroundTint="@color/medical_primary" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_play_hospital_music"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="试听音乐"
+                        android:textColor="@color/medical_primary"
+                        app:backgroundTint="@color/medical_secondary" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_test_hospital_voice"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="测试导航"
+                        android:textColor="@color/medical_primary"
+                        app:backgroundTint="@color/medical_secondary" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_test_hospital_arrival"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="测试到达"
+                        android:textColor="@color/medical_primary"
+                        app:backgroundTint="@color/medical_secondary" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_stop_bg_music"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginBottom="24dp"
+            android:text="停止所有播放"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            app:backgroundTint="@color/medical_error"
+            app:cornerRadius="28dp"
+            app:elevation="4dp" />
 
     </LinearLayout>
 </ScrollView>

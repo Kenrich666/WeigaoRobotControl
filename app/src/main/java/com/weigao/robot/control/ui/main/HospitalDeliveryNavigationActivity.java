@@ -33,10 +33,12 @@ import com.weigao.robot.control.manager.HospitalDeliverySettingsManager;
 import com.weigao.robot.control.manager.LowBatteryAutoChargeManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
 import com.weigao.robot.control.manager.WorkScheduleService;
+import com.weigao.robot.control.model.AudioConfig;
 import com.weigao.robot.control.model.DoorType;
 import com.weigao.robot.control.model.HospitalDeliveryRecord;
 import com.weigao.robot.control.model.HospitalDeliveryTask;
 import com.weigao.robot.control.model.NavigationNode;
+import com.weigao.robot.control.service.IAudioService;
 import com.weigao.robot.control.service.IDoorService;
 import com.weigao.robot.control.service.INavigationService;
 import com.weigao.robot.control.service.ServiceManager;
@@ -78,6 +80,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private View rootLayout;
 
     private INavigationService navigationService;
+    private IAudioService audioService;
     private IDoorService doorService;
     private ArrayList<HospitalDeliveryTask> hospitalTasks;
     private NavigationNode disinfectionNode;
@@ -94,6 +97,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean handoffToLowBatteryAutoCharge;
     private boolean hasStartCommandIssued;
     private boolean routePreparedReceived;
+    private boolean hasRunningStateReceived;
     private android.app.Dialog doorOperationDialog;
     private final Handler startHandler = new Handler();
     private final Runnable delayedNavigationStartRunnable = new Runnable() {
@@ -140,8 +144,10 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void initServices() {
         navigationService = ServiceManager.getInstance().getNavigationService();
+        audioService = ServiceManager.getInstance().getAudioService();
         doorService = ServiceManager.getInstance().getDoorService();
         Log.d(TAG, "initServices. navigationService=" + (navigationService != null)
+                + ", audioService=" + (audioService != null)
                 + ", doorService=" + (doorService != null));
         if (navigationService == null) {
             Toast.makeText(this, "导航服务未初始化", Toast.LENGTH_SHORT).show();
@@ -307,6 +313,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 + ", flowStage=" + flowStage
                 + ", targetIds=" + targetIds);
         isNavigating = true;
+        hasRunningStateReceived = false;
         hasStartCommandIssued = false;
         routePreparedReceived = false;
         cancelDelayedNavigationStart();
@@ -314,6 +321,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             @Override
             public void onSuccess(Void result) {
                 Log.d(TAG, "setTargets success. roomPhase=" + roomPhase + ", targetIds=" + targetIds);
+                playBackgroundMusic();
+                playConfiguredVoice(false);
                 int speed = HospitalDeliverySettingsManager.getInstance().getDeliverySpeed();
                 Log.d(TAG, "setSpeed requested. speed=" + speed + ", roomPhase=" + roomPhase);
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
@@ -376,6 +385,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             @Override
             public void onError(ApiError error) {
                 hasStartCommandIssued = false;
+                stopAudioPlayback();
                 Log.e(TAG, "navigationService.start failed. flowStage=" + flowStage
                         + ", error=" + error.getMessage());
                 runOnUiThread(() -> Toast.makeText(HospitalDeliveryNavigationActivity.this,
@@ -407,6 +417,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     HospitalDeliveryRecord.STAGE_DISINFECTION);
         }
         runOnUiThread(() -> {
+            stopAudioPlayback();
             cancelActiveTask();
             Toast.makeText(this, label + ": " + error.getMessage(), Toast.LENGTH_SHORT).show();
             finish();
@@ -429,6 +440,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         isNavigating = false;
         isPaused = false;
         handoffToLowBatteryAutoCharge = true;
+        stopAudioPlayback();
         stopAutoResumeTimer();
         hideTaskSummaryPanel();
         if (btnDoorToggle != null) {
@@ -455,6 +467,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         navigationService.pause(new IResultCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
+                playConfiguredVoice(false);
                 runOnUiThread(() -> {
                     isPaused = true;
                     tvStatus.setText("已暂停");
@@ -547,6 +560,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             pauseProjectionDoorForMovementIfNeeded();
             stopAutoResumeTimer();
             recordCurrentStageCancelled();
+            stopAudioPlayback();
             if (navigationService != null) {
                 navigationService.stop(null);
             }
@@ -603,6 +617,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 disinfectionNode.getName(),
                 HospitalDeliveryRecord.STATUS_SUCCESS,
                 HospitalDeliveryRecord.STAGE_DISINFECTION);
+        playConfiguredVoice(true);
         runOnUiThread(() -> {
             resumeProjectionDoorAtPointIfNeeded();
             tvStatus.setText("消毒间等待");
@@ -673,6 +688,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         isNavigating = false;
         isPaused = false;
         stopAutoResumeTimer();
+        playConfiguredVoice(true);
         resumeProjectionDoorAtPointIfNeeded();
         Intent intent = new Intent(this, ConfirmReceiptActivity.class);
         intent.putExtra("hospital_tasks", hospitalTasks);
@@ -723,6 +739,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             ensureDoorsClosedBeforeMove(() -> {
                 pauseProjectionDoorForMovementIfNeeded();
                 isMissionFinished = true;
+                stopAudioPlayback();
                 if (handoffToLowBatteryAutoChargeIfNeeded()) {
                     Toast.makeText(this, "电量过低，即将自动回充", Toast.LENGTH_SHORT).show();
                     return;
@@ -1059,6 +1076,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     if (isPaused) {
                         return;
                     }
+                    hasRunningStateReceived = true;
                     pauseProjectionDoorForMovementIfNeeded();
                     tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION ? "前往消毒间" : "医院配送中");
                     break;
@@ -1066,6 +1084,12 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     isPaused = true;
                     break;
                 case Navigation.STATE_DESTINATION:
+                    if (!hasRunningStateReceived) {
+                        Log.d(TAG, "Ignore duplicate destination callback. flowStage=" + flowStage
+                                + ", currentUniqueTargetIndex=" + currentUniqueTargetIndex);
+                        break;
+                    }
+                    hasRunningStateReceived = false;
                     if (flowStage == FlowStage.TO_DISINFECTION) {
                         handleDisinfectionArrival();
                     } else if (flowStage == FlowStage.TO_ROOMS) {
@@ -1153,6 +1177,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         if (requestCode == REQUEST_CODE_END_PASSWORD) {
             pauseProjectionDoorForMovementIfNeeded();
             recordCurrentStageCancelled();
+            stopAudioPlayback();
             if (navigationService != null) {
                 navigationService.stop(null);
             }
@@ -1180,6 +1205,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         super.onDestroy();
         stopAutoResumeTimer();
         cancelDelayedNavigationStart();
+        stopAudioPlayback();
         if (isFinishing() && !isMissionFinished && !isReturning && !handoffToLowBatteryAutoCharge) {
             cancelActiveTask();
         }
@@ -1193,6 +1219,63 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         ProjectionDoorService.getInstance().removeDoorActionListener();
         dismissDoorOperationDialog();
         pauseProjectionDoorForMovementIfNeeded();
+    }
+
+    private void playBackgroundMusic() {
+        if (audioService == null) {
+            return;
+        }
+        audioService.getAudioConfig(new IResultCallback<AudioConfig>() {
+            @Override
+            public void onSuccess(AudioConfig config) {
+                if (config != null
+                        && config.isHospitalMusicEnabled()
+                        && !android.text.TextUtils.isEmpty(config.getHospitalMusicPath())) {
+                    audioService.playBackgroundMusic(config.getHospitalMusicPath(), true, null);
+                }
+            }
+
+            @Override
+            public void onError(ApiError error) {
+            }
+        });
+    }
+
+    private void stopBackgroundMusic() {
+        if (audioService != null) {
+            audioService.stopBackgroundMusic(null);
+        }
+    }
+
+    private void playConfiguredVoice(boolean isArrival) {
+        if (audioService == null) {
+            return;
+        }
+        audioService.getAudioConfig(new IResultCallback<AudioConfig>() {
+            @Override
+            public void onSuccess(AudioConfig config) {
+                if (config == null || !config.isHospitalVoiceEnabled()) {
+                    return;
+                }
+                String path = isArrival
+                        ? config.getHospitalArrivalVoicePath()
+                        : config.getHospitalNavigatingVoicePath();
+                if (!android.text.TextUtils.isEmpty(path)) {
+                    audioService.playVoice(path, null);
+                }
+            }
+
+            @Override
+            public void onError(ApiError error) {
+            }
+        });
+    }
+
+    private void stopAudioPlayback() {
+        stopBackgroundMusic();
+        if (audioService != null) {
+            audioService.stopVoice(null);
+        }
     }
 
     private boolean isHospitalProjectionDoorEnabled() {

@@ -57,6 +57,7 @@ public class AudioServiceImpl implements IAudioService {
              initDefaultConfig();
              com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
         }
+        backfillHospitalDefaultsIfNeeded();
         
         Log.d(TAG, "AudioServiceImpl (No TTS, Audio Files) created");
     }
@@ -106,6 +107,8 @@ public class AudioServiceImpl implements IAudioService {
         audioConfig.setDeliveryVoiceEnabled(true);
         audioConfig.setLoopMusicEnabled(true);
         audioConfig.setLoopVoiceEnabled(true);
+        audioConfig.setHospitalMusicEnabled(true);
+        audioConfig.setHospitalVoiceEnabled(true);
         
         // Default paths if available
         // Default paths if available
@@ -115,16 +118,52 @@ public class AudioServiceImpl implements IAudioService {
         if (musicDir != null) {
              audioConfig.setDeliveryMusicPath(new File(musicDir, "default_music.mp3").getAbsolutePath());
              audioConfig.setLoopMusicPath(new File(musicDir, "default_music.mp3").getAbsolutePath());
+             audioConfig.setHospitalMusicPath(new File(musicDir, "default_music.mp3").getAbsolutePath());
              
              audioConfig.setDeliveryNavigatingVoicePath(new File(musicDir, "default_navigating.mp3").getAbsolutePath());
              audioConfig.setDeliveryArrivalVoicePath(new File(musicDir, "default_arrival.mp3").getAbsolutePath());
              
              audioConfig.setLoopNavigatingVoicePath(new File(musicDir, "default_navigating.mp3").getAbsolutePath());
              audioConfig.setLoopArrivalVoicePath(new File(musicDir, "default_arrival.mp3").getAbsolutePath());
+
+             audioConfig.setHospitalNavigatingVoicePath(new File(musicDir, "default_navigating.mp3").getAbsolutePath());
+             audioConfig.setHospitalArrivalVoicePath(new File(musicDir, "default_arrival.mp3").getAbsolutePath());
         }
         
         // Mark as initialized
         audioConfig.setInitialized(true);
+    }
+
+    private void backfillHospitalDefaultsIfNeeded() {
+        File musicDir = new File(android.os.Environment.getExternalStorageDirectory(), AUDIO_DIR);
+        if (!musicDir.exists()) {
+            musicDir.mkdirs();
+        }
+
+        String defaultMusicPath = new File(musicDir, "default_music.mp3").getAbsolutePath();
+        String defaultNavigatingPath = new File(musicDir, "default_navigating.mp3").getAbsolutePath();
+        String defaultArrivalPath = new File(musicDir, "default_arrival.mp3").getAbsolutePath();
+        boolean changed = false;
+
+        if (TextUtils.isEmpty(audioConfig.getHospitalMusicPath())) {
+            audioConfig.setHospitalMusicPath(defaultMusicPath);
+            audioConfig.setHospitalMusicEnabled(true);
+            changed = true;
+        }
+        if (TextUtils.isEmpty(audioConfig.getHospitalNavigatingVoicePath())) {
+            audioConfig.setHospitalNavigatingVoicePath(defaultNavigatingPath);
+            audioConfig.setHospitalVoiceEnabled(true);
+            changed = true;
+        }
+        if (TextUtils.isEmpty(audioConfig.getHospitalArrivalVoicePath())) {
+            audioConfig.setHospitalArrivalVoicePath(defaultArrivalPath);
+            audioConfig.setHospitalVoiceEnabled(true);
+            changed = true;
+        }
+
+        if (changed) {
+            com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
+        }
     }
 
     // ==================== 音乐设置 ====================
@@ -139,6 +178,13 @@ public class AudioServiceImpl implements IAudioService {
     @Override
     public void setLoopMusic(String musicPath, IResultCallback<Void> callback) {
         audioConfig.setLoopMusicPath(musicPath);
+        com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
+        notifySuccess(callback);
+    }
+
+    @Override
+    public void setHospitalMusic(String musicPath, IResultCallback<Void> callback) {
+        audioConfig.setHospitalMusicPath(musicPath);
         com.weigao.robot.control.manager.SoundSettingsManager.getInstance().saveAudioConfig(audioConfig);
         notifySuccess(callback);
     }
@@ -350,7 +396,8 @@ public class AudioServiceImpl implements IAudioService {
     private boolean isNavigationVoice(String path) {
         if (TextUtils.isEmpty(path) || audioConfig == null) return false;
         return TextUtils.equals(path, audioConfig.getDeliveryNavigatingVoicePath()) ||
-               TextUtils.equals(path, audioConfig.getLoopNavigatingVoicePath());
+               TextUtils.equals(path, audioConfig.getLoopNavigatingVoicePath()) ||
+               TextUtils.equals(path, audioConfig.getHospitalNavigatingVoicePath());
     }
 
     private void playVoiceInternal(String voicePath, IResultCallback<Void> callback) {
