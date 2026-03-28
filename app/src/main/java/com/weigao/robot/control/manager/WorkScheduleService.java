@@ -551,6 +551,7 @@ public class WorkScheduleService {
         }
 
         synchronized (this) {
+            // Keep only one deferred action. A later trigger replaces the previous one.
             deferredAction = action;
             deferredScheduleIndex = scheduleIndex;
         }

@@ -33,6 +33,7 @@ import com.weigao.robot.control.manager.LowBatteryAutoChargeSettingsManager;
 import com.weigao.robot.control.manager.UVDisinfectionManager;
 import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.manager.WorkScheduleSettingsManager;
+import com.weigao.robot.control.manager.WorkScheduleValidator;
 import com.weigao.robot.control.model.ChargingState;
 import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.model.WorkSchedule;
@@ -479,24 +480,7 @@ public class ChargerSettingsFragment extends Fragment {
         for (int i = 0; i < scheduleContainer.getChildCount() && i < schedules.size(); i++) {
             View itemView = scheduleContainer.getChildAt(i);
             WorkSchedule schedule = schedules.get(i);
-
-            SwitchCompat switchEnabled = itemView.findViewById(R.id.switch_schedule_enabled);
-            if (switchEnabled != null && switchEnabled.isChecked() != schedule.isEnabled()) {
-                switchEnabled.setChecked(schedule.isEnabled());
-            }
-
-            View llMainContent = itemView.findViewById(R.id.ll_main_content);
-            if (llMainContent != null) {
-                updateScheduleItemAlpha(llMainContent, schedule.isEnabled());
-            }
-
-            boolean[] workDays = schedule.getWorkDays();
-            for (int d = 0; d < DAY_BUTTON_IDS.length; d++) {
-                MaterialButton dayBtn = itemView.findViewById(DAY_BUTTON_IDS[d]);
-                if (dayBtn != null) {
-                    updateDayButtonStyle(dayBtn, workDays[d] && schedule.isEnabled());
-                }
-            }
+            bindScheduleItemView(itemView, schedule);
         }
     }
 
@@ -542,7 +526,6 @@ public class ChargerSettingsFragment extends Fragment {
         }
 
         SwitchCompat switchEnabled = itemView.findViewById(R.id.switch_schedule_enabled);
-        switchEnabled.setChecked(initialSchedule.isEnabled());
         switchEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) {
                 return;
@@ -553,15 +536,9 @@ public class ChargerSettingsFragment extends Fragment {
                 return;
             }
 
-            if (isChecked) {
-                disableAllSchedulesExcept(currentIndex);
-            }
-
-            WorkSchedule schedule = manager.getSchedule(currentIndex);
-            schedule.setEnabled(isChecked);
-            manager.updateSchedule(currentIndex, schedule);
-            WorkScheduleService.getInstance().rescheduleAll();
-            refreshAllScheduleItemsState();
+            WorkSchedule candidate = copySchedule(manager.getSchedule(currentIndex));
+            candidate.setEnabled(isChecked);
+            applyScheduleChange(itemView, currentIndex, candidate);
         });
 
         if (btnDelete != null) {
@@ -577,44 +554,32 @@ public class ChargerSettingsFragment extends Fragment {
         }
 
         TextView tvStartTime = itemView.findViewById(R.id.tv_start_time);
-        tvStartTime.setText(initialSchedule.getStartTime());
         tvStartTime.setOnClickListener(v -> {
             int currentIndex = scheduleContainer.indexOfChild(itemView);
             if (currentIndex < 0) {
                 return;
             }
             WorkSchedule schedule = manager.getSchedule(currentIndex);
-            if (!schedule.isEnabled()) {
-                return;
-            }
 
             showTimePicker(schedule.getStartHour(), schedule.getStartMinute(), (hour, minute) -> {
-                String time = String.format("%02d:%02d", hour, minute);
-                tvStartTime.setText(time);
-                schedule.setStartTime(time);
-                manager.updateSchedule(currentIndex, schedule);
-                WorkScheduleService.getInstance().rescheduleAll();
+                WorkSchedule candidate = copySchedule(manager.getSchedule(currentIndex));
+                candidate.setStartTime(String.format("%02d:%02d", hour, minute));
+                applyScheduleChange(itemView, currentIndex, candidate);
             });
         });
 
         TextView tvEndTime = itemView.findViewById(R.id.tv_end_time);
-        tvEndTime.setText(initialSchedule.getEndTime());
         tvEndTime.setOnClickListener(v -> {
             int currentIndex = scheduleContainer.indexOfChild(itemView);
             if (currentIndex < 0) {
                 return;
             }
             WorkSchedule schedule = manager.getSchedule(currentIndex);
-            if (!schedule.isEnabled()) {
-                return;
-            }
 
             showTimePicker(schedule.getEndHour(), schedule.getEndMinute(), (hour, minute) -> {
-                String time = String.format("%02d:%02d", hour, minute);
-                tvEndTime.setText(time);
-                schedule.setEndTime(time);
-                manager.updateSchedule(currentIndex, schedule);
-                WorkScheduleService.getInstance().rescheduleAll();
+                WorkSchedule candidate = copySchedule(manager.getSchedule(currentIndex));
+                candidate.setEndTime(String.format("%02d:%02d", hour, minute));
+                applyScheduleChange(itemView, currentIndex, candidate);
             });
         });
 
@@ -626,40 +591,104 @@ public class ChargerSettingsFragment extends Fragment {
             }
 
             final int dayIndex = d;
-            updateDayButtonStyle(dayBtn, workDays[d] && initialSchedule.isEnabled());
+            boolean selected = workDays != null && d < workDays.length && workDays[d];
+            updateDayButtonStyle(dayBtn, selected);
             dayBtn.setOnClickListener(v -> {
                 int currentIndex = scheduleContainer.indexOfChild(itemView);
                 if (currentIndex < 0) {
                     return;
                 }
                 WorkSchedule schedule = manager.getSchedule(currentIndex);
-                if (!schedule.isEnabled()) {
-                    return;
-                }
 
-                boolean[] days = schedule.getWorkDays();
+                WorkSchedule candidate = copySchedule(schedule);
+                boolean[] days = candidate.getWorkDays();
                 days[dayIndex] = !days[dayIndex];
-                schedule.setWorkDays(days);
-                manager.updateSchedule(currentIndex, schedule);
-                updateDayButtonStyle((MaterialButton) v, days[dayIndex]);
-                WorkScheduleService.getInstance().rescheduleAll();
+                candidate.setWorkDays(days);
+                applyScheduleChange(itemView, currentIndex, candidate);
             });
         }
 
-        updateScheduleItemAlpha(llMainContent, initialSchedule.isEnabled());
+        bindScheduleItemView(itemView, initialSchedule);
         scheduleContainer.addView(itemView);
     }
 
-    private void disableAllSchedulesExcept(int exceptIndex) {
+    private boolean applyScheduleChange(View itemView, int scheduleIndex, WorkSchedule candidate) {
         WorkScheduleSettingsManager manager = WorkScheduleSettingsManager.getInstance();
-        List<WorkSchedule> schedules = manager.getSchedules();
-        for (int i = 0; i < schedules.size(); i++) {
-            if (i != exceptIndex && schedules.get(i).isEnabled()) {
-                WorkSchedule schedule = schedules.get(i);
-                schedule.setEnabled(false);
-                manager.updateSchedule(i, schedule);
+        WorkScheduleValidator.ValidationResult result = WorkScheduleValidator.validate(
+                manager.getSchedules(), scheduleIndex, candidate);
+        if (result != WorkScheduleValidator.ValidationResult.VALID) {
+            bindScheduleItemView(itemView, manager.getSchedule(scheduleIndex));
+            showScheduleValidationToast(result);
+            return false;
+        }
+
+        manager.updateSchedule(scheduleIndex, candidate);
+        bindScheduleItemView(itemView, candidate);
+        WorkScheduleService.getInstance().rescheduleAll();
+        return true;
+    }
+
+    private void bindScheduleItemView(View itemView, WorkSchedule schedule) {
+        if (itemView == null || schedule == null) {
+            return;
+        }
+
+        SwitchCompat switchEnabled = itemView.findViewById(R.id.switch_schedule_enabled);
+        if (switchEnabled != null && switchEnabled.isChecked() != schedule.isEnabled()) {
+            switchEnabled.setChecked(schedule.isEnabled());
+        }
+
+        TextView tvStartTime = itemView.findViewById(R.id.tv_start_time);
+        if (tvStartTime != null) {
+            tvStartTime.setText(schedule.getStartTime());
+        }
+
+        TextView tvEndTime = itemView.findViewById(R.id.tv_end_time);
+        if (tvEndTime != null) {
+            tvEndTime.setText(schedule.getEndTime());
+        }
+
+        View llMainContent = itemView.findViewById(R.id.ll_main_content);
+        if (llMainContent != null) {
+            updateScheduleItemAlpha(llMainContent, schedule.isEnabled());
+        }
+
+        boolean[] workDays = schedule.getWorkDays();
+        for (int d = 0; d < DAY_BUTTON_IDS.length; d++) {
+            MaterialButton dayBtn = itemView.findViewById(DAY_BUTTON_IDS[d]);
+            if (dayBtn != null) {
+                boolean selected = workDays != null && d < workDays.length && workDays[d];
+                updateDayButtonStyle(dayBtn, selected);
             }
         }
+    }
+
+    private WorkSchedule copySchedule(WorkSchedule source) {
+        boolean[] workDays = source.getWorkDays();
+        return new WorkSchedule(
+                source.isEnabled(),
+                source.getStartTime(),
+                source.getEndTime(),
+                workDays != null ? workDays.clone() : null);
+    }
+
+    private void showScheduleValidationToast(WorkScheduleValidator.ValidationResult result) {
+        if (getContext() == null) {
+            return;
+        }
+
+        String message;
+        if (result == WorkScheduleValidator.ValidationResult.NO_WORK_DAYS) {
+            message = "至少选择一个工作日";
+        } else if (result == WorkScheduleValidator.ValidationResult.INVALID_TIME_RANGE) {
+            message = "开始时间必须早于结束时间";
+        } else if (result == WorkScheduleValidator.ValidationResult.OVERLAP_WITH_ENABLED_SCHEDULE) {
+            message = "与已启用时间段冲突";
+        } else {
+            return;
+        }
+
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
 
     private void showTimePicker(int currentHour, int currentMinute, OnTimeSetListener listener) {
