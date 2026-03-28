@@ -390,7 +390,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 runOnUiThread(() -> {
                     isPaused = true;
                     lastPauseTime = System.currentTimeMillis();
-                    tvStatus.setText("\u5df2\u6682\u505c");
+                    tvStatus.setText("已暂停");
                     llPauseControls.setVisibility(View.VISIBLE);
                     tvHint.setVisibility(View.INVISIBLE);
                     stopAutoResumeTimer();
@@ -405,7 +405,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onError(ApiError error) {
                 runOnUiThread(() -> Toast.makeText(DeliveryNavigationActivity.this,
-                        "\u6682\u505c\u5931\u8d25: " + error.getMessage(), Toast.LENGTH_SHORT).show());
+                        "暂停失败: " + error.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -435,7 +435,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 public void onSuccess(Void result) {
                     runOnUiThread(() -> {
                         isPaused = false;
-                        tvStatus.setText("\u914d\u9001\u4e2d");
+                        tvStatus.setText("配送中");
                         llPauseControls.setVisibility(View.GONE);
                         if (btnDoorToggle != null) {
                             btnDoorToggle.setVisibility(View.GONE);
@@ -451,7 +451,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         setPauseActionButtonsEnabled(true);
                         updateDoorToggleButton();
                         Toast.makeText(DeliveryNavigationActivity.this,
-                                "\u7ee7\u7eed\u5bfc\u822a\u5931\u8d25: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                "继续导航失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     });
                 }
             });
@@ -461,7 +461,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 public void onSuccess(Void result) {
                     runOnUiThread(() -> {
                         isPaused = false;
-                        tvStatus.setText("\u914d\u9001\u4e2d");
+                        tvStatus.setText("配送中");
                         llPauseControls.setVisibility(View.GONE);
                         if (btnDoorToggle != null) {
                             btnDoorToggle.setVisibility(View.GONE);
@@ -477,7 +477,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                         setPauseActionButtonsEnabled(true);
                         updateDoorToggleButton();
                         Toast.makeText(DeliveryNavigationActivity.this,
-                                "\u7ee7\u7eed\u5bfc\u822a\u5931\u8d25: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                "继续导航失败: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     });
                 }
             });
@@ -502,14 +502,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                             setPauseActionButtonsEnabled(true);
                             updateDoorToggleButton();
                             Toast.makeText(DeliveryNavigationActivity.this,
-                                    Boolean.TRUE.equals(allClosed) ? "\u5df2\u6253\u5f00\u6240\u6709\u8231\u95e8" : "\u5df2\u5173\u95ed\u6240\u6709\u8231\u95e8",
+                                    Boolean.TRUE.equals(allClosed) ? "已打开所有舱门" : "已关闭所有舱门",
                                     Toast.LENGTH_SHORT).show();
                         });
                     }
 
                     @Override
                     public void onError(ApiError error) {
-                        handleDoorActionError("\u8231\u95e8\u64cd\u4f5c\u5931\u8d25", error);
+                        handleDoorActionError("舱门操作失败", error);
                     }
                 };
 
@@ -522,7 +522,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
             @Override
             public void onError(ApiError error) {
-                handleDoorActionError("\u8231\u95e8\u72b6\u6001\u67e5\u8be2\u5931\u8d25", error);
+                handleDoorActionError("舱门状态查询失败", error);
             }
         });
     }
@@ -553,14 +553,14 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
                     @Override
                     public void onError(ApiError error) {
-                        handleDoorActionError("\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", error);
+                        handleDoorActionError("继续前关门失败", error);
                     }
                 });
             }
 
             @Override
             public void onError(ApiError error) {
-                handleDoorActionError("\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", error);
+                handleDoorActionError("继续前关门失败", error);
             }
         });
     }
@@ -579,7 +579,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                 setPauseActionButtonsEnabled(true);
                 updateDoorToggleButton();
                 Toast.makeText(DeliveryNavigationActivity.this,
-                        "\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", Toast.LENGTH_SHORT).show();
+                        "继续前关门失败", Toast.LENGTH_SHORT).show();
             });
             return;
         }
@@ -619,7 +619,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             return;
         }
         if (doorService == null) {
-            btnDoorToggle.setText("\u5f00\u95e8");
+            btnDoorToggle.setText("开门");
             return;
         }
 
@@ -627,12 +627,12 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
             @Override
             public void onSuccess(Boolean allClosed) {
                 runOnUiThread(() -> btnDoorToggle.setText(
-                        Boolean.TRUE.equals(allClosed) ? "\u5f00\u95e8" : "\u5173\u95e8"));
+                        Boolean.TRUE.equals(allClosed) ? "开门" : "关门"));
             }
 
             @Override
             public void onError(ApiError error) {
-                runOnUiThread(() -> btnDoorToggle.setText("\u5f00\u95e8"));
+                runOnUiThread(() -> btnDoorToggle.setText("开门"));
             }
         });
     }
@@ -703,15 +703,15 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
     private void showMissionCompletedUI() {
         isMissionFinished = true;
-        currentTaskTextView.setText("\u6240\u6709\u4efb\u52a1\u5df2\u5b8c\u6210");
-        tvStatus.setText("\u914d\u9001\u5b8c\u6210");
+        currentTaskTextView.setText("所有任务已完成");
+        tvStatus.setText("配送完成");
         tvHint.setVisibility(View.GONE);
         llPauseControls.setVisibility(View.VISIBLE);
         btnContinue.setVisibility(View.GONE);
         if (btnDoorToggle != null) {
             btnDoorToggle.setVisibility(View.GONE);
         }
-        btnPauseEnd.setText("\u8fd4\u56de\u9996\u9875");
+        btnPauseEnd.setText("返回首页");
         rootLayout.setOnTouchListener(null);
         isNavigating = false;
         Log.d(TAG, "mission completed");
@@ -769,13 +769,13 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                                 btnDoorToggle.setVisibility(View.GONE);
                             }
                             Toast.makeText(DeliveryNavigationActivity.this,
-                                    "\u6682\u505c\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5", Toast.LENGTH_SHORT).show();
+                                    "暂停失败，请重试", Toast.LENGTH_SHORT).show();
                         } else {
                             return;
                         }
                     }
 
-                    tvStatus.setText("\u914d\u9001\u4e2d");
+                    tvStatus.setText("配送中");
                     if (!isMissionFinished) {
                         llPauseControls.setVisibility(View.GONE);
                         if (btnDoorToggle != null) {
@@ -793,7 +793,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
                 case Navigation.STATE_DESTINATION:
                     if (hasRunningStateReceived) {
-                        Toast.makeText(this, "\u5df2\u5230\u8fbe\u76ee\u6807\u70b9", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "已到达目标点", Toast.LENGTH_SHORT).show();
                         playConfiguredVoice(true);
                         handleArrival();
                         hasRunningStateReceived = false;
@@ -802,11 +802,11 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
 
                 case Navigation.STATE_COLLISION:
                 case Navigation.STATE_BLOCKED:
-                    Toast.makeText(this, "\u9047\u5230\u969c\u788d\u7269\uff0c\u6b63\u5728\u907f\u969c", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
                     break;
 
                 case Navigation.STATE_BLOCKING:
-                    Toast.makeText(this, "\u963b\u6321\u8d85\u65f6\uff0c\u8bf7\u68c0\u67e5\u8def\u5f84", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "阻挡超时，请检查路径", Toast.LENGTH_SHORT).show();
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),
@@ -815,7 +815,7 @@ public class DeliveryNavigationActivity extends AppCompatActivity implements INa
                     break;
 
                 case Navigation.STATE_ERROR:
-                    Toast.makeText(this, "\u5bfc\u822a\u51fa\u73b0\u9519\u8bef", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "导航出现错误", Toast.LENGTH_SHORT).show();
                     if (currentUniqueTargetIndex < targetNodes.size()) {
                         ItemDeliveryManager.getInstance().recordPointArrival(
                                 targetNodes.get(currentUniqueTargetIndex).getName(),

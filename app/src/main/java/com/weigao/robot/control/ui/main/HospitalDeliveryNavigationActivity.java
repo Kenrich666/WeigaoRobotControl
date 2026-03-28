@@ -472,7 +472,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 playConfiguredVoice(false);
                 runOnUiThread(() -> {
                     isPaused = true;
-                    tvStatus.setText("\u5df2\u6682\u505c");
+                    tvStatus.setText("已暂停");
                     stopAutoResumeTimer();
                     showPauseControls(true);
                 });
@@ -482,7 +482,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             public void onError(ApiError error) {
                 runOnUiThread(() -> Toast.makeText(
                         HospitalDeliveryNavigationActivity.this,
-                        "\u6682\u505c\u5931\u8d25: " + error.getMessage(),
+                        "暂停失败: " + error.getMessage(),
                         Toast.LENGTH_SHORT).show());
             }
         });
@@ -503,9 +503,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     runOnUiThread(() -> {
                         isPaused = false;
                         tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION
-                                ? "\u524d\u5f80\u6d88\u6bd2\u95f4" : "\u533b\u9662\u914d\u9001\u4e2d");
+                                ? "前往消毒间" : "医院配送中");
                         tvHint.setVisibility(View.VISIBLE);
-                        tvHint.setText("??????????????");
+                        tvHint.setText("双击屏幕可暂停导航");
                         showPauseControls(false);
                         setPauseActionButtonsEnabled(true);
                     });
@@ -518,7 +518,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                         updateDoorToggleButton();
                         Toast.makeText(
                                 HospitalDeliveryNavigationActivity.this,
-                                "\u7ee7\u7eed\u5bfc\u822a\u5931\u8d25: " + error.getMessage(),
+                                "继续导航失败: " + error.getMessage(),
                                 Toast.LENGTH_SHORT).show();
                     });
                 }
@@ -532,10 +532,10 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             btnDoorToggle.setVisibility(visible ? View.VISIBLE : View.GONE);
         }
         if (visible) {
-            btnPauseEnd.setText("\u7ed3\u675f\u4efb\u52a1");
-            btnContinue.setText("\u7ee7\u7eed\u5bfc\u822a");
+            btnPauseEnd.setText("结束任务");
+            btnContinue.setText("继续导航");
             tvHint.setVisibility(View.VISIBLE);
-            tvHint.setText("??????????????");
+            tvHint.setText("双击屏幕可暂停导航");
             setPauseActionButtonsEnabled(!isDoorActionInProgress);
             updateDoorToggleButton();
         } else {
@@ -607,7 +607,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                 setPauseActionButtonsEnabled(true);
                 updateDoorToggleButton();
                 Toast.makeText(HospitalDeliveryNavigationActivity.this,
-                        "\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25", Toast.LENGTH_SHORT).show();
+                        "继续前关门失败", Toast.LENGTH_SHORT).show();
             });
             return;
         }
@@ -638,7 +638,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             setPauseActionButtonsEnabled(true);
             updateDoorToggleButton();
             Toast.makeText(HospitalDeliveryNavigationActivity.this,
-                    "\u7ee7\u7eed\u524d\u5173\u95e8\u5931\u8d25: " + error.getMessage(),
+                    "继续前关门失败: " + error.getMessage(),
                     Toast.LENGTH_SHORT).show();
         });
     }
@@ -1094,8 +1094,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                             Toast.makeText(
                                     HospitalDeliveryNavigationActivity.this,
                                     Boolean.TRUE.equals(allClosed)
-                                            ? "\u5df2\u6253\u5f00\u6240\u6709\u8231\u95e8"
-                                            : "\u5df2\u5173\u95ed\u6240\u6709\u8231\u95e8",
+                                            ? "已打开所有舱门"
+                                            : "已关闭所有舱门",
                                     Toast.LENGTH_SHORT
                             ).show();
                         });
@@ -1128,7 +1128,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             updateDoorToggleButton();
             Toast.makeText(
                     HospitalDeliveryNavigationActivity.this,
-                    "\u8231\u95e8\u64cd\u4f5c\u5931\u8d25: " + error.getMessage(),
+                    "舱门操作失败: " + error.getMessage(),
                     Toast.LENGTH_SHORT
             ).show();
         });
@@ -1143,12 +1143,12 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             @Override
             public void onSuccess(Boolean allClosed) {
                 runOnUiThread(() -> btnDoorToggle.setText(
-                        Boolean.TRUE.equals(allClosed) ? "\u5f00\u95e8" : "\u5173\u95e8"));
+                        Boolean.TRUE.equals(allClosed) ? "开门" : "关门"));
             }
 
             @Override
             public void onError(ApiError error) {
-                runOnUiThread(() -> btnDoorToggle.setText("\u5f00\u95e8"));
+                runOnUiThread(() -> btnDoorToggle.setText("开门"));
             }
         });
     }
@@ -1193,7 +1193,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     hasRunningStateReceived = true;
                     pauseProjectionDoorForMovementIfNeeded();
                     tvStatus.setText(flowStage == FlowStage.TO_DISINFECTION
-                            ? "\u524d\u5f80\u6d88\u6bd2\u95f4" : "\u533b\u9662\u914d\u9001\u4e2d");
+                            ? "前往消毒间" : "医院配送中");
                     if (btnDoorToggle != null) {
                         btnDoorToggle.setVisibility(View.GONE);
                     }
@@ -1201,7 +1201,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     break;
                 case Navigation.STATE_PAUSED:
                     isPaused = true;
-                    tvStatus.setText("\u5df2\u6682\u505c");
+                    tvStatus.setText("已暂停");
                     showPauseControls(true);
                     break;
                 case Navigation.STATE_DESTINATION:
@@ -1219,7 +1219,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     break;
                 case Navigation.STATE_BLOCKED:
                 case Navigation.STATE_COLLISION:
-                    Toast.makeText(this, "???????????????", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "遇到障碍物，正在避障", Toast.LENGTH_SHORT).show();
                     break;
                 default:
                     break;
