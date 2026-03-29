@@ -25,16 +25,19 @@ public class HospitalDeliverySettingsManager {
     private static final String KEY_RETURN_SPEED = "return_speed";
     private static final String KEY_ARRIVAL_STAY_DURATION = "arrival_stay_duration";
     private static final String KEY_ARRIVAL_STAY_ENABLED = "hospital_arrival_stay_enabled";
+    private static final String KEY_AUTO_OPEN_DOORS_ON_ARRIVAL = "auto_open_doors_on_arrival";
     private static final String KEY_RETURN_POINT_ID = "return_point_id";
     private static final String KEY_RETURN_POINT_NAME = "return_point_name";
     private static final int DEFAULT_SPEED = 50;
     private static final int DEFAULT_ARRIVAL_STAY_DURATION = 30;
+    private static final boolean DEFAULT_AUTO_OPEN_DOORS_ON_ARRIVAL = true;
 
     private static HospitalDeliverySettingsManager instance;
     private int deliverySpeed = DEFAULT_SPEED;
     private int returnSpeed = DEFAULT_SPEED;
     private int arrivalStayDuration = DEFAULT_ARRIVAL_STAY_DURATION;
     private boolean arrivalStayEnabled = false;
+    private boolean autoOpenDoorsOnArrivalEnabled = DEFAULT_AUTO_OPEN_DOORS_ON_ARRIVAL;
     private int returnPointId = -1;
     private String returnPointName = "";
 
@@ -85,6 +88,15 @@ public class HospitalDeliverySettingsManager {
         saveSettings();
     }
 
+    public boolean isAutoOpenDoorsOnArrivalEnabled() {
+        return autoOpenDoorsOnArrivalEnabled;
+    }
+
+    public void setAutoOpenDoorsOnArrivalEnabled(boolean enabled) {
+        this.autoOpenDoorsOnArrivalEnabled = enabled;
+        saveSettings();
+    }
+
     public int getReturnPointId() {
         return returnPointId;
     }
@@ -123,13 +135,17 @@ public class HospitalDeliverySettingsManager {
             if (sb.length() > 0) {
                 JSONObject json = new JSONObject(sb.toString());
                 boolean missingArrivalStayEnabled = !json.has(KEY_ARRIVAL_STAY_ENABLED);
+                boolean missingAutoOpenDoorsOnArrival = !json.has(KEY_AUTO_OPEN_DOORS_ON_ARRIVAL);
                 this.deliverySpeed = json.optInt(KEY_SPEED, DEFAULT_SPEED);
                 this.returnSpeed = json.optInt(KEY_RETURN_SPEED, DEFAULT_SPEED);
                 this.arrivalStayDuration = json.optInt(KEY_ARRIVAL_STAY_DURATION, DEFAULT_ARRIVAL_STAY_DURATION);
                 this.arrivalStayEnabled = json.optBoolean(KEY_ARRIVAL_STAY_ENABLED, false);
+                this.autoOpenDoorsOnArrivalEnabled = json.optBoolean(
+                        KEY_AUTO_OPEN_DOORS_ON_ARRIVAL,
+                        DEFAULT_AUTO_OPEN_DOORS_ON_ARRIVAL);
                 this.returnPointId = json.optInt(KEY_RETURN_POINT_ID, -1);
                 this.returnPointName = json.optString(KEY_RETURN_POINT_NAME, "");
-                if (missingArrivalStayEnabled) {
+                if (missingArrivalStayEnabled || missingAutoOpenDoorsOnArrival) {
                     saveSettings();
                 }
             }
@@ -155,6 +171,7 @@ public class HospitalDeliverySettingsManager {
             json.put(KEY_RETURN_SPEED, returnSpeed);
             json.put(KEY_ARRIVAL_STAY_DURATION, arrivalStayDuration);
             json.put(KEY_ARRIVAL_STAY_ENABLED, arrivalStayEnabled);
+            json.put(KEY_AUTO_OPEN_DOORS_ON_ARRIVAL, autoOpenDoorsOnArrivalEnabled);
             json.put(KEY_RETURN_POINT_ID, returnPointId);
             json.put(KEY_RETURN_POINT_NAME, returnPointName);
 

@@ -738,6 +738,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             if (btnDoorToggle != null) {
                 btnDoorToggle.setVisibility(View.VISIBLE);
                 updateDoorToggleButton();
+            }
+            if (shouldAutoOpenDoorsOnHospitalArrival()) {
                 autoOpenDisinfectionDoors();
             }
             Toast.makeText(this, "已到达消毒间，请分配 L1/L2/L3 后继续", Toast.LENGTH_SHORT).show();
@@ -1402,6 +1404,10 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean isHospitalProjectionDoorEnabled() {
         return AppSettingsManager.getInstance()
                 .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL);
+    }
+
+    private boolean shouldAutoOpenDoorsOnHospitalArrival() {
+        return HospitalDeliverySettingsManager.getInstance().isAutoOpenDoorsOnArrivalEnabled();
     }
 
     private void pauseProjectionDoorForMovementIfNeeded() {
