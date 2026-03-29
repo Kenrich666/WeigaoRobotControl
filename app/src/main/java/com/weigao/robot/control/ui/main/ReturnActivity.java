@@ -74,6 +74,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
         // 获取源模式
         sourceMode = getIntent().getIntExtra("return_source_mode", 1);
+        pauseProjectionDoorForReturnIfNeeded();
         TaskExecutionStateManager.getInstance().finishTask();
 
         // 延迟一点启动，给UI渲染时间
@@ -536,22 +537,40 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     }
 
     private void maybeEnableProjectionDoorWhenIdleAfterReturn() {
-        if (sourceMode == 3) {
-            return;
-        }
         if (TaskExecutionStateManager.getInstance().hasActiveTask()) {
             return;
         }
         boolean enabled = sourceMode == 2
                 ? AppSettingsManager.getInstance()
                         .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)
-                : AppSettingsManager.getInstance()
-                        .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM);
+                : sourceMode == 3
+                        ? AppSettingsManager.getInstance()
+                                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL)
+                        : AppSettingsManager.getInstance()
+                                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM);
         if (!enabled) {
             return;
         }
         Log.d(TAG, "【投影灯】返航结束后机器人处于非任务待机态，自动开启脚踩投影灯检测");
         ProjectionDoorService.getInstance().startContinuousDetection();
+    }
+
+    private void pauseProjectionDoorForReturnIfNeeded() {
+        boolean enabled = sourceMode == 2
+                ? AppSettingsManager.getInstance()
+                        .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)
+                : sourceMode == 3
+                        ? AppSettingsManager.getInstance()
+                                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL)
+                        : sourceMode == 1
+                                && AppSettingsManager.getInstance()
+                                        .isProjectionDoorEnabled(
+                                                com.weigao.robot.control.manager.ProjectionDoorMode.ITEM);
+        if (!enabled) {
+            return;
+        }
+        Log.d(TAG, "【投影灯】返航开始前关闭投影灯并暂停脚踩检测");
+        ProjectionDoorService.getInstance().pauseForMovement();
     }
 
     @Override

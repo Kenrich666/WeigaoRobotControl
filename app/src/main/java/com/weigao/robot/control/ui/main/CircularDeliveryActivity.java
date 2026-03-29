@@ -208,10 +208,11 @@ public class CircularDeliveryActivity extends AppCompatActivity {
      * 执行返航操作
      */
     private void performReturnOperation() {
+        pauseProjectionDoorForMovementIfNeeded();
         Intent intent = new Intent(this, ReturnActivity.class);
         intent.putExtra("return_speed",
                 com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance().getReturnSpeed());
-        intent.putExtra("return_source_mode", 2); // 2 表示循环配送模式
+        intent.putExtra("return_source_mode", 2);
         startActivity(intent);
     }
 
@@ -304,13 +305,6 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         }
         Log.d(TAG, "【投影灯】循环配送页处于非任务待机态，自动开启脚踩投影灯检测");
         ProjectionDoorService.getInstance().startContinuousDetection();
-    }
-
-    private void pauseProjectionDoorForTaskStartIfNeeded() {
-        if (AppSettingsManager.getInstance()
-                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
-            ProjectionDoorService.getInstance().pauseForMovement();
-        }
     }
 
     // --- Persistence ---
@@ -501,7 +495,7 @@ public class CircularDeliveryActivity extends AppCompatActivity {
 
     private void proceedToNavigation() {
         TaskExecutionStateManager.getInstance().startTask(TaskType.CIRCULAR_DELIVERY);
-        pauseProjectionDoorForTaskStartIfNeeded();
+        pauseProjectionDoorForMovementIfNeeded();
         Intent intent = new Intent(this, CircularDeliveryNavigationActivity.class);
         intent.putExtra("route_name", selectedRoute.getName());
         intent.putExtra("loop_count", selectedRoute.getLoopCount());
@@ -510,6 +504,13 @@ public class CircularDeliveryActivity extends AppCompatActivity {
         intent.putExtra("route_nodes", nodes);
 
         startActivity(intent);
+    }
+
+    private void pauseProjectionDoorForMovementIfNeeded() {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)) {
+            ProjectionDoorService.getInstance().pauseForMovement();
+        }
     }
 
     private boolean isActivityAlive() {
