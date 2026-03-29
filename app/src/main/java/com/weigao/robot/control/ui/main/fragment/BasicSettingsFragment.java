@@ -334,23 +334,42 @@ public class BasicSettingsFragment extends Fragment {
         TextView hospitalArrivalStayValue = view.findViewById(R.id.tv_hospital_arrival_stay_value);
         androidx.appcompat.widget.SwitchCompat switchHospitalArrivalStayEnabled =
                 view.findViewById(R.id.switch_hospital_arrival_stay_enabled);
+        androidx.appcompat.widget.SwitchCompat switchHospitalAutoOpenDisinfectionDoors =
+                view.findViewById(R.id.switch_hospital_auto_open_disinfection_doors);
+        androidx.appcompat.widget.SwitchCompat switchHospitalAutoOpenRoomDoors =
+                view.findViewById(R.id.switch_hospital_auto_open_room_doors);
+        com.weigao.robot.control.manager.HospitalDeliverySettingsManager hospitalSettingsManager =
+                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance();
 
-        int currentHospitalStay = com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
-                .getArrivalStayDuration();
+        int currentHospitalStay = hospitalSettingsManager.getArrivalStayDuration();
         currentHospitalStay = clampStay(currentHospitalStay);
         hospitalArrivalStaySeekBar.setMax(STAY_PROGRESS_MAX);
         hospitalArrivalStaySeekBar.setProgress(toStaySeekBarProgress(currentHospitalStay));
         hospitalArrivalStayValue.setText(String.format("%d s", currentHospitalStay));
 
-        switchHospitalArrivalStayEnabled.setChecked(
-                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
-                        .isArrivalStayEnabled());
+        switchHospitalArrivalStayEnabled.setChecked(hospitalSettingsManager.isArrivalStayEnabled());
         switchHospitalArrivalStayEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) {
                 return;
             }
-            com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
-                    .setArrivalStayEnabled(isChecked);
+            hospitalSettingsManager.setArrivalStayEnabled(isChecked);
+        });
+
+        switchHospitalAutoOpenDisinfectionDoors.setChecked(
+                hospitalSettingsManager.isAutoOpenDoorsAtDisinfectionEnabled());
+        switchHospitalAutoOpenDisinfectionDoors.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
+            }
+            hospitalSettingsManager.setAutoOpenDoorsAtDisinfectionEnabled(isChecked);
+        });
+
+        switchHospitalAutoOpenRoomDoors.setChecked(hospitalSettingsManager.isAutoOpenDoorsAtRoomEnabled());
+        switchHospitalAutoOpenRoomDoors.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
+            }
+            hospitalSettingsManager.setAutoOpenDoorsAtRoomEnabled(isChecked);
         });
 
         hospitalArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -367,8 +386,7 @@ public class BasicSettingsFragment extends Fragment {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 int stay = toStayValue(seekBar.getProgress());
-                com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
-                        .setArrivalStayDuration(stay);
+                hospitalSettingsManager.setArrivalStayDuration(stay);
             }
         });
 

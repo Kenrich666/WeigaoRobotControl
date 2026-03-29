@@ -738,6 +738,8 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             if (btnDoorToggle != null) {
                 btnDoorToggle.setVisibility(View.VISIBLE);
                 updateDoorToggleButton();
+            }
+            if (shouldAutoOpenDoorsAtDisinfection()) {
                 autoOpenDisinfectionDoors();
             }
             Toast.makeText(this, "已到达消毒间，请分配 L1/L2/L3 后继续", Toast.LENGTH_SHORT).show();
@@ -900,9 +902,9 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
 
     private void showLayerAssignmentDialog(HospitalDeliveryTask task) {
         String[] labels = {"L1", "L2", "L3", "清除分配"};
-        new AlertDialog.Builder(this)
+        AlertDialog assignmentDialog = new AlertDialog.Builder(this)
                 .setTitle(task.getRoomNode().getName() + " - " + task.getItemName())
-                .setItems(labels, (dialog, which) -> {
+                .setItems(labels, (dialogInterface, which) -> {
                     if (which == 3) {
                         task.setAssignedLayer(HospitalDeliveryTask.UNASSIGNED_LAYER);
                         populateTaskSummaryTable();
@@ -916,7 +918,11 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
                     task.setAssignedLayer(selectedLayer);
                     populateTaskSummaryTable();
                 })
-                .show();
+                .create();
+        assignmentDialog.setOnShowListener(ignored -> applyFullScreenToDialog(assignmentDialog));
+        assignmentDialog.setOnDismissListener(ignored -> reapplyFullScreenIfNeeded());
+        assignmentDialog.show();
+        applyFullScreenToDialog(assignmentDialog);
     }
     private void populateTaskSummaryTable() {
         if (tableTaskSummary == null) {
@@ -1167,6 +1173,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
         tvSubtitle.setText("请当心");
 
         doorOperationDialog.show();
+        applyFullScreenToDialog(doorOperationDialog);
 
         new Handler().postDelayed(this::dismissDoorOperationDialog, 3000);
     }
@@ -1176,6 +1183,7 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
             doorOperationDialog.dismiss();
         }
         doorOperationDialog = null;
+        reapplyFullScreenIfNeeded();
     }
 
     @Override
@@ -1402,6 +1410,51 @@ public class HospitalDeliveryNavigationActivity extends AppCompatActivity implem
     private boolean isHospitalProjectionDoorEnabled() {
         return AppSettingsManager.getInstance()
                 .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL);
+    }
+
+    private boolean shouldAutoOpenDoorsAtDisinfection() {
+        return HospitalDeliverySettingsManager.getInstance().isAutoOpenDoorsAtDisinfectionEnabled();
+    }
+
+    private void applyFullScreenToDialog(android.app.Dialog dialog) {
+        if (dialog == null) {
+            return;
+        }
+        if (!AppSettingsManager.getInstance().isFullScreen()) {
+            return;
+        }
+
+        android.view.Window window = dialog.getWindow();
+        if (window == null) {
+            return;
+        }
+
+        window.getDecorView().post(() -> hideSystemBars(window));
+        window.getDecorView().postDelayed(() -> hideSystemBars(window), 60L);
+    }
+
+    private void hideSystemBars(android.view.Window window) {
+        if (window == null) {
+            return;
+        }
+        try {
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false);
+            androidx.core.view.WindowInsetsControllerCompat controller =
+                    new androidx.core.view.WindowInsetsControllerCompat(window, window.getDecorView());
+            controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+            controller.setSystemBarsBehavior(
+                    androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        } catch (Exception e) {
+            Log.w(TAG, "hideSystemBars failed", e);
+        }
+    }
+
+    private void reapplyFullScreenIfNeeded() {
+        if (!AppSettingsManager.getInstance().isFullScreen()) {
+            return;
+        }
+        getWindow().getDecorView().post(() ->
+                com.weigao.robot.control.app.WeigaoApplication.applyFullScreen(this));
     }
 
     private void pauseProjectionDoorForMovementIfNeeded() {

@@ -22,6 +22,7 @@ import com.weigao.robot.control.app.WeigaoApplication;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IResultCallback;
 import com.weigao.robot.control.manager.HospitalDeliveryManager;
+import com.weigao.robot.control.manager.HospitalDeliverySettingsManager;
 import com.weigao.robot.control.manager.ItemDeliveryManager;
 import com.weigao.robot.control.model.HospitalDeliveryTask;
 import com.weigao.robot.control.model.ItemDeliveryRecord;
@@ -223,7 +224,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
             btnOpenCabin.setEnabled(false);
             if (!isConfirmState) {
                 if (isHospitalMode()) {
-                    autoOpenCabinWithoutVerification();
+                    openCabinWithoutVerification();
                 } else {
                     Toast.makeText(this, "请先验证密码", Toast.LENGTH_SHORT).show();
                     Intent intent = new Intent(this, PasswordActivity.class);
@@ -401,10 +402,17 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
     }
 
     private void autoOpenCabinWithoutVerification() {
-        if (!isHospitalMode() || doorService == null || isCabinOpeningInProgress) {
+        if (!isHospitalMode()
+                || !shouldAutoOpenHospitalRoomDoorsOnArrival()
+                || doorService == null
+                || isCabinOpeningInProgress) {
             return;
         }
         openCabinWithoutVerification();
+    }
+
+    private boolean shouldAutoOpenHospitalRoomDoorsOnArrival() {
+        return HospitalDeliverySettingsManager.getInstance().isAutoOpenDoorsAtRoomEnabled();
     }
 
     private void openCabinWithoutVerification() {

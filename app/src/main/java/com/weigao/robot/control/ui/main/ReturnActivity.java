@@ -41,6 +41,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
     private static final String TAG = "ReturnActivity";
     private static final int REQUEST_CODE_END_NAVIGATION_PASSWORD = 1001;
+    private static final int SOURCE_MODE_DELIVERY = 1;
+    private static final int SOURCE_MODE_LOOP = 2;
+    private static final int SOURCE_MODE_HOSPITAL = 3;
 
     // 控件
     private LinearLayout llControls;
@@ -59,7 +62,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     private long lastPauseTime = 0;
     private int pauseRetryCount = 0;
     private com.weigao.robot.control.service.IAudioService audioService;
-    private int sourceMode = 1; // 1: Delivery, 2: Loop
+    private int sourceMode = SOURCE_MODE_DELIVERY;
     private boolean handoffToLowBatteryAutoCharge;
 
     @Override
@@ -73,7 +76,8 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
         setupButtons();
 
         // 获取源模式
-        sourceMode = getIntent().getIntExtra("return_source_mode", 1);
+        sourceMode = getIntent().getIntExtra("return_source_mode", SOURCE_MODE_DELIVERY);
+        pauseProjectionDoorForReturnIfNeeded();
         TaskExecutionStateManager.getInstance().finishTask();
 
         // 延迟一点启动，给UI渲染时间
@@ -216,9 +220,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
 
         // 确定目标点：直接返回原点
         NavigationNode targetNode = null;
-        if (sourceMode == 3) {
+        if (sourceMode == SOURCE_MODE_HOSPITAL) {
             targetNode = findHospitalReturnTarget();
-        } else if (sourceMode == 2) {
+        } else if (sourceMode == SOURCE_MODE_LOOP) {
             targetNode = findCircularReturnTarget();
         } else if (DeliveryActivity.originPoints != null && !DeliveryActivity.originPoints.isEmpty()) {
             targetNode = findItemReturnTarget();
@@ -251,8 +255,7 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 // 2. 设置速度
                 int speed = getIntent().getIntExtra("return_speed", -1);
                 if (speed == -1) {
-                    speed = com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
-                            .getReturnSpeed();
+                    speed = getConfiguredReturnSpeed();
                 }
                 navigationService.setSpeed(speed, new IResultCallback<Void>() {
                     @Override
@@ -536,22 +539,40 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
     }
 
     private void maybeEnableProjectionDoorWhenIdleAfterReturn() {
-        if (sourceMode == 3) {
-            return;
-        }
         if (TaskExecutionStateManager.getInstance().hasActiveTask()) {
             return;
         }
-        boolean enabled = sourceMode == 2
+        boolean enabled = sourceMode == SOURCE_MODE_LOOP
                 ? AppSettingsManager.getInstance()
                         .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)
-                : AppSettingsManager.getInstance()
-                        .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM);
+                : sourceMode == SOURCE_MODE_HOSPITAL
+                        ? AppSettingsManager.getInstance()
+                                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL)
+                        : AppSettingsManager.getInstance()
+                                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM);
         if (!enabled) {
             return;
         }
         Log.d(TAG, "【投影灯】返航结束后机器人处于非任务待机态，自动开启脚踩投影灯检测");
         ProjectionDoorService.getInstance().startContinuousDetection();
+    }
+
+    private void pauseProjectionDoorForReturnIfNeeded() {
+        boolean enabled = sourceMode == SOURCE_MODE_LOOP
+                ? AppSettingsManager.getInstance()
+                        .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.CIRCULAR)
+                : sourceMode == SOURCE_MODE_HOSPITAL
+                        ? AppSettingsManager.getInstance()
+                                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL)
+                        : sourceMode == SOURCE_MODE_DELIVERY
+                                && AppSettingsManager.getInstance()
+                                        .isProjectionDoorEnabled(
+                                                com.weigao.robot.control.manager.ProjectionDoorMode.ITEM);
+        if (!enabled) {
+            return;
+        }
+        Log.d(TAG, "【投影灯】返航开始前关闭投影灯并暂停脚踩检测");
+        ProjectionDoorService.getInstance().pauseForMovement();
     }
 
     @Override
@@ -577,9 +598,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
                     if (config != null) {
-                        boolean enabled = (sourceMode == 2) ? config.isLoopMusicEnabled() : config.isDeliveryMusicEnabled();
-                        String path = (sourceMode == 2) ? config.getLoopMusicPath() : config.getDeliveryMusicPath();
-                        
+                        boolean enabled = isReturnMusicEnabled(config);
+                        String path = getReturnMusicPath(config);
+
                         if (enabled && !android.text.TextUtils.isEmpty(path)) {
                             audioService.playBackgroundMusic(path, true, null);
                         }
@@ -596,14 +617,9 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 @Override
                 public void onSuccess(com.weigao.robot.control.model.AudioConfig config) {
                     if (config != null) {
-                        boolean enabled = (sourceMode == 2) ? config.isLoopVoiceEnabled() : config.isDeliveryVoiceEnabled();
+                        boolean enabled = isReturnVoiceEnabled(config);
                         if (enabled) {
-                            String path;
-                            if (sourceMode == 2) {
-                                path = isArrival ? config.getLoopArrivalVoicePath() : config.getLoopNavigatingVoicePath();
-                            } else {
-                                path = isArrival ? config.getDeliveryArrivalVoicePath() : config.getDeliveryNavigatingVoicePath();
-                            }
+                            String path = getReturnVoicePath(config, isArrival);
                             if (!android.text.TextUtils.isEmpty(path)) {
                                 audioService.playVoice(path, null);
                             }
@@ -612,6 +628,69 @@ public class ReturnActivity extends AppCompatActivity implements INavigationCall
                 }
                 @Override public void onError(ApiError e) {}
             });
+        }
+    }
+
+    private int getConfiguredReturnSpeed() {
+        switch (sourceMode) {
+            case SOURCE_MODE_LOOP:
+                return com.weigao.robot.control.manager.CircularDeliverySettingsManager.getInstance()
+                        .getReturnSpeed();
+            case SOURCE_MODE_HOSPITAL:
+                return com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance()
+                        .getReturnSpeed();
+            case SOURCE_MODE_DELIVERY:
+            default:
+                return com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance()
+                        .getReturnSpeed();
+        }
+    }
+
+    private boolean isReturnMusicEnabled(com.weigao.robot.control.model.AudioConfig config) {
+        switch (sourceMode) {
+            case SOURCE_MODE_LOOP:
+                return config.isLoopMusicEnabled();
+            case SOURCE_MODE_HOSPITAL:
+                return config.isHospitalMusicEnabled();
+            case SOURCE_MODE_DELIVERY:
+            default:
+                return config.isDeliveryMusicEnabled();
+        }
+    }
+
+    private String getReturnMusicPath(com.weigao.robot.control.model.AudioConfig config) {
+        switch (sourceMode) {
+            case SOURCE_MODE_LOOP:
+                return config.getLoopMusicPath();
+            case SOURCE_MODE_HOSPITAL:
+                return config.getHospitalMusicPath();
+            case SOURCE_MODE_DELIVERY:
+            default:
+                return config.getDeliveryMusicPath();
+        }
+    }
+
+    private boolean isReturnVoiceEnabled(com.weigao.robot.control.model.AudioConfig config) {
+        switch (sourceMode) {
+            case SOURCE_MODE_LOOP:
+                return config.isLoopVoiceEnabled();
+            case SOURCE_MODE_HOSPITAL:
+                return config.isHospitalVoiceEnabled();
+            case SOURCE_MODE_DELIVERY:
+            default:
+                return config.isDeliveryVoiceEnabled();
+        }
+    }
+
+    private String getReturnVoicePath(com.weigao.robot.control.model.AudioConfig config, boolean isArrival) {
+        switch (sourceMode) {
+            case SOURCE_MODE_LOOP:
+                return isArrival ? config.getLoopArrivalVoicePath() : config.getLoopNavigatingVoicePath();
+            case SOURCE_MODE_HOSPITAL:
+                return isArrival ? config.getHospitalArrivalVoicePath() : config.getHospitalNavigatingVoicePath();
+            case SOURCE_MODE_DELIVERY:
+            default:
+                return isArrival ? config.getDeliveryArrivalVoicePath() : config.getDeliveryNavigatingVoicePath();
         }
     }
 

@@ -678,6 +678,7 @@ public class DeliveryActivity extends AppCompatActivity {
      * 执行返航操作
      */
     private void performReturnOperation() {
+        pauseProjectionDoorForMovementIfNeeded();
         Intent intent = new Intent(this, ReturnActivity.class);
         intent.putExtra("return_speed",
                 com.weigao.robot.control.manager.ItemDeliverySettingsManager.getInstance().getReturnSpeed());
@@ -723,7 +724,7 @@ public class DeliveryActivity extends AppCompatActivity {
         // 记录开始配送时间
         ItemDeliveryManager.getInstance().startDelivery();
         TaskExecutionStateManager.getInstance().startTask(TaskType.ITEM_DELIVERY);
-        pauseProjectionDoorForTaskStartIfNeeded();
+        pauseProjectionDoorForMovementIfNeeded();
 
         Intent intent = new Intent(this, DeliveryNavigationActivity.class);
         intent.putExtra("pairings", pairings);
@@ -744,7 +745,7 @@ public class DeliveryActivity extends AppCompatActivity {
         ProjectionDoorService.getInstance().startContinuousDetection();
     }
 
-    private void pauseProjectionDoorForTaskStartIfNeeded() {
+    private void pauseProjectionDoorForMovementIfNeeded() {
         if (AppSettingsManager.getInstance()
                 .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.ITEM)) {
             ProjectionDoorService.getInstance().pauseForMovement();

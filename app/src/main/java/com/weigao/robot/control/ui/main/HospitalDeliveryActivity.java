@@ -28,6 +28,7 @@ import com.weigao.robot.control.R;
 import com.weigao.robot.control.callback.ApiError;
 import com.weigao.robot.control.callback.IDoorCallback;
 import com.weigao.robot.control.callback.IResultCallback;
+import com.weigao.robot.control.manager.AppSettingsManager;
 import com.weigao.robot.control.manager.HospitalDeliveryManager;
 import com.weigao.robot.control.manager.HospitalItemPresetManager;
 import com.weigao.robot.control.manager.TaskExecutionStateManager;
@@ -107,9 +108,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         bindItemPresetList();
-        if (!TaskExecutionStateManager.getInstance().hasActiveTask()) {
-            ProjectionDoorService.getInstance().pauseForMovement();
-        }
+        maybeEnableProjectionDoorWhenIdle();
     }
 
     private void bindCommonActions() {
@@ -517,6 +516,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     }
 
     private void performReturnOperation() {
+        pauseProjectionDoorForMovementIfNeeded();
         Intent intent = new Intent(this, ReturnActivity.class);
         intent.putExtra("return_source_mode", 3);
         intent.putExtra("return_speed",
@@ -604,11 +604,29 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
                 + ", tasks=" + taskSummary);
         HospitalDeliveryManager.getInstance().startDelivery();
         TaskExecutionStateManager.getInstance().startTask(TaskType.HOSPITAL_DELIVERY);
-        ProjectionDoorService.getInstance().pauseForMovement();
+        pauseProjectionDoorForMovementIfNeeded();
         Intent intent = new Intent(this, HospitalDeliveryNavigationActivity.class);
         intent.putExtra("hospital_tasks", new ArrayList<>(hospitalTasks));
         intent.putExtra("disinfection_node", disinfectionPoints.get(0));
         startActivityForResult(intent, REQUEST_HOSPITAL_DELIVERY_NAVIGATION);
+    }
+
+    private void maybeEnableProjectionDoorWhenIdle() {
+        if (TaskExecutionStateManager.getInstance().hasActiveTask()) {
+            return;
+        }
+        if (!AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL)) {
+            return;
+        }
+        ProjectionDoorService.getInstance().startContinuousDetection();
+    }
+
+    private void pauseProjectionDoorForMovementIfNeeded() {
+        if (AppSettingsManager.getInstance()
+                .isProjectionDoorEnabled(com.weigao.robot.control.manager.ProjectionDoorMode.HOSPITAL)) {
+            ProjectionDoorService.getInstance().pauseForMovement();
+        }
     }
 
     private boolean isActivityAlive() {
