@@ -403,7 +403,7 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
 
     private void autoOpenCabinWithoutVerification() {
         if (!isHospitalMode()
-                || !shouldAutoOpenHospitalDoorsOnArrival()
+                || !shouldAutoOpenHospitalRoomDoorsOnArrival()
                 || doorService == null
                 || isCabinOpeningInProgress) {
             return;
@@ -411,8 +411,8 @@ public class ConfirmReceiptActivity extends AppCompatActivity {
         openCabinWithoutVerification();
     }
 
-    private boolean shouldAutoOpenHospitalDoorsOnArrival() {
-        return HospitalDeliverySettingsManager.getInstance().isAutoOpenDoorsOnArrivalEnabled();
+    private boolean shouldAutoOpenHospitalRoomDoorsOnArrival() {
+        return HospitalDeliverySettingsManager.getInstance().isAutoOpenDoorsAtRoomEnabled();
     }
 
     private void openCabinWithoutVerification() {

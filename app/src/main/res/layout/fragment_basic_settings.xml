@@ -441,12 +441,35 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="到达消毒间/诊室自动开门"
+                            android:text="到达消毒间自动开门"
                             android:textColor="@color/medical_text_secondary"
                             android:textSize="16sp" />
 
                         <androidx.appcompat.widget.SwitchCompat
-                            android:id="@+id/switch_hospital_auto_open_doors"
+                            android:id="@+id/switch_hospital_auto_open_disinfection_doors"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/medical_primary"
+                            app:trackTint="@color/medical_divider" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="到达诊室自动开门"
+                            android:textColor="@color/medical_text_secondary"
+                            android:textSize="16sp" />
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/switch_hospital_auto_open_room_doors"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             app:thumbTint="@color/medical_primary"

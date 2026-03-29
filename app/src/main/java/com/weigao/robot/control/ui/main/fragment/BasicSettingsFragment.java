@@ -334,8 +334,10 @@ public class BasicSettingsFragment extends Fragment {
         TextView hospitalArrivalStayValue = view.findViewById(R.id.tv_hospital_arrival_stay_value);
         androidx.appcompat.widget.SwitchCompat switchHospitalArrivalStayEnabled =
                 view.findViewById(R.id.switch_hospital_arrival_stay_enabled);
-        androidx.appcompat.widget.SwitchCompat switchHospitalAutoOpenDoors =
-                view.findViewById(R.id.switch_hospital_auto_open_doors);
+        androidx.appcompat.widget.SwitchCompat switchHospitalAutoOpenDisinfectionDoors =
+                view.findViewById(R.id.switch_hospital_auto_open_disinfection_doors);
+        androidx.appcompat.widget.SwitchCompat switchHospitalAutoOpenRoomDoors =
+                view.findViewById(R.id.switch_hospital_auto_open_room_doors);
         com.weigao.robot.control.manager.HospitalDeliverySettingsManager hospitalSettingsManager =
                 com.weigao.robot.control.manager.HospitalDeliverySettingsManager.getInstance();
 
@@ -353,12 +355,21 @@ public class BasicSettingsFragment extends Fragment {
             hospitalSettingsManager.setArrivalStayEnabled(isChecked);
         });
 
-        switchHospitalAutoOpenDoors.setChecked(hospitalSettingsManager.isAutoOpenDoorsOnArrivalEnabled());
-        switchHospitalAutoOpenDoors.setOnCheckedChangeListener((buttonView, isChecked) -> {
+        switchHospitalAutoOpenDisinfectionDoors.setChecked(
+                hospitalSettingsManager.isAutoOpenDoorsAtDisinfectionEnabled());
+        switchHospitalAutoOpenDisinfectionDoors.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!buttonView.isPressed()) {
                 return;
             }
-            hospitalSettingsManager.setAutoOpenDoorsOnArrivalEnabled(isChecked);
+            hospitalSettingsManager.setAutoOpenDoorsAtDisinfectionEnabled(isChecked);
+        });
+
+        switchHospitalAutoOpenRoomDoors.setChecked(hospitalSettingsManager.isAutoOpenDoorsAtRoomEnabled());
+        switchHospitalAutoOpenRoomDoors.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!buttonView.isPressed()) {
+                return;
+            }
+            hospitalSettingsManager.setAutoOpenDoorsAtRoomEnabled(isChecked);
         });
 
         hospitalArrivalStaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
