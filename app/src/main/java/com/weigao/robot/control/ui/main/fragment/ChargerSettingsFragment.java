@@ -19,6 +19,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
 
@@ -35,12 +36,18 @@ import com.weigao.robot.control.manager.WorkScheduleService;
 import com.weigao.robot.control.manager.WorkScheduleSettingsManager;
 import com.weigao.robot.control.manager.WorkScheduleValidator;
 import com.weigao.robot.control.model.ChargingState;
+import com.weigao.robot.control.model.NavigationNode;
 import com.weigao.robot.control.model.RobotState;
 import com.weigao.robot.control.model.WorkSchedule;
 import com.weigao.robot.control.service.IChargerService;
 import com.weigao.robot.control.service.IRobotStateService;
 import com.weigao.robot.control.service.ServiceManager;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -74,6 +81,8 @@ public class ChargerSettingsFragment extends Fragment {
 
     private LinearLayout scheduleContainer;
     private View btnAddSchedule;
+    private final List<NavigationNode> availableWorkStartPoints = new ArrayList<>();
+    private NavigationNode defaultOriginPoint;
 
     private static final int[] DAY_BUTTON_IDS = {
             R.id.btn_day_mon, R.id.btn_day_tue, R.id.btn_day_wed,
@@ -443,6 +452,7 @@ public class ChargerSettingsFragment extends Fragment {
         btnAddSchedule = rootView.findViewById(R.id.btn_add_schedule);
 
         refreshAllScheduleItems();
+        loadAvailableWorkStartPoints();
 
         btnAddSchedule.setOnClickListener(v -> {
             WorkScheduleSettingsManager manager = WorkScheduleSettingsManager.getInstance();
@@ -583,6 +593,17 @@ public class ChargerSettingsFragment extends Fragment {
             });
         });
 
+        TextView tvWorkStartPoint = itemView.findViewById(R.id.tv_work_start_point);
+        if (tvWorkStartPoint != null) {
+            tvWorkStartPoint.setOnClickListener(v -> {
+                int currentIndex = scheduleContainer.indexOfChild(itemView);
+                if (currentIndex < 0) {
+                    return;
+                }
+                showWorkStartPointDialog(itemView, currentIndex);
+            });
+        }
+
         boolean[] workDays = initialSchedule.getWorkDays();
         for (int d = 0; d < DAY_BUTTON_IDS.length; d++) {
             MaterialButton dayBtn = itemView.findViewById(DAY_BUTTON_IDS[d]);
@@ -648,6 +669,11 @@ public class ChargerSettingsFragment extends Fragment {
             tvEndTime.setText(schedule.getEndTime());
         }
 
+        TextView tvWorkStartPoint = itemView.findViewById(R.id.tv_work_start_point);
+        if (tvWorkStartPoint != null) {
+            tvWorkStartPoint.setText(formatWorkStartPointText(schedule));
+        }
+
         View llMainContent = itemView.findViewById(R.id.ll_main_content);
         if (llMainContent != null) {
             updateScheduleItemAlpha(llMainContent, schedule.isEnabled());
@@ -669,7 +695,163 @@ public class ChargerSettingsFragment extends Fragment {
                 source.isEnabled(),
                 source.getStartTime(),
                 source.getEndTime(),
-                workDays != null ? workDays.clone() : null);
+                workDays != null ? workDays.clone() : null,
+                source.getWorkStartPointId(),
+                source.getWorkStartPointName());
+    }
+
+    private void loadAvailableWorkStartPoints() {
+        if (robotStateService == null) {
+            return;
+        }
+
+        robotStateService.getDestinationList(new IResultCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                new Thread(() -> {
+                    List<NavigationNode> loadedPoints = new ArrayList<>();
+                    NavigationNode loadedOrigin = null;
+                    try {
+                        JSONObject resultObject = new JSONObject(result);
+                        JSONArray data = resultObject.optJSONArray("data");
+                        if (data != null) {
+                            for (int i = 0; i < data.length(); i++) {
+                                JSONObject obj = data.optJSONObject(i);
+                                if (obj == null) {
+                                    continue;
+                                }
+                                NavigationNode node = buildNavigationNode(obj);
+                                loadedPoints.add(node);
+                                if (loadedOrigin == null && "origin".equals(obj.optString("type"))) {
+                                    loadedOrigin = node;
+                                }
+                            }
+                        }
+                    } catch (JSONException e) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> Toast.makeText(
+                                    getContext(),
+                                    "解析点位列表失败",
+                                    Toast.LENGTH_SHORT).show());
+                        }
+                        return;
+                    }
+
+                    if (getActivity() != null) {
+                        NavigationNode finalLoadedOrigin = loadedOrigin;
+                        getActivity().runOnUiThread(() -> {
+                            availableWorkStartPoints.clear();
+                            availableWorkStartPoints.addAll(loadedPoints);
+                            defaultOriginPoint = finalLoadedOrigin;
+                            refreshAllScheduleItemsState();
+                        });
+                    }
+                }).start();
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> Toast.makeText(
+                            getContext(),
+                            "获取点位列表失败: " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show());
+                }
+            }
+        });
+    }
+
+    private void showWorkStartPointDialog(View itemView, int scheduleIndex) {
+        if (getContext() == null) {
+            return;
+        }
+        if (scheduleIndex < 0) {
+            return;
+        }
+        if (availableWorkStartPoints.isEmpty()) {
+            Toast.makeText(getContext(), "暂无可选点位，请稍后重试", Toast.LENGTH_SHORT).show();
+            loadAvailableWorkStartPoints();
+            return;
+        }
+
+        WorkScheduleSettingsManager manager = WorkScheduleSettingsManager.getInstance();
+        WorkSchedule currentSchedule = manager.getSchedule(scheduleIndex);
+        List<NavigationNode> selectablePoints = new ArrayList<>();
+        for (NavigationNode node : availableWorkStartPoints) {
+            if (defaultOriginPoint != null && node.getId() == defaultOriginPoint.getId()) {
+                continue;
+            }
+            selectablePoints.add(node);
+        }
+
+        String[] options = new String[selectablePoints.size() + 1];
+        options[0] = formatDefaultOriginOptionText();
+        int checkedItem = 0;
+
+        for (int i = 0; i < selectablePoints.size(); i++) {
+            NavigationNode node = selectablePoints.get(i);
+            options[i + 1] = node.getName();
+            if (node.getId() == currentSchedule.getWorkStartPointId()) {
+                checkedItem = i + 1;
+            }
+        }
+
+        new AlertDialog.Builder(getContext())
+                .setTitle("选择上班点位")
+                .setSingleChoiceItems(options, checkedItem, (dialog, which) -> {
+                    WorkSchedule candidate = copySchedule(manager.getSchedule(scheduleIndex));
+                    if (which == 0) {
+                        candidate.setWorkStartPointId(-1);
+                        candidate.setWorkStartPointName("");
+                    } else {
+                        NavigationNode selectedNode = selectablePoints.get(which - 1);
+                        candidate.setWorkStartPointId(selectedNode.getId());
+                        candidate.setWorkStartPointName(selectedNode.getName());
+                    }
+                    applyScheduleChange(itemView, scheduleIndex, candidate);
+                    dialog.dismiss();
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private String formatWorkStartPointText(WorkSchedule schedule) {
+        if (schedule == null) {
+            return formatDefaultOriginOptionText();
+        }
+        int pointId = schedule.getWorkStartPointId();
+        if (pointId != -1) {
+            for (NavigationNode node : availableWorkStartPoints) {
+                if (node.getId() == pointId) {
+                    return node.getName();
+                }
+            }
+            if (schedule.getWorkStartPointName() != null && !schedule.getWorkStartPointName().isEmpty()) {
+                return schedule.getWorkStartPointName();
+            }
+        }
+        return formatDefaultOriginOptionText();
+    }
+
+    private String formatDefaultOriginOptionText() {
+        if (defaultOriginPoint != null && defaultOriginPoint.getName() != null
+                && !defaultOriginPoint.getName().trim().isEmpty()) {
+            return defaultOriginPoint.getName() + "（默认）";
+        }
+        return "原点（默认）";
+    }
+
+    private NavigationNode buildNavigationNode(JSONObject obj) {
+        NavigationNode node = new NavigationNode();
+        int id = obj.optInt("id");
+        String name = obj.optString("name");
+        if (name == null || name.trim().isEmpty()) {
+            name = String.valueOf(id);
+        }
+        node.setId(id);
+        node.setName(name);
+        node.setFloor(obj.optInt("floor"));
+        return node;
     }
 
     private void showScheduleValidationToast(WorkScheduleValidator.ValidationResult result) {

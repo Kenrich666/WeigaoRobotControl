@@ -299,8 +299,10 @@ public class WorkScheduleService {
     }
 
     private void executeWorkStart(int scheduleIndex) {
-        Log.i(TAG, "执行上班动作: 时段 " + (scheduleIndex + 1) + " -> 自动前往原点");
-        Log.i(TAG, "【上班时间】时段 " + (scheduleIndex + 1) + " 触发 → 自动前往原点");
+        WorkSchedule schedule = WorkScheduleSettingsManager.getInstance().getSchedule(scheduleIndex);
+        String targetLabel = getWorkStartTargetLabel(schedule);
+        Log.i(TAG, "执行上班动作: 时段 " + (scheduleIndex + 1) + " -> 自动前往" + targetLabel);
+        Log.i(TAG, "【上班时间】时段 " + (scheduleIndex + 1) + " 触发 → 自动前往" + targetLabel);
 
         IChargerService chargerService = ServiceManager.getInstance().getChargerService();
         if (chargerService != null) {
@@ -308,44 +310,44 @@ public class WorkScheduleService {
             chargerService.stopCharge(new IResultCallback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    Log.d(TAG, "停止充电成功，准备导航到原点");
-                    navigateToOrigin();
+                    Log.d(TAG, "停止充电成功，准备导航到上班点位");
+                    navigateToWorkStartPoint(scheduleIndex);
                 }
 
                 @Override
                 public void onError(ApiError error) {
                     Log.w(TAG, "停止充电失败（可能不在充电中）: " + error.getMessage());
                     // 仍然尝试导航
-                    navigateToOrigin();
+                    navigateToWorkStartPoint(scheduleIndex);
                 }
             });
         } else {
-            navigateToOrigin();
+            navigateToWorkStartPoint(scheduleIndex);
         }
     }
 
     /**
-     * 导航到原点
+     * 导航到上班点位，未配置时回退到原点
      */
-    private void navigateToOrigin() {
+    private void navigateToWorkStartPoint(int scheduleIndex) {
         INavigationService navigationService = ServiceManager.getInstance().getNavigationService();
         if (navigationService == null) {
-            Log.e(TAG, "Navigation service unavailable, cannot go to origin.");
+            Log.e(TAG, "Navigation service unavailable, cannot navigate to work-start point.");
             return;
         }
 
-        loadOriginNode(new IResultCallback<NavigationNode>() {
+        loadWorkStartNode(scheduleIndex, new IResultCallback<NavigationNode>() {
             @Override
-            public void onSuccess(NavigationNode originNode) {
-                if (originNode == null) {
-                    Log.e(TAG, "Origin node not found.");
+            public void onSuccess(NavigationNode targetNode) {
+                if (targetNode == null) {
+                    Log.e(TAG, "Work-start target node not found.");
                     return;
                 }
 
                 List<NavigationNode> targets = new ArrayList<>();
-                targets.add(originNode);
+                targets.add(targetNode);
 
-                final String nodeName = originNode.getName();
+                final String nodeName = targetNode.getName();
                 registerWorkStartNavigationCallback(navigationService);
                 navigationService.setTargetNodes(targets, new IResultCallback<Void>() {
                     @Override
@@ -356,14 +358,14 @@ public class WorkScheduleService {
                                 navigationService.start(new IResultCallback<Void>() {
                                     @Override
                                     public void onSuccess(Void result) {
-                                        Log.i(TAG, "Work schedule navigation to origin started: " + nodeName);
+                                        Log.i(TAG, "Work schedule navigation started: " + nodeName);
                                     }
 
                                     @Override
                                     public void onError(ApiError error) {
                                         pendingReturnToMainAfterWorkStart = false;
                                         unregisterWorkStartNavigationCallback();
-                                        Log.e(TAG, "Failed to start navigation to origin: " + error.getMessage());
+                                        Log.e(TAG, "Failed to start work-start navigation: " + error.getMessage());
                                     }
                                 });
                             }
@@ -372,7 +374,7 @@ public class WorkScheduleService {
                             public void onError(ApiError error) {
                                 pendingReturnToMainAfterWorkStart = false;
                                 unregisterWorkStartNavigationCallback();
-                                Log.e(TAG, "Failed to prepare navigation to origin: " + error.getMessage());
+                                Log.e(TAG, "Failed to prepare work-start navigation: " + error.getMessage());
                             }
                         });
                     }
@@ -381,14 +383,50 @@ public class WorkScheduleService {
                     public void onError(ApiError error) {
                         pendingReturnToMainAfterWorkStart = false;
                         unregisterWorkStartNavigationCallback();
-                        Log.e(TAG, "Failed to set origin navigation target: " + error.getMessage());
+                        Log.e(TAG, "Failed to set work-start navigation target: " + error.getMessage());
                     }
                 });
             }
 
             @Override
             public void onError(ApiError error) {
-                Log.e(TAG, "Failed to load origin node: " + error.getMessage());
+                Log.e(TAG, "Failed to load work-start node: " + error.getMessage());
+            }
+        });
+    }
+
+    private String getWorkStartTargetLabel(WorkSchedule schedule) {
+        if (schedule == null) {
+            return "原点";
+        }
+        String pointName = schedule.getWorkStartPointName();
+        if (schedule.getWorkStartPointId() != -1 && pointName != null && !pointName.trim().isEmpty()) {
+            return "点位 " + pointName;
+        }
+        return "原点";
+    }
+
+    private void loadWorkStartNode(int scheduleIndex, IResultCallback<NavigationNode> callback) {
+        IRobotStateService robotStateService = ServiceManager.getInstance().getRobotStateService();
+        if (robotStateService == null) {
+            callback.onError(new ApiError(-1, "robotStateService unavailable"));
+            return;
+        }
+
+        WorkSchedule schedule = WorkScheduleSettingsManager.getInstance().getSchedule(scheduleIndex);
+        robotStateService.getDestinationList(new IResultCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                try {
+                    callback.onSuccess(parseWorkStartNode(result, schedule));
+                } catch (JSONException e) {
+                    callback.onError(new ApiError(-1, e.getMessage()));
+                }
+            }
+
+            @Override
+            public void onError(ApiError error) {
+                callback.onError(error);
             }
         });
     }
@@ -415,6 +453,55 @@ public class WorkScheduleService {
                 callback.onError(error);
             }
         });
+    }
+
+    private NavigationNode parseWorkStartNode(String result, WorkSchedule schedule) throws JSONException {
+        if (result == null || result.isEmpty()) {
+            return null;
+        }
+
+        JSONObject resultObj = new JSONObject(result);
+        JSONArray jsonArray = resultObj.optJSONArray("data");
+        if (jsonArray == null) {
+            return null;
+        }
+
+        int targetId = schedule != null ? schedule.getWorkStartPointId() : -1;
+        String targetName = schedule != null ? schedule.getWorkStartPointName() : "";
+        NavigationNode originNode = null;
+        NavigationNode fallbackByName = null;
+
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject obj = jsonArray.optJSONObject(i);
+            if (obj == null) {
+                continue;
+            }
+
+            if ("origin".equals(obj.optString("type"))) {
+                originNode = buildNavigationNode(obj);
+            }
+
+            if (targetId != -1 && obj.optInt("id") == targetId) {
+                return buildNavigationNode(obj);
+            }
+
+            if (targetId != -1 && fallbackByName == null
+                    && targetName != null && !targetName.isEmpty()
+                    && targetName.equals(obj.optString("name"))) {
+                fallbackByName = buildNavigationNode(obj);
+            }
+        }
+
+        if (targetId != -1 && fallbackByName != null) {
+            Log.w(TAG, "Configured work-start point ID not found, fallback by name: " + targetName);
+            return fallbackByName;
+        }
+
+        if (targetId != -1) {
+            Log.w(TAG, "Configured work-start point not found, fallback to origin. id=" + targetId
+                    + ", name=" + targetName);
+        }
+        return originNode;
     }
 
     private NavigationNode parseOriginNode(String result) throws JSONException {
