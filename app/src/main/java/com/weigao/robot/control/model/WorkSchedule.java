@@ -27,18 +27,29 @@ public class WorkSchedule {
      */
     private boolean[] workDays;
 
+    /** 上班时前往的点位 ID，-1 表示使用默认原点 */
+    private int workStartPointId;
+
+    /** 上班时前往的点位名称 */
+    private String workStartPointName;
+
     public WorkSchedule() {
         this.enabled = false;
         this.startTime = "08:00";
         this.endTime = "17:00";
         this.workDays = new boolean[]{true, true, true, true, true, false, false}; // 默认周一至周五
+        this.workStartPointId = -1;
+        this.workStartPointName = "";
     }
 
-    public WorkSchedule(boolean enabled, String startTime, String endTime, boolean[] workDays) {
+    public WorkSchedule(boolean enabled, String startTime, String endTime, boolean[] workDays,
+            int workStartPointId, String workStartPointName) {
         this.enabled = enabled;
         this.startTime = startTime;
         this.endTime = endTime;
         this.workDays = workDays != null ? workDays : new boolean[7];
+        this.workStartPointId = workStartPointId;
+        this.workStartPointName = workStartPointName != null ? workStartPointName : "";
     }
 
     // ============ Getters & Setters ============
@@ -73,6 +84,22 @@ public class WorkSchedule {
 
     public void setWorkDays(boolean[] workDays) {
         this.workDays = workDays;
+    }
+
+    public int getWorkStartPointId() {
+        return workStartPointId;
+    }
+
+    public void setWorkStartPointId(int workStartPointId) {
+        this.workStartPointId = workStartPointId;
+    }
+
+    public String getWorkStartPointName() {
+        return workStartPointName;
+    }
+
+    public void setWorkStartPointName(String workStartPointName) {
+        this.workStartPointName = workStartPointName != null ? workStartPointName : "";
     }
 
     /**
@@ -131,6 +158,8 @@ public class WorkSchedule {
             daysArray.put(day);
         }
         json.put("work_days", daysArray);
+        json.put("work_start_point_id", workStartPointId);
+        json.put("work_start_point_name", workStartPointName);
         return json;
     }
 
@@ -148,6 +177,8 @@ public class WorkSchedule {
             }
             schedule.workDays = days;
         }
+        schedule.workStartPointId = json.optInt("work_start_point_id", -1);
+        schedule.workStartPointName = json.optString("work_start_point_name", "");
         return schedule;
     }
 

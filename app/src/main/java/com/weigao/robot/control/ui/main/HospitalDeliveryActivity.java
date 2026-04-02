@@ -70,8 +70,10 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     private TextView selectedRoomTextView;
     private TextView taskCountTextView;
     private TextView taskEmptyTextView;
-    private Button addTaskButton;
+    private Button clearAllTasksButton;
     private Button openDoorButton;
+    private ItemPresetAdapter itemPresetAdapter;
+    private PointAdapter pointAdapter;
     private TaskAdapter taskAdapter;
     private String selectedItemName;
     private NavigationNode selectedRoomNode;
@@ -108,6 +110,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         bindItemPresetList();
+        updateDraftSummary();
         maybeEnableProjectionDoorWhenIdle();
     }
 
@@ -123,8 +126,6 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         selectedRoomTextView = findViewById(R.id.tv_selected_room);
         taskCountTextView = findViewById(R.id.tv_task_count);
         taskEmptyTextView = findViewById(R.id.tv_task_empty);
-        addTaskButton = findViewById(R.id.btn_add_task);
-        addTaskButton.setOnClickListener(v -> addCurrentTask());
 
         openDoorButton = findViewById(R.id.open_door_button);
         openDoorButton.setOnClickListener(v -> {
@@ -217,6 +218,15 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
             Toast.makeText(this, "已移除任务: " + task.getItemName(), Toast.LENGTH_SHORT).show();
         });
         taskRecyclerView.setAdapter(taskAdapter);
+        clearAllTasksButton = findViewById(R.id.btn_clear_all_tasks);
+        clearAllTasksButton.setOnClickListener(v -> {
+            if (hospitalTasks.isEmpty()) {
+                return;
+            }
+            hospitalTasks.clear();
+            updateTaskListState();
+            Toast.makeText(this, "已清除全部任务", Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void bindItemPresetList() {
@@ -224,48 +234,55 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         presetRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
         List<String> presetItems = HospitalItemPresetManager.getInstance().getPresetItems();
-        presetRecyclerView.setAdapter(new ItemPresetAdapter(presetItems, preset -> {
+        itemPresetAdapter = new ItemPresetAdapter(presetItems, preset -> {
             selectedItemName = preset;
-            updateDraftSummary();
-            Toast.makeText(this, "已选择物品: " + preset, Toast.LENGTH_SHORT).show();
-        }));
+            if (!tryAutoAddCurrentTask()) {
+                updateDraftSummary();
+                Toast.makeText(this, "已选择物品: " + preset, Toast.LENGTH_SHORT).show();
+            }
+        });
+        presetRecyclerView.setAdapter(itemPresetAdapter);
+        itemPresetAdapter.setSelectedPreset(selectedItemName);
     }
 
     private void bindPointList() {
         RecyclerView pointsRecyclerView = findViewById(R.id.points_recyclerview);
         pointsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
-        PointAdapter adapter = new PointAdapter(availableRoomPoints, node -> {
+        pointAdapter = new PointAdapter(availableRoomPoints, node -> {
             selectedRoomNode = node;
-            updateDraftSummary();
-            Toast.makeText(this, "已选择房间: " + node.getName(), Toast.LENGTH_SHORT).show();
+            if (!tryAutoAddCurrentTask()) {
+                updateDraftSummary();
+                Toast.makeText(this, "已选择房间: " + node.getName(), Toast.LENGTH_SHORT).show();
+            }
         });
-        pointsRecyclerView.setAdapter(adapter);
-        getRealPoints(availableRoomPoints, adapter);
+        pointsRecyclerView.setAdapter(pointAdapter);
+        getRealPoints(availableRoomPoints, pointAdapter);
     }
 
     private void updateDraftSummary() {
         selectedItemTextView.setText("物品: " + (selectedItemName == null ? "未选择" : selectedItemName));
         selectedRoomTextView.setText("房间: " + (selectedRoomNode == null ? "未选择" : selectedRoomNode.getName()));
-        addTaskButton.setEnabled(selectedItemName != null
-                && selectedRoomNode != null
-                && hospitalTasks.size() < MAX_TASK_COUNT);
+        syncSelectionState();
     }
 
     private void updateTaskListState() {
         taskAdapter.notifyDataSetChanged();
         taskCountTextView.setText("已添加 " + hospitalTasks.size() + " / " + MAX_TASK_COUNT);
         taskEmptyTextView.setVisibility(hospitalTasks.isEmpty() ? View.VISIBLE : View.GONE);
+        if (clearAllTasksButton != null) {
+            clearAllTasksButton.setEnabled(!hospitalTasks.isEmpty());
+        }
         updateDraftSummary();
     }
 
-    private void addCurrentTask() {
+    private boolean tryAutoAddCurrentTask() {
         if (selectedItemName == null || selectedRoomNode == null) {
-            Toast.makeText(this, "请先同时选择物品和房间", Toast.LENGTH_SHORT).show();
-            return;
+            return false;
         }
         if (hospitalTasks.size() >= MAX_TASK_COUNT) {
-            Toast.makeText(this, "一次任务最多添加 3 个物品", Toast.LENGTH_SHORT).show();
-            return;
+            updateDraftSummary();
+            Toast.makeText(this, "一次最多添加 3 条任务", Toast.LENGTH_SHORT).show();
+            return true;
         }
 
         hospitalTasks.add(new HospitalDeliveryTask(selectedItemName, cloneNode(selectedRoomNode)));
@@ -273,6 +290,16 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         selectedRoomNode = null;
         updateTaskListState();
         Toast.makeText(this, "任务已加入待配送列表", Toast.LENGTH_SHORT).show();
+        return true;
+    }
+
+    private void syncSelectionState() {
+        if (itemPresetAdapter != null) {
+            itemPresetAdapter.setSelectedPreset(selectedItemName);
+        }
+        if (pointAdapter != null) {
+            pointAdapter.setSelectedPointId(selectedRoomNode == null ? null : selectedRoomNode.getId());
+        }
     }
 
     @Nullable
@@ -726,10 +753,16 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     private static class PointAdapter extends RecyclerView.Adapter<PointAdapter.PointViewHolder> {
         private final List<NavigationNode> points;
         private final OnPointClickListener listener;
+        private Integer selectedPointId;
 
         PointAdapter(List<NavigationNode> points, OnPointClickListener listener) {
             this.points = points;
             this.listener = listener;
+        }
+
+        void setSelectedPointId(@Nullable Integer selectedPointId) {
+            this.selectedPointId = selectedPointId;
+            notifyDataSetChanged();
         }
 
         @NonNull
@@ -742,6 +775,8 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull PointViewHolder holder, int position) {
             NavigationNode node = points.get(position);
             holder.pointButton.setText(node.getName());
+            bindGridButtonState(holder.pointButton,
+                    selectedPointId != null && selectedPointId == node.getId());
             holder.pointButton.setOnClickListener(v -> listener.onPointClick(node));
         }
 
@@ -767,10 +802,16 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
     private static class ItemPresetAdapter extends RecyclerView.Adapter<ItemPresetAdapter.ItemPresetViewHolder> {
         private final List<String> presets;
         private final OnPresetClickListener listener;
+        private String selectedPreset;
 
         ItemPresetAdapter(List<String> presets, OnPresetClickListener listener) {
             this.presets = presets;
             this.listener = listener;
+        }
+
+        void setSelectedPreset(@Nullable String selectedPreset) {
+            this.selectedPreset = selectedPreset;
+            notifyDataSetChanged();
         }
 
         @NonNull
@@ -783,6 +824,7 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ItemPresetViewHolder holder, int position) {
             String preset = presets.get(position);
             holder.button.setText(preset);
+            bindGridButtonState(holder.button, preset.equals(selectedPreset));
             holder.button.setOnClickListener(v -> listener.onPresetClick(preset));
         }
 
@@ -865,7 +907,13 @@ public class HospitalDeliveryActivity extends AppCompatActivity {
         params.setMargins(margin, margin, margin, margin);
         button.setLayoutParams(params);
         button.setBackgroundResource(R.drawable.item_point_style);
-        button.setTextColor(Color.BLACK);
+        bindGridButtonState(button, false);
         return button;
+    }
+
+    private static void bindGridButtonState(Button button, boolean selected) {
+        button.setActivated(selected);
+        button.setSelected(selected);
+        button.setTextColor(selected ? Color.WHITE : Color.BLACK);
     }
 }
